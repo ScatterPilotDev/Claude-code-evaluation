@@ -1,0 +1,7 @@
+# Lambda function dependencies
+# PDF generation dependencies
+reportlab==4.0.9
+PyPDF2==3.0.1
+
+# Most other dependencies are provided by the CommonLayer
+# boto3 is provided by Lambda runtime

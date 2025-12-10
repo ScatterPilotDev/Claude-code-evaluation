@@ -1,0 +1,13 @@
+{
+  "pathParameters": {
+    "invoice_id": "e4246954-32cf-45c7-b5ac-8618d832e936"
+  },
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "04e85448-10f1-708b-923f-82a0cbf7f29d",
+        "email": "testuser@example.com"
+      }
+    }
+  }
+}

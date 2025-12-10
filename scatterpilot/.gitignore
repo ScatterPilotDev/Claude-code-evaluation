@@ -1,0 +1,121 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+ENV/
+env/
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+temp/
+
+# ============================================================================
+# SECURITY: AWS Credentials and Secrets - NEVER COMMIT THESE
+# ============================================================================
+
+# AWS credentials directory (contains access keys)
+.aws/
+~/.aws/
+
+# Deployment configuration (may contain sensitive info)
+.deployment-config
+.deployment-outputs
+.test-results
+.monitoring-config
+
+# SAM deployment config (may contain stack parameters)
+samconfig.toml
+
+# Any files with credentials in the name
+*credentials*
+*secret*
+*password*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Environment files with secrets
+.env
+.env.*
+!.env.example
+
+# AWS session tokens
+aws-session-*
+
+# Terraform/CloudFormation outputs
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+
+# Certificate files
+*.crt
+*.cer
+*.ca-bundle
+
+# SSH keys
+id_rsa
+id_rsa.pub
+known_hosts
+
+# Backup files that might contain sensitive data
+*.backup
+*.bak
+*.old
+
+# ============================================================================
+# IMPORTANT: If you've accidentally committed credentials:
+# 1. IMMEDIATELY rotate/delete the credentials in AWS Console
+# 2. Run: git filter-branch --force --index-filter \
+#    "git rm --cached --ignore-unmatch PATH_TO_FILE" \
+#    --prune-empty --tag-name-filter cat -- --all
+# 3. Force push: git push origin --force --all
+# 4. Contact GitHub support to purge cached credentials
+# ============================================================================

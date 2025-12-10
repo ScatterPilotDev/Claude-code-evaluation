@@ -1,0 +1,15 @@
+{
+  "resource": "/profile",
+  "path": "/profile",
+  "httpMethod": "GET",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "d428d478-b031-700b-f25f-b2e854d3f0bc"
+      }
+    }
+  }
+}

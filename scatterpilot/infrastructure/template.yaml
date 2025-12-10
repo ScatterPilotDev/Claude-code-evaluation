@@ -1,0 +1,967 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ScatterPilot - Enterprise-grade serverless invoice generation system
+
+# =============================================================================
+# GLOBAL CONFIGURATION
+# =============================================================================
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 512
+    Tracing: Active  # X-Ray tracing enabled
+    Environment:
+      Variables:
+        POWERTOOLS_SERVICE_NAME: scatterpilot
+        POWERTOOLS_METRICS_NAMESPACE: ScatterPilot
+        LOG_LEVEL: INFO
+        CONVERSATIONS_TABLE: !Ref ConversationsTable
+        INVOICES_TABLE: !Ref InvoicesTable
+        RATE_LIMITS_TABLE: !Ref RateLimitsTable
+        SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+        FEEDBACK_TABLE: !Ref FeedbackTable
+        INVOICE_BUCKET: !Ref InvoiceBucket
+        RATE_LIMIT_MAX_REQUESTS: 100
+        RATE_LIMIT_WINDOW_SECONDS: 3600
+
+# =============================================================================
+# PARAMETERS
+# =============================================================================
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  StripeSecretKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Stripe Secret API Key (sk_test_... or sk_live_...)
+
+  StripeClientId:
+    Type: String
+    Default: 'ca_TTES0zNbc9MQ9hJIeYvD65yUc08qLqEb'
+    Description: Stripe Connect Client ID (ca_...)
+
+  StripeWebhookSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Stripe Webhook Signing Secret (whsec_...)
+
+  StripeProPriceId:
+    Type: String
+    Default: ''
+    Description: Stripe Price ID for Pro subscription
+
+  FrontendUrl:
+    Type: String
+    Default: 'http://localhost:5173'
+    Description: Frontend URL for redirects
+
+# =============================================================================
+# RESOURCES
+# =============================================================================
+Resources:
+
+  # ---------------------------------------------------------------------------
+  # Lambda Layer - Shared Dependencies
+  # ---------------------------------------------------------------------------
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: scatterpilot-common
+      Description: Shared utilities and dependencies
+      ContentUri: ../layers/common/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # ---------------------------------------------------------------------------
+  # DynamoDB Tables
+  # ---------------------------------------------------------------------------
+  ConversationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ScatterPilot-Conversations-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: conversation_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: conversation_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  InvoicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ScatterPilot-Invoices-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: invoice_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: invoice_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  RateLimitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ScatterPilot-RateLimits-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  SubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ScatterPilot-Subscriptions-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: stripe_customer_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: StripeCustomerIndex
+          KeySchema:
+            - AttributeName: stripe_customer_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  FeedbackTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ScatterPilot-Feedback-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: feedback_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+        - AttributeName: user_email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: feedback_id
+          KeyType: HASH
+        - AttributeName: created_at
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: user_email
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  # ---------------------------------------------------------------------------
+  # S3 Bucket for PDFs
+  # ---------------------------------------------------------------------------
+  InvoiceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub scatterpilot-invoices-${Environment}-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false  # Allow bucket policy for public read
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: false  # Allow public access via bucket policy
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  # S3 Bucket Policy - Allow public read access to invoice PDFs
+  InvoiceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref InvoiceBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadForInvoicePDFs
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${InvoiceBucket.Arn}/invoices/*'
+
+  # ---------------------------------------------------------------------------
+  # Cognito User Pool for Authentication
+  # ---------------------------------------------------------------------------
+  ScatterPilotUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ScatterPilot-Users-${Environment}
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate:
+          - email
+      UserPoolAddOns:
+        AdvancedSecurityMode: ENFORCED
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      UserPoolTags:
+        Environment: !Ref Environment
+        Application: ScatterPilot
+
+  ScatterPilotUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ScatterPilot-WebApp-${Environment}
+      UserPoolId: !Ref ScatterPilotUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+      PreventUserExistenceErrors: ENABLED
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      TokenValidityUnits:
+        RefreshToken: days
+        AccessToken: minutes
+        IdToken: minutes
+      ReadAttributes:
+        - email
+        - email_verified
+      WriteAttributes:
+        - email
+
+  # ---------------------------------------------------------------------------
+  # Lambda Functions
+  # ---------------------------------------------------------------------------
+
+  # Bedrock Conversation Handler
+  ConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-Conversation-${Environment}
+      CodeUri: ../functions/bedrock/
+      Handler: conversation.handler
+      Description: Handles conversational invoice data extraction using Bedrock
+      Timeout: 60
+      MemorySize: 1024
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+        - Statement:
+            - Sid: BedrockAccessMVP
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource:
+                - arn:aws:bedrock:*::foundation-model/anthropic.claude-*
+                - arn:aws:bedrock:*:373345867629:inference-profile/us.anthropic.claude-*
+      Events:
+        PostMessage:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /conversation
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Create Invoice Function
+  CreateInvoiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-CreateInvoice-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: create.handler
+      Description: Creates invoice from conversation or direct data
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        CreateInvoice:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # List Invoices Function
+  ListInvoicesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-ListInvoices-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: list.handler
+      Description: Lists user invoices with pagination
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+      Events:
+        ListInvoices:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Get Invoice Function
+  GetInvoiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GetInvoice-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: get.handler
+      Description: Retrieves single invoice by ID
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+      Events:
+        GetInvoice:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices/{invoice_id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Generate PDF Function
+  GeneratePDFFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GeneratePDF-${Environment}
+      CodeUri: ../functions/pdf/
+      Handler: generate.handler
+      Description: Generates PDF invoice and uploads to S3
+      Timeout: 90
+      MemorySize: 1536
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          INVOICE_BUCKET: !Ref InvoiceBucket
+          INVOICES_TABLE: !Ref InvoicesTable
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+        - S3FullAccessPolicy:
+            BucketName: !Ref InvoiceBucket
+      Events:
+        GeneratePDF:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices/{invoice_id}/pdf
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # ---------------------------------------------------------------------------
+  # Stripe Subscription Functions
+  # ---------------------------------------------------------------------------
+
+  # Create Checkout Session
+  CreateCheckoutSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-CreateCheckout-${Environment}
+      CodeUri: ../functions/subscriptions/
+      Handler: checkout.handler
+      Description: Creates Stripe checkout session for subscription
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          STRIPE_PRO_PRICE_ID: !Ref StripeProPriceId
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        CreateCheckout:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /checkout
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Create Portal Session
+  CreatePortalSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-CreatePortal-${Environment}
+      CodeUri: ../functions/subscriptions/
+      Handler: checkout.create_portal_session
+      Description: Creates Stripe customer portal session
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        CreatePortal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /portal
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Get Subscription
+  GetSubscriptionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GetSubscription-${Environment}
+      CodeUri: ../functions/subscriptions/
+      Handler: get_subscription.handler
+      Description: Gets user subscription status and usage
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        GetSubscription:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /subscription
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Stripe Webhook Handler
+  StripeWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-StripeWebhook-${Environment}
+      CodeUri: ../functions/subscriptions/
+      Handler: webhook.handler
+      Description: Handles Stripe webhook events
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        StripeWebhook:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /webhook/stripe
+            Method: POST
+            # No auth - Stripe sends webhooks directly
+
+  # Update Invoice Color Preference
+  UpdateInvoiceColorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-UpdateInvoiceColor-${Environment}
+      CodeUri: ../functions/subscriptions/
+      Handler: update_invoice_color.handler
+      Description: Updates invoice color preference for Pro users
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        UpdateColor:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoice-color
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # ---------------------------------------------------------------------------
+  # User Profile Functions
+  # ---------------------------------------------------------------------------
+
+  # Get User Profile
+  GetUserProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GetProfile-${Environment}
+      CodeUri: ../functions/profile/
+      Handler: get_profile.handler
+      Description: Gets user profile and business information
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /profile
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Update User Profile
+  UpdateUserProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-UpdateProfile-${Environment}
+      CodeUri: ../functions/profile/
+      Handler: update_profile.handler
+      Description: Updates user profile and business information
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        UpdateProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /profile
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # ---------------------------------------------------------------------------
+  # Stripe Connect Functions
+  # ---------------------------------------------------------------------------
+
+  # Get Stripe Connection Status
+  GetStripeStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GetStripeStatus-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: get_stripe_status.lambda_handler
+      Description: Gets user's Stripe connection status
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        GetStripeStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/status
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Stripe OAuth Callback Handler
+  StripeOAuthCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-StripeOAuthCallback-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: stripe_oauth_callback.lambda_handler
+      Description: Handles Stripe OAuth callback and stores credentials
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_CLIENT_ID: !Ref StripeClientId
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        StripeCallback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/callback
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Disconnect Stripe Account
+  DisconnectStripeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-DisconnectStripe-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: disconnect_stripe.lambda_handler
+      Description: Disconnects user's Stripe account
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_CLIENT_ID: !Ref StripeClientId
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        DisconnectStripe:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/disconnect
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # ---------------------------------------------------------------------------
+  # Feedback System
+  # ---------------------------------------------------------------------------
+
+  # Submit Feedback Function
+  SubmitFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-SubmitFeedback-${Environment}
+      CodeUri: ../functions/feedback/
+      Handler: submit.handler
+      Description: Handles user feedback and bug reports
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          NOTIFICATION_EMAIL: dev@scatterpilot.com
+          SENDER_EMAIL: noreply@scatterpilot.com
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FeedbackTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref RateLimitsTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref RateLimitsTable
+        - Statement:
+            - Sid: SESEmailSending
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
+      Events:
+        SubmitFeedback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /feedback
+            Method: POST
+            # No auth required - allow anonymous feedback
+
+  # ---------------------------------------------------------------------------
+  # API Gateway
+  # ---------------------------------------------------------------------------
+  ScatterPilotApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub ScatterPilot-API-${Environment}
+      StageName: !Ref Environment
+      TracingEnabled: true
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt ScatterPilotUserPool.Arn
+            Identity:
+              Header: Authorization
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+
+  # ---------------------------------------------------------------------------
+  # CloudWatch Log Groups
+  # ---------------------------------------------------------------------------
+  ConversationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-Conversation-${Environment}
+      RetentionInDays: 30
+
+  CreateInvoiceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-CreateInvoice-${Environment}
+      RetentionInDays: 30
+
+  ListInvoicesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-ListInvoices-${Environment}
+      RetentionInDays: 30
+
+  GetInvoiceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetInvoice-${Environment}
+      RetentionInDays: 30
+
+  GeneratePDFLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GeneratePDF-${Environment}
+      RetentionInDays: 30
+
+  CreateCheckoutLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-CreateCheckout-${Environment}
+      RetentionInDays: 30
+
+  CreatePortalLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-CreatePortal-${Environment}
+      RetentionInDays: 30
+
+  GetSubscriptionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetSubscription-${Environment}
+      RetentionInDays: 30
+
+  StripeWebhookLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeWebhook-${Environment}
+      RetentionInDays: 30
+
+  UpdateInvoiceColorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-UpdateInvoiceColor-${Environment}
+      RetentionInDays: 30
+
+  SubmitFeedbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-SubmitFeedback-${Environment}
+      RetentionInDays: 30
+
+# =============================================================================
+# OUTPUTS
+# =============================================================================
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ScatterPilotApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ScatterPilot-API-URL-${Environment}
+
+  ConversationsTableName:
+    Description: DynamoDB Conversations table
+    Value: !Ref ConversationsTable
+    Export:
+      Name: !Sub ScatterPilot-Conversations-Table-${Environment}
+
+  InvoicesTableName:
+    Description: DynamoDB Invoices table
+    Value: !Ref InvoicesTable
+    Export:
+      Name: !Sub ScatterPilot-Invoices-Table-${Environment}
+
+  SubscriptionsTableName:
+    Description: DynamoDB Subscriptions table
+    Value: !Ref SubscriptionsTable
+    Export:
+      Name: !Sub ScatterPilot-Subscriptions-Table-${Environment}
+
+  InvoiceBucketName:
+    Description: S3 bucket for invoice PDFs
+    Value: !Ref InvoiceBucket
+    Export:
+      Name: !Sub ScatterPilot-Invoice-Bucket-${Environment}
+
+  ConversationFunctionArn:
+    Description: Conversation Lambda Function ARN
+    Value: !GetAtt ConversationFunction.Arn
+    Export:
+      Name: !Sub ScatterPilot-Conversation-Function-${Environment}
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref ScatterPilotUserPool
+    Export:
+      Name: !Sub ScatterPilot-UserPool-${Environment}
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref ScatterPilotUserPoolClient
+    Export:
+      Name: !Sub ScatterPilot-UserPoolClient-${Environment}
+
+  UserPoolArn:
+    Description: Cognito User Pool ARN
+    Value: !GetAtt ScatterPilotUserPool.Arn
+    Export:
+      Name: !Sub ScatterPilot-UserPoolArn-${Environment}

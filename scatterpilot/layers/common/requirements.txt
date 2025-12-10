@@ -1,0 +1,15 @@
+# Lambda Layer Dependencies for ScatterPilot Common Layer
+# These will be installed in the /opt/python path
+
+# Core dependencies
+pydantic==2.6.0
+pydantic-settings==2.1.0
+
+# AWS Lambda Powertools for structured logging
+aws-lambda-powertools==2.32.0
+
+# boto3 is provided by Lambda runtime, but specify for local development
+boto3>=1.34.0
+
+# Stripe for payment processing
+stripe>=7.0.0

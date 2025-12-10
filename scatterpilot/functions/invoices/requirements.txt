@@ -1,0 +1,3 @@
+# Lambda function dependencies
+# Most dependencies are provided by the CommonLayer
+# boto3 is provided by Lambda runtime

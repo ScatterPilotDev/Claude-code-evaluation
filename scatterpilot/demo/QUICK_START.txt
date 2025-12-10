@@ -1,0 +1,79 @@
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│        ScatterPilot Demo - Quick Start Guide           │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+
+🚀 GET STARTED IN 30 SECONDS:
+
+1. Open index.html in your browser
+   
+   (Just double-click the file or right-click → Open With → Browser)
+
+2. Click "Start Creating an Invoice"
+
+3. Chat with the AI naturally:
+   
+   Example conversation:
+   ├─ AI: "Who is this invoice for?"
+   ├─ You: "Acme Corporation"
+   ├─ AI: "When would you like this invoice dated?"
+   ├─ You: "Today"
+   ├─ AI: "When is this invoice due?"
+   ├─ You: "30 days from now"
+   └─ ... continues to gather all information
+
+4. Review the invoice preview on the right
+
+5. Click "Download PDF" to get your invoice!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ FEATURES:
+
+✓ Works completely offline (No AWS required!)
+✓ Intelligent mock AI that understands natural language
+✓ Real-time invoice preview
+✓ Professional PDF generation
+✓ Mobile-responsive design
+✓ Toggle to live API when deployed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 EXAMPLE INPUTS:
+
+For line items, try:
+  • "40 hours of consulting at $150 per hour"
+  • "10 units @ $50 each"
+  • "Web development services, 20 x $200"
+
+For dates, try:
+  • "today"
+  • "January 15, 2024"
+  • "30 days from now"
+
+For tax:
+  • "8%" or "8 percent"
+  • "0" for no tax
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 PERFECT FOR:
+
+• Demos and presentations
+• Portfolio showcases
+• Job interviews
+• Learning serverless AI
+• Understanding Bedrock integration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 LEARN MORE:
+
+• Full documentation: README.md
+• AWS setup guide: ../AWS_SETUP_GUIDE.md
+• Project details: ../README.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Enjoy your demo! 🎉

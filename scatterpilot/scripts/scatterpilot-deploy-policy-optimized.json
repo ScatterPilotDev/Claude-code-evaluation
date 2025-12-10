@@ -1,0 +1,201 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:Describe*",
+        "cloudformation:GetTemplate*",
+        "cloudformation:ListStacks",
+        "cloudformation:ListStackResources",
+        "cloudformation:ValidateTemplate",
+        "cloudformation:*ChangeSet"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:*:*:stack/scatterpilot*/*",
+        "arn:aws:cloudformation:*:*:stack/aws-sam-cli-managed-default/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:*Bucket*",
+        "s3:*Object*",
+        "s3:ListBucket*",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration"
+      ],
+      "Resource": [
+        "arn:aws:s3:::scatterpilot-*",
+        "arn:aws:s3:::scatterpilot-*/*",
+        "arn:aws:s3:::aws-sam-cli-managed-default-*",
+        "arn:aws:s3:::aws-sam-cli-managed-default-*/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:*Function*",
+        "lambda:*Alias*",
+        "lambda:*Permission*",
+        "lambda:*Version*",
+        "lambda:GetPolicy",
+        "lambda:InvokeFunction",
+        "lambda:*Tag*",
+        "lambda:*FunctionConcurrency",
+        "lambda:PublishLayerVersion",
+        "lambda:DeleteLayerVersion",
+        "lambda:GetLayerVersion",
+        "lambda:ListLayer*"
+      ],
+      "Resource": [
+        "arn:aws:lambda:*:*:function:ScatterPilot-*",
+        "arn:aws:lambda:*:*:function:scatterpilot-*",
+        "arn:aws:lambda:*:*:layer:scatterpilot-*",
+        "arn:aws:lambda:*:*:layer:scatterpilot-*:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:*Role*",
+        "iam:*Tag*",
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/scatterpilot-*",
+        "arn:aws:iam::*:role/ScatterPilot-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*Table*",
+        "dynamodb:*Item*",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:Batch*",
+        "dynamodb:*Tag*"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/ScatterPilot-*",
+        "arn:aws:dynamodb:*:*:table/ScatterPilot-*/index/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:PATCH",
+        "apigateway:DELETE",
+        "apigateway:UpdateRestApiPolicy"
+      ],
+      "Resource": [
+        "arn:aws:apigateway:*::/restapis",
+        "arn:aws:apigateway:*::/restapis/*",
+        "arn:aws:apigateway:*::/tags/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:*LogGroup*",
+        "logs:*LogStream*",
+        "logs:*Retention*",
+        "logs:*Tag*",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/aws/lambda/ScatterPilot-*",
+        "arn:aws:logs:*:*:log-group:/aws/lambda/ScatterPilot-*:*",
+        "arn:aws:logs:*:*:log-group:/aws/apigateway/ScatterPilot-*",
+        "arn:aws:logs:*:*:log-group:/aws/apigateway/ScatterPilot-*:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetric*",
+        "cloudwatch:*Alarm*",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics",
+        "cloudwatch:*Dashboard*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "cloudwatch:namespace": [
+            "AWS/Lambda",
+            "AWS/ApiGateway",
+            "AWS/DynamoDB",
+            "ScatterPilot"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:*Dashboard*"
+      ],
+      "Resource": "arn:aws:cloudwatch::*:dashboard/ScatterPilot-*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sns:*Topic*",
+        "sns:*Subscription*",
+        "sns:List*",
+        "sns:*Tag*"
+      ],
+      "Resource": "arn:aws:sns:*:*:ScatterPilot-*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "xray:Put*",
+        "xray:Get*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel*"
+      ],
+      "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:*FoundationModel*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

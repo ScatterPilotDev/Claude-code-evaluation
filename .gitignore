@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*_COMPLETE.md
+secrets/
+
+# Large files
+*.zip
+*.tar.gz
+awscliv2.zip
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

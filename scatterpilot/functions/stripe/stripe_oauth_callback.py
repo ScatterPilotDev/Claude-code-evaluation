@@ -128,6 +128,43 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
                 })
             }
 
+        # Check subscription tier - Stripe integration requires Pro
+        subscription_response = table.get_item(Key={'user_id': user_id})
+
+        if 'Item' not in subscription_response:
+            logger.warning(f"No subscription record found for user: {user_id}")
+            return {
+                'statusCode': 403,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({
+                    'error': 'Pro subscription required',
+                    'message': 'Stripe payment integration is only available for Pro tier subscribers. Upgrade to Pro to receive payments directly.',
+                    'requiresUpgrade': True
+                })
+            }
+
+        subscription_status = subscription_response['Item'].get('subscription_status', 'free')
+
+        if subscription_status != 'pro':
+            logger.warning(f"User {user_id} attempted Stripe connection with {subscription_status} tier")
+            return {
+                'statusCode': 403,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({
+                    'error': 'Pro subscription required',
+                    'message': 'Stripe payment integration is only available for Pro tier subscribers. Upgrade to Pro to receive payments directly.',
+                    'requiresUpgrade': True
+                })
+            }
+
+        logger.info(f"Subscription tier check passed: {subscription_status}")
+
         # Exchange code for access token
         token_data = exchange_code_for_token(code)
 
@@ -140,35 +177,16 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
         # Store in DynamoDB
         now = datetime.utcnow().isoformat()
 
-        # First, check if subscription record exists
-        response = table.get_item(Key={'user_id': user_id})
-
-        if 'Item' in response:
-            # Update existing record
-            table.update_item(
-                Key={'user_id': user_id},
-                UpdateExpression='SET stripe_account_id = :account_id, stripe_access_token = :token, stripe_connected_at = :now, updated_at = :now',
-                ExpressionAttributeValues={
-                    ':account_id': stripe_account_id,
-                    ':token': access_token,
-                    ':now': now
-                }
-            )
-        else:
-            # Create new subscription record with Stripe data
-            table.put_item(
-                Item={
-                    'user_id': user_id,
-                    'subscription_status': 'free',
-                    'invoices_limit': 5,
-                    'invoices_this_month': 0,
-                    'stripe_account_id': stripe_account_id,
-                    'stripe_access_token': access_token,
-                    'stripe_connected_at': now,
-                    'created_at': now,
-                    'updated_at': now
-                }
-            )
+        # Update existing subscription record (we already verified it exists above)
+        table.update_item(
+            Key={'user_id': user_id},
+            UpdateExpression='SET stripe_account_id = :account_id, stripe_access_token = :token, stripe_connected_at = :now, updated_at = :now',
+            ExpressionAttributeValues={
+                ':account_id': stripe_account_id,
+                ':token': access_token,
+                ':now': now
+            }
+        )
 
         logger.info(f"Stripe connected successfully: {stripe_account_id}")
 

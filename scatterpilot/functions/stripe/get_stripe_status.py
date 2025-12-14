@@ -44,14 +44,16 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
         # Get user's subscription record
         response = table.get_item(
             Key={'user_id': user_id},
-            ProjectionExpression='stripe_account_id, stripe_connected_at'
+            ProjectionExpression='stripe_account_id, stripe_connected_at, subscription_status'
         )
 
         user_data = response.get('Item', {})
         stripe_account_id = user_data.get('stripe_account_id')
         stripe_connected_at = user_data.get('stripe_connected_at')
+        subscription_status = user_data.get('subscription_status', 'free')
+        is_pro = subscription_status == 'pro'
 
-        logger.info(f"Stripe status: connected={bool(stripe_account_id)}")
+        logger.info(f"Stripe status: connected={bool(stripe_account_id)}, isPro={is_pro}")
 
         return {
             'statusCode': 200,
@@ -64,7 +66,9 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
             'body': json.dumps({
                 'connected': bool(stripe_account_id),
                 'stripeAccountId': stripe_account_id if stripe_account_id else None,
-                'connectedAt': stripe_connected_at if stripe_connected_at else None
+                'connectedAt': stripe_connected_at if stripe_connected_at else None,
+                'isPro': is_pro,
+                'subscription_status': subscription_status
             }, cls=DecimalEncoder)
         }
 

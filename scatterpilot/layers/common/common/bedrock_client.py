@@ -27,12 +27,12 @@ class BedrockException(Exception):
 
 class BedrockClient:
     """
-    Amazon Bedrock client for Claude 3.5 Sonnet interactions
+    Amazon Bedrock client for Claude Sonnet 4.5 interactions
     Implements conversation management and structured data extraction
     """
 
-    # Model configuration - using cross-region inference profile for on-demand throughput
-    MODEL_ID = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    # Model configuration
+    MODEL_ID = "anthropic.claude-sonnet-4-5-20250929-v1:0"
     DEFAULT_MAX_TOKENS = 2048
     DEFAULT_TEMPERATURE = 0.7
 

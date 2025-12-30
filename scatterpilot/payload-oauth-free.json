@@ -1,0 +1,8 @@
+{
+  "requestContext": {
+    "authorizer": {
+      "claims": {"sub": "test-free-user"}
+    }
+  },
+  "body": "{\"code\":\"test_code\",\"state\":\"test-free-user\"}"
+}

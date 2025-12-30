@@ -199,13 +199,13 @@ check-bedrock: ## Check Bedrock model access
 	@echo "$(GREEN)Checking Bedrock access...$(NC)"
 	@$(AWS) bedrock list-foundation-models \
 		--region $(REGION) \
-		--query 'modelSummaries[?contains(modelId, `claude-3-5-sonnet`)].{ID:modelId,Name:modelName}' \
+		--query 'modelSummaries[?contains(modelId, `claude-sonnet-4-5`)].{ID:modelId,Name:modelName}' \
 		--output table
 
 cost-estimate: ## Estimate monthly costs
 	@echo "$(CYAN)Cost Estimation for ScatterPilot$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Bedrock (Claude 3.5 Sonnet):$(NC)"
+	@echo "$(YELLOW)Bedrock (Claude Sonnet 4.5):$(NC)"
 	@echo "  - Input: ~\$$0.003 per 1K tokens"
 	@echo "  - Output: ~\$$0.015 per 1K tokens"
 	@echo "  - Avg conversation: ~\$$0.05"

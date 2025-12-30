@@ -157,12 +157,12 @@ Default output format: json
 
 ### 3. Enable Bedrock Access
 
-Before deployment, you must enable Claude 3.5 Sonnet in AWS Console:
+Before deployment, you must enable Claude Sonnet 4.5 in AWS Console:
 
 1. Open [Amazon Bedrock Console](https://console.aws.amazon.com/bedrock/)
 2. Click **Model access** in left sidebar
 3. Click **Enable specific models**
-4. Find **Anthropic** → **Claude 3.5 Sonnet v2**
+4. Find **Anthropic** → **Claude Sonnet 4.5 v2**
 5. Check the box and click **Request model access**
 6. Wait ~1 minute for "Access granted" ✅
 
@@ -285,7 +285,7 @@ Docker is optional. You can:
 ### Error: "Bedrock access denied"
 1. Go to [Bedrock Console](https://console.aws.amazon.com/bedrock/)
 2. Click **Model access** → **Enable specific models**
-3. Enable **Claude 3.5 Sonnet v2**
+3. Enable **Claude Sonnet 4.5 v2**
 4. Wait for approval (~1 minute)
 
 ### Error: "Stack already exists"

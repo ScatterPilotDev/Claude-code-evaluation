@@ -109,8 +109,8 @@ aws sts get-caller-identity
 1. Go to AWS Console → Amazon Bedrock
 2. Click "Model access" in the left sidebar
 3. Click "Request model access"
-4. Select: **Anthropic → Claude 3.5 Sonnet v2**
-   - Model ID: `anthropic.claude-3-5-sonnet-20241022-v2:0`
+4. Select: **Anthropic → Claude Sonnet 4.5 v2**
+   - Model ID: `anthropic.claude-sonnet-4-5-20250929-v1:0`
 5. Click "Request model access"
 6. Wait for approval (usually instant)
 
@@ -120,7 +120,7 @@ aws sts get-caller-identity
 # List available models
 aws bedrock list-foundation-models \
     --region us-east-1 \
-    --query 'modelSummaries[?contains(modelId, `claude-3-5-sonnet`)].{ID:modelId,Name:modelName}' \
+    --query 'modelSummaries[?contains(modelId, `claude-sonnet-4-5`)].{ID:modelId,Name:modelName}' \
     --output table
 
 # Should show:
@@ -129,13 +129,13 @@ aws bedrock list-foundation-models \
 +--------------------------------------------------------------+-------------------------+
 |                              ID                              |          Name           |
 +--------------------------------------------------------------+-------------------------+
-|  anthropic.claude-3-5-sonnet-20241022-v2:0                  |  Claude 3.5 Sonnet v2   |
+|  anthropic.claude-sonnet-4-5-20250929-v1:0                  |  Claude Sonnet 4.5   |
 +--------------------------------------------------------------+-------------------------+
 ```
 
 ### Supported Regions for Bedrock
 
-Claude 3.5 Sonnet is available in:
+Claude Sonnet 4.5 is available in:
 - `us-east-1` (N. Virginia) ✅ **Recommended**
 - `us-west-2` (Oregon)
 - `eu-central-1` (Frankfurt)
@@ -307,7 +307,7 @@ aws configure
 ```bash
 # Check model access
 aws bedrock get-foundation-model \
-    --model-identifier anthropic.claude-3-5-sonnet-20241022-v2:0 \
+    --model-identifier anthropic.claude-sonnet-4-5-20250929-v1:0 \
     --region us-east-1
 
 # If error, request access in console
@@ -354,7 +354,7 @@ cat infrastructure/template.yaml
 ## Cost Estimation
 
 ### Bedrock Costs
-- **Claude 3.5 Sonnet:**
+- **Claude Sonnet 4.5:**
   - Input: $0.003 per 1K tokens
   - Output: $0.015 per 1K tokens
   - Average conversation: ~$0.05

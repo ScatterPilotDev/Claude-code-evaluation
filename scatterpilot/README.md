@@ -2,7 +2,7 @@
 
 **Enterprise-Grade Serverless Invoice Generation System**
 
-A production-ready serverless application that uses conversational AI (Amazon Bedrock with Claude 3.5 Sonnet) to extract structured invoice data from natural language conversations, then generates professional PDF invoices.
+A production-ready serverless application that uses conversational AI (Amazon Bedrock with Claude Sonnet 4.5) to extract structured invoice data from natural language conversations, then generates professional PDF invoices.
 
 ## Architecture
 
@@ -70,8 +70,8 @@ A production-ready serverless application that uses conversational AI (Amazon Be
        │   Bedrock    │
        │              │
        │   Claude     │
-       │   3.5        │
        │   Sonnet     │
+       │   4.5        │
        │              │
        └──────────────┘
 ```
@@ -79,7 +79,7 @@ A production-ready serverless application that uses conversational AI (Amazon Be
 ## Features
 
 ### Core Capabilities
-- **Conversational AI**: Natural language invoice data extraction using Claude 3.5 Sonnet
+- **Conversational AI**: Natural language invoice data extraction using Claude Sonnet 4.5
 - **Multi-turn Conversations**: Stateful conversation management with context retention
 - **Structured Data Extraction**: Automatic JSON parsing from conversational responses
 - **PDF Generation**: Professional invoice PDFs with company branding
@@ -139,7 +139,7 @@ scatterpilot/
 
 - **AWS Account** with the following services enabled:
   - AWS Lambda
-  - Amazon Bedrock (with Claude 3.5 Sonnet access)
+  - Amazon Bedrock (with Claude Sonnet 4.5 access)
   - Amazon DynamoDB
   - Amazon S3
   - API Gateway
@@ -211,8 +211,8 @@ cat scripts/02-enable-bedrock-access.md
 # Then enable in AWS Console:
 # 1. Navigate to Amazon Bedrock console
 # 2. Click "Model access" → "Enable specific models"
-# 3. Enable: Claude 3.5 Sonnet v2
-#    Model ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+# 3. Enable: Claude Sonnet 4.5
+#    Model ID: anthropic.claude-sonnet-4-5-20250929-v1:0
 # 4. Wait for approval (typically instant)
 ```
 
@@ -421,7 +421,7 @@ Set in SAM template or locally:
 ## Cost Estimation
 
 ### Bedrock Costs
-- Claude 3.5 Sonnet: ~$0.003 per 1K input tokens, ~$0.015 per 1K output tokens
+- Claude Sonnet 4.5: ~$0.003 per 1K input tokens, ~$0.015 per 1K output tokens
 - Average conversation: 5 turns × 500 tokens = ~$0.05 per invoice
 
 ### AWS Lambda
@@ -519,7 +519,7 @@ MIT License - see LICENSE file for details
 
 - Built with [AWS SAM](https://aws.amazon.com/serverless/sam/)
 - Powered by [Amazon Bedrock](https://aws.amazon.com/bedrock/)
-- Uses [Claude 3.5 Sonnet](https://www.anthropic.com/claude) by Anthropic
+- Uses [Claude Sonnet 4.5](https://www.anthropic.com/claude) by Anthropic
 - Logging with [AWS Lambda Powertools](https://awslabs.github.io/aws-lambda-powertools-python/)
 
 ## Contact

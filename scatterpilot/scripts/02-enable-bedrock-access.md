@@ -1,17 +1,17 @@
 # Enabling Amazon Bedrock Model Access
 
-Before deploying ScatterPilot, you must enable access to the Claude 3.5 Sonnet model in Amazon Bedrock.
+Before deploying ScatterPilot, you must enable access to the Claude Sonnet 4.5 model in Amazon Bedrock.
 
 ## Model Information
 
-- **Model ID**: `anthropic.claude-3-5-sonnet-20241022-v2:0`
-- **Model Name**: Claude 3.5 Sonnet v2
+- **Model ID**: `anthropic.claude-sonnet-4-5-20250929-v1:0`
+- **Model Name**: Claude Sonnet 4.5 v2
 - **Provider**: Anthropic
 - **Release Date**: October 22, 2024
 
 ## Supported Regions
 
-Claude 3.5 Sonnet v2 is available in the following AWS regions:
+Claude Sonnet 4.5 v2 is available in the following AWS regions:
 
 | Region Code | Region Name | Recommended |
 |------------|-------------|-------------|
@@ -44,9 +44,9 @@ Claude 3.5 Sonnet v2 is available in the following AWS regions:
    - In the left sidebar, click **"Model access"**
    - Click **"Enable specific models"** or **"Modify model access"**
 
-5. **Request Claude 3.5 Sonnet Access**
+5. **Request Claude Sonnet 4.5 Access**
    - Find **"Anthropic"** in the list of providers
-   - Locate **"Claude 3.5 Sonnet v2"**
+   - Locate **"Claude Sonnet 4.5 v2"**
    - Check the box next to this model
    - Review the EULA and accept terms
    - Click **"Request model access"** or **"Save changes"**
@@ -71,7 +71,7 @@ export AWS_REGION=us-east-1
 # List available models
 aws bedrock list-foundation-models \
   --region $AWS_REGION \
-  --query 'modelSummaries[?contains(modelId, `claude-3-5-sonnet`)]' \
+  --query 'modelSummaries[?contains(modelId, `claude-sonnet-4-5`)]' \
   --output table
 
 # Note: Currently, you must enable model access through the AWS Console
@@ -86,7 +86,7 @@ After enabling access, verify it works:
 # Test Bedrock access
 aws bedrock list-foundation-models \
   --region us-east-1 \
-  --query 'modelSummaries[?modelId==`anthropic.claude-3-5-sonnet-20241022-v2:0`]' \
+  --query 'modelSummaries[?modelId==`anthropic.claude-sonnet-4-5-20250929-v1:0`]' \
   --output json
 ```
 
@@ -94,9 +94,9 @@ Expected output:
 ```json
 [
   {
-    "modelArn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "modelId": "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "modelName": "Claude 3.5 Sonnet v2",
+    "modelArn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "modelId": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "modelName": "Claude Sonnet 4.5 v2",
     "providerName": "Anthropic",
     ...
   }
@@ -110,7 +110,7 @@ You can test the model with this command (requires access to be granted):
 ```bash
 aws bedrock-runtime invoke-model \
   --region us-east-1 \
-  --model-id anthropic.claude-3-5-sonnet-20241022-v2:0 \
+  --model-id anthropic.claude-sonnet-4-5-20250929-v1:0 \
   --body '{
     "anthropic_version": "bedrock-2023-05-31",
     "max_tokens": 100,
@@ -131,7 +131,7 @@ aws bedrock-runtime invoke-model \
 
 **Solution**:
 - Verify you're using a supported region
-- Check model ID is exactly: `anthropic.claude-3-5-sonnet-20241022-v2:0`
+- Check model ID is exactly: `anthropic.claude-sonnet-4-5-20250929-v1:0`
 - Try a different region (us-east-1 or us-west-2)
 
 ### Issue: "Access denied" error
@@ -189,7 +189,7 @@ Your AWS user/role needs these permissions:
         "bedrock:InvokeModel",
         "bedrock:InvokeModelWithResponseStream"
       ],
-      "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+      "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0"
     },
     {
       "Effect": "Allow",

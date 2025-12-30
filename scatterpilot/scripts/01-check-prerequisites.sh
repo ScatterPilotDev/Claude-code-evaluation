@@ -219,12 +219,12 @@ if command -v aws &> /dev/null && aws sts get-caller-identity &> /dev/null 2>&1;
     if aws bedrock list-foundation-models --region $REGION &> /dev/null 2>&1; then
         check_pass "Bedrock service is accessible"
 
-        # Check if Claude 3.5 Sonnet is available
-        MODEL_ID="anthropic.claude-3-5-sonnet-20241022-v2:0"
+        # Check if Claude Sonnet 4.5 is available
+        MODEL_ID="anthropic.claude-sonnet-4-5-20250929-v1:0"
         if aws bedrock list-foundation-models --region $REGION --query "modelSummaries[?modelId=='$MODEL_ID']" --output json 2>/dev/null | grep -q "$MODEL_ID"; then
-            check_pass "Claude 3.5 Sonnet v2 model is available in $REGION"
+            check_pass "Claude Sonnet 4.5 model is available in $REGION"
         else
-            check_warn "Claude 3.5 Sonnet v2 may not be available in $REGION"
+            check_warn "Claude Sonnet 4.5 may not be available in $REGION"
             echo -e "   ${YELLOW}Model access must be enabled in AWS Console${NC}"
             echo -e "   ${YELLOW}Supported regions: us-east-1, us-west-2${NC}"
         fi

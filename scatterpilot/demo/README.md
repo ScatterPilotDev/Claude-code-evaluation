@@ -27,7 +27,7 @@ That's it! 🎉
 
 ### Live API Mode
 
-- **Real Bedrock integration** - Actual Claude 3.5 Sonnet
+- **Real Bedrock integration** - Actual Claude Sonnet 4.5
 - **Connect to deployed stack** - Uses your API Gateway URL
 - **Production data** - Saves to DynamoDB, generates real PDFs
 

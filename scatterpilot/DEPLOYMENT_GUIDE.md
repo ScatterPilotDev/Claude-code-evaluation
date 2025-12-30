@@ -159,8 +159,8 @@ Or view online: [02-enable-bedrock-access.md](scripts/02-enable-bedrock-access.m
 3. **Enable Model Access**
    - Click **"Model access"** in the left sidebar
    - Click **"Enable specific models"**
-   - Find **Anthropic → Claude 3.5 Sonnet v2**
-   - Model ID: `anthropic.claude-3-5-sonnet-20241022-v2:0`
+   - Find **Anthropic → Claude Sonnet 4.5 v2**
+   - Model ID: `anthropic.claude-sonnet-4-5-20250929-v1:0`
    - Check the box and click **"Request model access"**
 
 4. **Wait for Approval**
@@ -173,7 +173,7 @@ Or view online: [02-enable-bedrock-access.md](scripts/02-enable-bedrock-access.m
 # Test Bedrock access
 aws bedrock list-foundation-models \
   --region us-east-1 \
-  --query 'modelSummaries[?modelId==`anthropic.claude-3-5-sonnet-20241022-v2:0`]'
+  --query 'modelSummaries[?modelId==`anthropic.claude-sonnet-4-5-20250929-v1:0`]'
 ```
 
 **Expected output:** JSON with model details
@@ -434,7 +434,7 @@ aws configure set region us-east-1
 
 **Solution:**
 1. Go to AWS Console → Bedrock → Model access
-2. Enable Claude 3.5 Sonnet v2
+2. Enable Claude Sonnet 4.5 v2
 3. Wait for "Access granted" status
 4. Re-run deployment
 

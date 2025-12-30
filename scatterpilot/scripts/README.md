@@ -256,7 +256,7 @@ python3 -m http.server 8000
 **Cost Estimate (Development):**
 ```
 ┌─────────────────────────────────────────────┐
-│ AWS Bedrock (Claude 3.5 Sonnet)            │
+│ AWS Bedrock (Claude Sonnet 4.5)            │
 │ Example: 100 invoices × 5K tokens = $5-10  │
 ├─────────────────────────────────────────────┤
 │ DynamoDB (On-Demand)                       │
@@ -381,7 +381,7 @@ sudo systemctl start docker
 
 1. Open AWS Console → Amazon Bedrock
 2. Navigate to "Model access"
-3. Enable "Claude 3.5 Sonnet v2"
+3. Enable "Claude Sonnet 4.5 v2"
 4. Wait for "Access granted" status
 
 ### Stack Deployment Failed

@@ -314,7 +314,7 @@ cat <<EOF
 Estimated monthly costs for $ENVIRONMENT environment:
 
 ┌─────────────────────────────────────────────────────────────┐
-│ AWS Bedrock (Claude 3.5 Sonnet)                             │
+│ AWS Bedrock (Claude Sonnet 4.5)                             │
 ├─────────────────────────────────────────────────────────────┤
 │ Input tokens:  \$0.003 per 1K tokens                        │
 │ Output tokens: \$0.015 per 1K tokens                        │

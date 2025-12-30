@@ -60,7 +60,7 @@ echo -e "${GREEN}✓${NC} Stack name: $STACK_NAME"
 if [ -z "$AWS_REGION" ]; then
     CURRENT_REGION=$(aws configure get region 2>/dev/null || echo "us-east-1")
     echo ""
-    echo "Recommended regions for Bedrock Claude 3.5 Sonnet:"
+    echo "Recommended regions for Bedrock Claude Sonnet 4.5:"
     echo "  1. us-east-1 (US East - N. Virginia) [Recommended]"
     echo "  2. us-west-2 (US West - Oregon)"
     echo "  3. eu-west-1 (Europe - Ireland)"

@@ -1,0 +1,1 @@
+{"statusCode": 500, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": "{\"error\": \"Stripe API error: {\\n  \\\"error\\\": \\\"invalid_client\\\",\\n  \\\"error_description\\\": \\\"No such API key: \\\"\\n}\"}"}

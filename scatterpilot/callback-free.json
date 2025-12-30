@@ -1,0 +1,1 @@
+{"statusCode": 403, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": "{\"error\": \"Pro subscription required\", \"message\": \"Stripe payment integration is only available for Pro tier subscribers. Upgrade to Pro to receive payments directly.\", \"requiresUpgrade\": true}"}

@@ -255,7 +255,7 @@ class ScatterPilotLogger:
                 "output_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens,
                 "conversation_id": conversation_id,
-                "model": "anthropic.claude-sonnet-4-5-20250929-v1:0"
+                "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
             }
         )
 

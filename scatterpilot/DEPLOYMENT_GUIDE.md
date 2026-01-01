@@ -160,7 +160,7 @@ Or view online: [02-enable-bedrock-access.md](scripts/02-enable-bedrock-access.m
    - Click **"Model access"** in the left sidebar
    - Click **"Enable specific models"**
    - Find **Anthropic → Claude Sonnet 4.5 v2**
-   - Model ID: `anthropic.claude-sonnet-4-5-20250929-v1:0`
+   - Model ID: `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
    - Check the box and click **"Request model access"**
 
 4. **Wait for Approval**
@@ -173,7 +173,7 @@ Or view online: [02-enable-bedrock-access.md](scripts/02-enable-bedrock-access.m
 # Test Bedrock access
 aws bedrock list-foundation-models \
   --region us-east-1 \
-  --query 'modelSummaries[?modelId==`anthropic.claude-sonnet-4-5-20250929-v1:0`]'
+  --query 'modelSummaries[?modelId==`us.anthropic.claude-sonnet-4-5-20250929-v1:0`]'
 ```
 
 **Expected output:** JSON with model details

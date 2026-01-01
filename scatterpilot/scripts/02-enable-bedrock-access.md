@@ -4,7 +4,7 @@ Before deploying ScatterPilot, you must enable access to the Claude Sonnet 4.5 m
 
 ## Model Information
 
-- **Model ID**: `anthropic.claude-sonnet-4-5-20250929-v1:0`
+- **Model ID**: `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
 - **Model Name**: Claude Sonnet 4.5 v2
 - **Provider**: Anthropic
 - **Release Date**: October 22, 2024
@@ -86,7 +86,7 @@ After enabling access, verify it works:
 # Test Bedrock access
 aws bedrock list-foundation-models \
   --region us-east-1 \
-  --query 'modelSummaries[?modelId==`anthropic.claude-sonnet-4-5-20250929-v1:0`]' \
+  --query 'modelSummaries[?modelId==`us.anthropic.claude-sonnet-4-5-20250929-v1:0`]' \
   --output json
 ```
 
@@ -94,8 +94,8 @@ Expected output:
 ```json
 [
   {
-    "modelArn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "modelId": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "modelArn": "arn:aws:bedrock:us-east-1::foundation-model/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "modelId": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
     "modelName": "Claude Sonnet 4.5 v2",
     "providerName": "Anthropic",
     ...
@@ -110,7 +110,7 @@ You can test the model with this command (requires access to be granted):
 ```bash
 aws bedrock-runtime invoke-model \
   --region us-east-1 \
-  --model-id anthropic.claude-sonnet-4-5-20250929-v1:0 \
+  --model-id us.anthropic.claude-sonnet-4-5-20250929-v1:0 \
   --body '{
     "anthropic_version": "bedrock-2023-05-31",
     "max_tokens": 100,
@@ -131,7 +131,7 @@ aws bedrock-runtime invoke-model \
 
 **Solution**:
 - Verify you're using a supported region
-- Check model ID is exactly: `anthropic.claude-sonnet-4-5-20250929-v1:0`
+- Check model ID is exactly: `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
 - Try a different region (us-east-1 or us-west-2)
 
 ### Issue: "Access denied" error
@@ -189,7 +189,7 @@ Your AWS user/role needs these permissions:
         "bedrock:InvokeModel",
         "bedrock:InvokeModelWithResponseStream"
       ],
-      "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0"
+      "Resource": "arn:aws:bedrock:*::foundation-model/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
     },
     {
       "Effect": "Allow",

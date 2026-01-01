@@ -212,7 +212,7 @@ cat scripts/02-enable-bedrock-access.md
 # 1. Navigate to Amazon Bedrock console
 # 2. Click "Model access" → "Enable specific models"
 # 3. Enable: Claude Sonnet 4.5
-#    Model ID: anthropic.claude-sonnet-4-5-20250929-v1:0
+#    Model ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
 # 4. Wait for approval (typically instant)
 ```
 

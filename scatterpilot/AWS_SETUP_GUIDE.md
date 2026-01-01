@@ -110,7 +110,7 @@ aws sts get-caller-identity
 2. Click "Model access" in the left sidebar
 3. Click "Request model access"
 4. Select: **Anthropic → Claude Sonnet 4.5 v2**
-   - Model ID: `anthropic.claude-sonnet-4-5-20250929-v1:0`
+   - Model ID: `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
 5. Click "Request model access"
 6. Wait for approval (usually instant)
 
@@ -129,7 +129,7 @@ aws bedrock list-foundation-models \
 +--------------------------------------------------------------+-------------------------+
 |                              ID                              |          Name           |
 +--------------------------------------------------------------+-------------------------+
-|  anthropic.claude-sonnet-4-5-20250929-v1:0                  |  Claude Sonnet 4.5   |
+|  us.anthropic.claude-sonnet-4-5-20250929-v1:0               |  Claude Sonnet 4.5   |
 +--------------------------------------------------------------+-------------------------+
 ```
 
@@ -307,7 +307,7 @@ aws configure
 ```bash
 # Check model access
 aws bedrock get-foundation-model \
-    --model-identifier anthropic.claude-sonnet-4-5-20250929-v1:0 \
+    --model-identifier us.anthropic.claude-sonnet-4-5-20250929-v1:0 \
     --region us-east-1
 
 # If error, request access in console

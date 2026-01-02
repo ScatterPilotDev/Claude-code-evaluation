@@ -360,10 +360,6 @@ Resources:
       CodeUri: ../functions/bedrock/
       Handler: conversation.handler
       Description: Handles conversational invoice data extraction using Bedrock
-    - Sid: ConversationFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      # ... other properties ...
       Policies:
         - Statement:
             - Sid: BedrockAccessMVP
@@ -373,19 +369,7 @@ Resources:
                 - bedrock:InvokeModelWithResponseStream
               Resource:
                 - arn:aws:bedrock:*::foundation-model/anthropic.claude-*
-                - arn:aws:bedrock:us-east-1:373345867629:inference-profile/*BedrockAccessMVP
-  Effect: Allow
-  Action:
-    - bedrock:InvokeModel
-    - bedrock:InvokeModelWithResponseStream
-  Resource:
-    - arn:aws:bedrock:*::foundation-model/anthropic.claude-*
-    - arn:aws:bedrock:us-east-1:373345867629:inference-profile/*
-  Timeout: 60
-      MemorySize: 1024
-      Layers:
-        - !Ref CommonLayer
-      Policies:
+                - arn:aws:bedrock:us-east-1:373345867629:inference-profile/*
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationsTable
         - DynamoDBCrudPolicy:
@@ -394,15 +378,10 @@ Resources:
             TableName: !Ref InvoicesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SubscriptionsTable
-        - Statement:
-            - Sid: BedrockAccessMVP
-              Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-                - bedrock:InvokeModelWithResponseStream
-              Resource:
-                - arn:aws:bedrock:*::foundation-model/anthropic.claude-*
-                - arn:aws:bedrock:*:373345867629:inference-profile/us.anthropic.claude-*
+      Timeout: 60
+      MemorySize: 1024
+      Layers:
+        - !Ref CommonLayer
       Events:
         PostMessage:
           Type: Api

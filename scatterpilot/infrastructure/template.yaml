@@ -369,7 +369,7 @@ Resources:
                 - bedrock:InvokeModelWithResponseStream
               Resource:
                 - arn:aws:bedrock:*::foundation-model/anthropic.claude-*
-                - arn:aws:bedrock:us-east-1:373345867629:inference-profile/*
+                - arn:aws:bedrock:us-east-1:373345867629:inference-profile/global.anthropic.claude-sonnet-4-5-20250929-v1:0
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationsTable
         - DynamoDBCrudPolicy:

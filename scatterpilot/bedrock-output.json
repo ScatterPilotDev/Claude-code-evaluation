@@ -1,0 +1,1 @@
+{"model":"claude-sonnet-4-5-20250929","id":"msg_bdrk_01SVUjYc2eU16PyXvQNdqooc","type":"message","role":"assistant","content":[{"type":"text","text":"Hello! How can I help you today?"}],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":8,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":12}}

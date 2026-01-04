@@ -32,7 +32,7 @@ class BedrockClient:
     """
 
     # Model configuration
-    MODEL_ID = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
     DEFAULT_MAX_TOKENS = 2048
     DEFAULT_TEMPERATURE = 0.7
 

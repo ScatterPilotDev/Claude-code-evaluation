@@ -1,0 +1,15 @@
+{
+    "StackEvents": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-1:373345867629:stack/scatterpilot-staging/0e9463c0-e60b-11f0-8edb-1216f922ebd5",
+            "EventId": "0e93c780-e60b-11f0-8edb-1216f922ebd5",
+            "StackName": "scatterpilot-staging",
+            "LogicalResourceId": "scatterpilot-staging",
+            "PhysicalResourceId": "arn:aws:cloudformation:us-east-1:373345867629:stack/scatterpilot-staging/0e9463c0-e60b-11f0-8edb-1216f922ebd5",
+            "ResourceType": "AWS::CloudFormation::Stack",
+            "Timestamp": "2025-12-31T05:39:21.432000+00:00",
+            "ResourceStatus": "REVIEW_IN_PROGRESS",
+            "ResourceStatusReason": "User Initiated"
+        }
+    ]
+}

@@ -1,0 +1,2 @@
+
+An error occurred (ValidationError) when calling the CreateChangeSet operation: Stack [scatterpilot-staging] does not exist

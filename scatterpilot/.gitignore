@@ -119,3 +119,4 @@ known_hosts
 # 3. Force push: git push origin --force --all
 # 4. Contact GitHub support to purge cached credentials
 # ============================================================================
+.deployment-config

@@ -73,7 +73,7 @@ cd "$INFRASTRUCTURE_DIR"
 
 sam build \
     --template template.yaml \
-    --use-container \
+     \
     --region "$AWS_REGION"
 
 if [ $? -ne 0 ]; then

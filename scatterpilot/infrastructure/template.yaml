@@ -391,6 +391,29 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # List Conversations Function
+  ListConversationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-ListConversations-${Environment}
+      CodeUri: ../functions/conversations/
+      Handler: list.handler
+      Description: Lists user conversations with pagination
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ConversationsTable
+      Events:
+        ListConversations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /conversations
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   # Create Invoice Function
   CreateInvoiceFunction:
     Type: AWS::Serverless::Function
@@ -845,6 +868,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-Conversation-${Environment}
+      RetentionInDays: 30
+
+  ListConversationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-ListConversations-${Environment}
       RetentionInDays: 30
 
   CreateInvoiceLogGroup:

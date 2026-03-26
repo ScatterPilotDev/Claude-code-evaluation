@@ -1,23 +1,26 @@
 """
 Lambda function: Generate PDF
 Generates a professional PDF invoice from invoice data with tier-based styling
+Includes QR code payment links for Pro users with connected Stripe accounts
 """
 
 import io
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 # Add layer to path
 sys.path.insert(0, '/opt/python')
 
 import boto3
+import qrcode
+from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 
 from common.dynamodb_helper import DynamoDBHelper, DynamoDBException
@@ -152,14 +155,70 @@ class PDFGenerator:
             fontSize=9,
             textColor=self.color_palette['text_light']
         ))
+        self.styles.add(ParagraphStyle(
+            name='PaymentHeading',
+            parent=self.styles['Heading2'],
+            fontSize=14,
+            fontName='Helvetica-Bold',
+            textColor=self.color_palette['primary'],
+            alignment=TA_CENTER,
+            spaceAfter=12
+        ))
+        self.styles.add(ParagraphStyle(
+            name='PaymentLink',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            textColor=self.color_palette['accent'],
+            alignment=TA_CENTER,
+            spaceBefore=8
+        ))
 
-    def generate(self, invoice_data: Dict[str, Any], invoice_id: str = None) -> bytes:
+    def generate_qr_code(self, url: str, size_inches: float = 2.0) -> Image:
+        """
+        Generate a QR code image for the given URL
+
+        Args:
+            url: The URL to encode in the QR code
+            size_inches: Size of the QR code in inches (default 2.0)
+
+        Returns:
+            ReportLab Image object ready to be added to the PDF
+        """
+        # Create QR code with high error correction for better scanning
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=2,
+        )
+        qr.add_data(url)
+        qr.make(fit=True)
+
+        # Create PIL image
+        qr_image = qr.make_image(fill_color="black", back_color="white")
+
+        # Convert to bytes for ReportLab
+        img_buffer = io.BytesIO()
+        qr_image.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+
+        # Create ReportLab Image with specified size
+        size_points = size_inches * inch
+        return Image(img_buffer, width=size_points, height=size_points)
+
+    def generate(
+        self,
+        invoice_data: Dict[str, Any],
+        invoice_id: str = None,
+        payment_link_url: Optional[str] = None
+    ) -> bytes:
         """
         Generate PDF from invoice data using MAYROD template design
 
         Args:
             invoice_data: Invoice data dictionary
             invoice_id: Invoice ID for generating invoice number if needed
+            payment_link_url: Optional Stripe payment link URL for QR code
 
         Returns:
             PDF bytes
@@ -355,6 +414,63 @@ class PDFGenerator:
             story.append(notes)
 
         # =================================================================
+        # PAYMENT SECTION (Pro users with Stripe connected)
+        # =================================================================
+
+        if payment_link_url and not self.is_free_tier:
+            story.append(Spacer(1, 0.5 * inch))
+
+            # Divider line
+            divider_data = [['', '', '']]
+            divider_table = Table(divider_data, colWidths=[2 * inch, 2.5 * inch, 2 * inch])
+            divider_table.setStyle(TableStyle([
+                ('LINEABOVE', (1, 0), (1, 0), 1, self.color_palette['accent']),
+            ]))
+            story.append(divider_table)
+            story.append(Spacer(1, 0.3 * inch))
+
+            # Payment heading
+            payment_heading = Paragraph(
+                '<b>Pay This Invoice</b>',
+                self.styles['PaymentHeading']
+            )
+            story.append(payment_heading)
+
+            # Generate and add QR code (centered, 2 inches square)
+            try:
+                qr_image = self.generate_qr_code(payment_link_url, size_inches=2.0)
+                # Center the QR code using a table
+                qr_table = Table([[qr_image]], colWidths=[6.5 * inch])
+                qr_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                    ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
+                ]))
+                story.append(qr_table)
+            except Exception as qr_error:
+                # Log error but don't fail PDF generation
+                logger.warning("Failed to generate QR code", error=str(qr_error))
+
+            # Instructions text
+            story.append(Spacer(1, 0.15 * inch))
+            scan_text = Paragraph(
+                '<font size="10">Scan to pay securely via Stripe</font>',
+                self.styles['CenterAlign']
+            )
+            story.append(scan_text)
+
+            # Clickable payment link
+            story.append(Spacer(1, 0.1 * inch))
+            # Truncate long URLs for display
+            display_url = payment_link_url
+            if len(display_url) > 60:
+                display_url = display_url[:57] + "..."
+            link_text = Paragraph(
+                f'<link href="{payment_link_url}"><font color="{self.color_palette["accent"]}">{display_url}</font></link>',
+                self.styles['CenterAlign']
+            )
+            story.append(link_text)
+
+        # =================================================================
         # FOOTER SECTION (Tier-based watermark)
         # =================================================================
 
@@ -538,11 +654,34 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             is_pro = False
             color_preference = None
 
+        # Get payment link URL if it exists (Pro users with Stripe connected)
+        # This is stored directly in DynamoDB, not in the Invoice model
+        payment_link_url = None
+        if is_pro:
+            try:
+                invoices_table = os.environ.get('INVOICES_TABLE', 'ScatterPilot-Invoices-dev')
+                dynamodb = boto3.resource('dynamodb')
+                table = dynamodb.Table(invoices_table)
+                raw_invoice = table.get_item(
+                    Key={'invoice_id': invoice_id},
+                    ProjectionExpression='payment_link_url'
+                )
+                payment_link_url = raw_invoice.get('Item', {}).get('payment_link_url')
+                if payment_link_url:
+                    logger.info("Payment link found for invoice", invoice_id=invoice_id)
+            except Exception as pl_error:
+                logger.warning(
+                    "Failed to fetch payment link URL",
+                    error=str(pl_error),
+                    invoice_id=invoice_id
+                )
+
         logger.info(
             "Generating PDF with tier-based styling",
             invoice_id=invoice_id,
             is_pro=is_pro,
-            color_preference=color_preference
+            color_preference=color_preference,
+            has_payment_link=bool(payment_link_url)
         )
 
         # Get user info from Cognito and DynamoDB profile (safe - returns empty dict on failure)
@@ -558,7 +697,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             is_free_tier=not is_pro,
             user_info=user_info
         )
-        pdf_bytes = pdf_generator.generate(invoice.data.to_dynamodb(), invoice_id=invoice_id)
+        pdf_bytes = pdf_generator.generate(
+            invoice.data.to_dynamodb(),
+            invoice_id=invoice_id,
+            payment_link_url=payment_link_url
+        )
 
         # Upload to S3
         s3_bucket = os.environ.get('INVOICE_BUCKET', 'scatterpilot-invoices')

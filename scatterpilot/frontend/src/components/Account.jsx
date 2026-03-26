@@ -21,6 +21,21 @@ export default function Account() {
   const [stripeAccountId, setStripeAccountId] = useState(null);
   const [stripeDisconnecting, setStripeDisconnecting] = useState(false);
 
+  // Payment feature badge (NEW indicator)
+  const [showPaymentBadge, setShowPaymentBadge] = useState(false);
+
+  // Check localStorage for payment badge dismissal
+  useEffect(() => {
+    const dismissed = localStorage.getItem('scatterpilot_payment_badge_dismissed');
+    setShowPaymentBadge(!dismissed);
+  }, []);
+
+  // Dismiss the payment badge
+  const dismissPaymentBadge = () => {
+    localStorage.setItem('scatterpilot_payment_badge_dismissed', 'true');
+    setShowPaymentBadge(false);
+  };
+
   // Profile state
   const [profile, setProfile] = useState({
     business_name: '',
@@ -188,6 +203,9 @@ export default function Account() {
   };
 
   const connectStripe = () => {
+    // Dismiss the NEW badge when user clicks to connect
+    dismissPaymentBadge();
+
     const stripeAuthUrl =
       `https://connect.stripe.com/oauth/authorize?` +
       `response_type=code&` +
@@ -553,10 +571,29 @@ export default function Account() {
         </div>
 
         {/* Stripe Connect Section */}
-        <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 mb-6">
+        <div
+          className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 mb-6 relative"
+          onClick={() => showPaymentBadge && dismissPaymentBadge()}
+        >
+          {/* NEW Badge */}
+          {showPaymentBadge && !stripeConnected && (
+            <div className="absolute -top-2 -right-2 z-10">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg animate-pulse">
+                NEW
+              </span>
+            </div>
+          )}
+
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">💳 Payment Processing</h2>
-            <p className="text-sm text-gray-600">Connect your Stripe account to receive payments directly from invoices</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">💳 Payment Processing</h2>
+              {showPaymentBadge && !stripeConnected && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
+                  Just Added
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-600 mt-1">Connect your Stripe account to receive payments directly from invoices</p>
           </div>
 
           {!stripeConnected ? (

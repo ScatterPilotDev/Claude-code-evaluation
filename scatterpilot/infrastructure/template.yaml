@@ -53,7 +53,13 @@ Parameters:
     Type: String
     Default: ''
     NoEcho: true
-    Description: Stripe Webhook Signing Secret (whsec_...)
+    Description: Stripe Webhook Signing Secret for subscription events (whsec_...)
+
+  StripePaymentWebhookSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Stripe Webhook Signing Secret for Connect payment events (whsec_...)
 
   StripeProPriceId:
     Type: String
@@ -788,6 +794,67 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Create Payment Link for Invoice
+  CreatePaymentLinkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-CreatePaymentLink-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: create_payment_link.handler
+      Description: Creates Stripe payment link for invoice using connected account
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        CreatePaymentLink:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/create-payment-link
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Payment Webhook Handler (Stripe Connect)
+  PaymentWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-PaymentWebhook-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: payment_webhook.handler
+      Description: Handles Stripe Connect payment webhook events
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          STRIPE_PAYMENT_WEBHOOK_SECRET: !Ref StripePaymentWebhookSecret
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref InvoicesTable
+      Events:
+        PaymentWebhook:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/payment-webhook
+            Method: POST
+            # No Cognito auth - Stripe signature validation instead
+
   # ---------------------------------------------------------------------------
   # Feedback System
   # ---------------------------------------------------------------------------
@@ -934,6 +1001,18 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-SubmitFeedback-${Environment}
+      RetentionInDays: 30
+
+  CreatePaymentLinkLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-CreatePaymentLink-${Environment}
+      RetentionInDays: 30
+
+  PaymentWebhookLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-PaymentWebhook-${Environment}
       RetentionInDays: 30
 
 # =============================================================================

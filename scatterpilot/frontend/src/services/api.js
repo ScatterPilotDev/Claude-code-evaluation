@@ -536,6 +536,66 @@ class ApiService {
   clearConversation() {
     this.conversationId = null;
   }
+
+  // Conversation management methods
+
+  async listConversations() {
+    try {
+      console.log('[API] listConversations - START');
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/conversations`, {
+        headers
+      });
+
+      console.log('[API] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+
+      const data = await response.json();
+      console.log('[API] Conversations data:', data);
+      console.log('[API] listConversations - SUCCESS');
+
+      return data;
+    } catch (error) {
+      console.error('[API] List conversations failed:', error);
+      throw error;
+    }
+  }
+
+  async getConversation(conversationId) {
+    try {
+      console.log('[API] getConversation - START', conversationId);
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/conversations/${conversationId}`, {
+        headers
+      });
+
+      console.log('[API] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+
+      const data = await response.json();
+      console.log('[API] Conversation data:', data);
+      console.log('[API] getConversation - SUCCESS');
+
+      return data;
+    } catch (error) {
+      console.error('[API] Get conversation failed:', error);
+      throw error;
+    }
+  }
+
+  // Load a conversation into the current session
+  loadConversation(conversationId) {
+    this.conversationId = conversationId;
+    console.log('[API] Loaded conversation:', conversationId);
+  }
 }
 
 export default new ApiService();

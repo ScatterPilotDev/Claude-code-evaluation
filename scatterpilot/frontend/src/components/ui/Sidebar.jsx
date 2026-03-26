@@ -19,6 +19,12 @@ import {
 import authService from '../../services/auth';
 import api from '../../services/api';
 import { useFeedback } from '../../contexts/FeedbackContext';
+import ConversationList from '../ConversationList';
+
+// Check if payment feature badge should be shown
+const shouldShowPaymentBadge = () => {
+  return !localStorage.getItem('scatterpilot_payment_badge_dismissed');
+};
 
 export default function Sidebar({
   onNewInvoice,
@@ -28,7 +34,11 @@ export default function Sidebar({
   onNavigate,
   onInvoiceClick,
   selectedInvoiceId,
-  refreshInvoiceList
+  refreshInvoiceList,
+  onConversationSelect,
+  activeConversationId,
+  onNewConversation,
+  refreshConversationList
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -37,6 +47,25 @@ export default function Sidebar({
   const [invoices, setInvoices] = useState([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [invoiceError, setInvoiceError] = useState(null);
+  const [showPaymentBadge, setShowPaymentBadge] = useState(shouldShowPaymentBadge());
+
+  // Listen for localStorage changes (when badge is dismissed in Account page)
+  useEffect(() => {
+    const checkBadgeStatus = () => {
+      setShowPaymentBadge(shouldShowPaymentBadge());
+    };
+
+    // Check on focus (when returning from Account page)
+    window.addEventListener('focus', checkBadgeStatus);
+
+    // Also check periodically for same-tab updates
+    const interval = setInterval(checkBadgeStatus, 1000);
+
+    return () => {
+      window.removeEventListener('focus', checkBadgeStatus);
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await authService.signOut();
@@ -191,7 +220,7 @@ export default function Sidebar({
               key={item.name}
               to={item.href}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative
                 ${item.current
                   ? 'bg-sage text-white shadow-md'
                   : 'text-navy-light hover:bg-cream hover:text-navy'
@@ -200,13 +229,31 @@ export default function Sidebar({
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
               <span>{item.name}</span>
+              {/* NEW badge for Account item (payment feature) */}
+              {item.name === 'Account' && showPaymentBadge && (
+                <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white animate-pulse">
+                  NEW
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Invoice History Section */}
+      {/* Scrollable Content Section */}
       <div className="flex-1 overflow-y-auto px-2 py-4">
+        {/* Conversation List */}
+        {onConversationSelect && (
+          <ConversationList
+            onConversationSelect={onConversationSelect}
+            activeConversationId={activeConversationId}
+            onNewConversation={onNewConversation}
+            refreshTrigger={refreshConversationList}
+          />
+        )}
+
+        {/* Invoice History Section */}
+        <div>
         <div className="px-3 mb-3">
           <h3 className="text-xs font-semibold text-navy-muted uppercase tracking-wider">
             Invoice History
@@ -294,6 +341,7 @@ export default function Sidebar({
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* User Profile */}

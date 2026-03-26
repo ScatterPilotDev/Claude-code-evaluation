@@ -8,10 +8,16 @@ import { COGNITO_CONFIG } from '../config';
 
 class AuthService {
   constructor() {
-    this.userPool = new CognitoUserPool({
-      UserPoolId: COGNITO_CONFIG.userPoolId,
-      ClientId: COGNITO_CONFIG.clientId
-    });
+    // Only initialize Cognito if credentials are provided
+    if (COGNITO_CONFIG.userPoolId && COGNITO_CONFIG.clientId) {
+      this.userPool = new CognitoUserPool({
+        UserPoolId: COGNITO_CONFIG.userPoolId,
+        ClientId: COGNITO_CONFIG.clientId
+      });
+    } else {
+      this.userPool = null;
+      console.warn('Cognito credentials not configured. Authentication features will be disabled.');
+    }
     this.currentUser = null;
   }
 
@@ -19,6 +25,9 @@ class AuthService {
    * Sign up a new user
    */
   async signUp(email, password) {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
     return new Promise((resolve, reject) => {
       const attributeList = [
         new CognitoUserAttribute({
@@ -45,6 +54,9 @@ class AuthService {
    * Sign in an existing user
    */
   async signIn(email, password) {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
     return new Promise((resolve, reject) => {
       const authenticationDetails = new AuthenticationDetails({
         Username: email,
@@ -87,9 +99,11 @@ class AuthService {
    * Sign out the current user
    */
   signOut() {
-    const cognitoUser = this.userPool.getCurrentUser();
-    if (cognitoUser) {
-      cognitoUser.signOut();
+    if (this.userPool) {
+      const cognitoUser = this.userPool.getCurrentUser();
+      if (cognitoUser) {
+        cognitoUser.signOut();
+      }
     }
     this.currentUser = null;
 
@@ -103,6 +117,9 @@ class AuthService {
    * Get the current user session
    */
   async getCurrentSession() {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
     return new Promise((resolve, reject) => {
       const cognitoUser = this.userPool.getCurrentUser();
 
@@ -161,6 +178,9 @@ class AuthService {
    * Get current user info
    */
   async getUserInfo() {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
     return new Promise((resolve, reject) => {
       const cognitoUser = this.userPool.getCurrentUser();
 
@@ -196,6 +216,9 @@ class AuthService {
    * Confirm user registration with code (if email verification is enabled)
    */
   async confirmRegistration(email, code) {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
     return new Promise((resolve, reject) => {
       const cognitoUser = new CognitoUser({
         Username: email,
@@ -216,6 +239,9 @@ class AuthService {
    * Resend confirmation code
    */
   async resendConfirmationCode(email) {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
     return new Promise((resolve, reject) => {
       const cognitoUser = new CognitoUser({
         Username: email,
@@ -228,6 +254,54 @@ class AuthService {
           return;
         }
         resolve(result);
+      });
+    });
+  }
+
+  /**
+   * Initiate forgot password flow - sends reset code to email
+   */
+  async forgotPassword(email) {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
+    return new Promise((resolve, reject) => {
+      const cognitoUser = new CognitoUser({
+        Username: email,
+        Pool: this.userPool
+      });
+
+      cognitoUser.forgotPassword({
+        onSuccess: (data) => {
+          resolve(data);
+        },
+        onFailure: (err) => {
+          reject(err);
+        }
+      });
+    });
+  }
+
+  /**
+   * Confirm forgot password with verification code and new password
+   */
+  async confirmForgotPassword(email, verificationCode, newPassword) {
+    if (!this.userPool) {
+      throw new Error('Cognito not configured');
+    }
+    return new Promise((resolve, reject) => {
+      const cognitoUser = new CognitoUser({
+        Username: email,
+        Pool: this.userPool
+      });
+
+      cognitoUser.confirmPassword(verificationCode, newPassword, {
+        onSuccess: () => {
+          resolve({ success: true });
+        },
+        onFailure: (err) => {
+          reject(err);
+        }
       });
     });
   }

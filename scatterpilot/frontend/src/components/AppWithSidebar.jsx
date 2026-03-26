@@ -11,6 +11,7 @@ import VerifyEmail from './VerifyEmail';
 import authService from '../services/auth';
 import api from '../services/api';
 import analytics from '../utils/analytics';
+import conversationStorage from '../utils/conversationStorage';
 
 export default function AppWithSidebar() {
   const navigate = useNavigate();
@@ -32,10 +33,26 @@ export default function AppWithSidebar() {
   const [showWelcome, setShowWelcome] = useState(true);
   const chatInterfaceRef = useRef(null);
 
+  // Conversation state
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [refreshConversationList, setRefreshConversationList] = useState(0);
+
   // Check authentication on mount
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Load active conversation from localStorage on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      const savedConversationId = conversationStorage.getActiveConversation();
+      if (savedConversationId) {
+        console.log('[APP] Loaded conversation from storage:', savedConversationId);
+        setActiveConversationId(savedConversationId);
+        api.loadConversation(savedConversationId);
+      }
+    }
+  }, [isAuthenticated]);
 
   // Load recent invoices
   useEffect(() => {
@@ -154,6 +171,14 @@ export default function AppWithSidebar() {
     setViewMode('created');
     setRefreshInvoiceList(prev => prev + 1);
 
+    // Save active conversation if we have one
+    if (api.conversationId) {
+      setActiveConversationId(api.conversationId);
+      conversationStorage.saveActiveConversation(api.conversationId);
+      // Refresh conversation list to show the new/updated conversation
+      setRefreshConversationList(prev => prev + 1);
+    }
+
     try {
       const updatedSubscription = await api.getSubscription();
       setSubscription(updatedSubscription);
@@ -185,6 +210,49 @@ export default function AppWithSidebar() {
     } finally {
       setIsLoadingInvoice(false);
     }
+  };
+
+  // Conversation handlers
+  const handleConversationSelect = async (conversation) => {
+    console.log('[APP] Conversation selected:', conversation);
+
+    // Set the active conversation
+    setActiveConversationId(conversation.conversation_id);
+    conversationStorage.saveActiveConversation(conversation.conversation_id);
+
+    // Load conversation into API service
+    api.loadConversation(conversation.conversation_id);
+
+    // Fetch full conversation data to load messages
+    try {
+      const conversationData = await api.getConversation(conversation.conversation_id);
+      console.log('[APP] Loaded conversation data:', conversationData);
+
+      // Show chat interface
+      setShowWelcome(false);
+      setViewMode('new');
+
+      // TODO: Load messages into ChatInterface
+      // This will require extending ChatInterface to accept initial messages
+
+    } catch (error) {
+      console.error('[APP] Failed to load conversation:', error);
+    }
+  };
+
+  const handleNewConversation = () => {
+    console.log('[APP] New conversation requested');
+
+    // Clear active conversation
+    setActiveConversationId(null);
+    conversationStorage.clearActiveConversation();
+    api.clearConversation();
+
+    // Start fresh invoice conversation
+    handleNewInvoice();
+
+    // Refresh conversation list
+    setRefreshConversationList(prev => prev + 1);
   };
 
   // Show loading spinner during auth check
@@ -219,6 +287,10 @@ export default function AppWithSidebar() {
       onInvoiceClick={handleInvoiceClick}
       selectedInvoiceId={selectedInvoiceId}
       refreshInvoiceList={refreshInvoiceList}
+      onConversationSelect={handleConversationSelect}
+      activeConversationId={activeConversationId}
+      onNewConversation={handleNewConversation}
+      refreshConversationList={refreshConversationList}
     >
       {/* Main content area */}
       <div className="h-full bg-cream">

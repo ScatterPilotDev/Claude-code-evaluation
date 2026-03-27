@@ -1,0 +1,78 @@
+name: Deploy Backend with SAM
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+      - 'functions/**'
+      - 'layers/**'
+      - '.github/workflows/deploy-backend.yml'
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+env:
+  AWS_REGION: 'us-east-1'
+  SAM_TEMPLATE: 'infrastructure/template.yaml'
+  STACK_NAME: 'scatterpilot-vm-staging'
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Backend
+    runs-on: ubuntu-latest
+
+    # Prevent concurrent deployments
+    concurrency:
+      group: backend-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: SAM Build
+        run: sam build --template-file ${{ env.SAM_TEMPLATE }}
+
+      - name: SAM Deploy
+        run: |
+          sam deploy \
+            --stack-name ${{ env.STACK_NAME }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+            --parameter-overrides \
+              Environment=staging \
+              StripePaymentWebhookSecret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+      - name: Deployment summary
+        run: |
+          echo "## Backend Deployment Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack:** \`${{ env.STACK_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** \`${{ env.AWS_REGION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** \`staging\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Stack Outputs" >> $GITHUB_STEP_SUMMARY
+          aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query 'Stacks[0].Outputs' \
+            --output table >> $GITHUB_STEP_SUMMARY || echo "Could not fetch outputs" >> $GITHUB_STEP_SUMMARY

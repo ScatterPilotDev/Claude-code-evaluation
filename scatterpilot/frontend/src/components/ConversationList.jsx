@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import authService from '../services/auth';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ConversationList({
@@ -15,13 +16,37 @@ export default function ConversationList({
 
   // Fetch conversations on mount and when refresh trigger changes
   useEffect(() => {
-    fetchConversations();
+    // Small delay to allow auth to initialize before first fetch
+    const timer = setTimeout(() => {
+      fetchConversations();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshTrigger]);
+
+  const isAuthError = (err) => {
+    const msg = (err?.message || '').toLowerCase();
+    return (
+      msg.includes('not authenticated') ||
+      msg.includes('authentication required') ||
+      msg.includes('no user logged in') ||
+      msg.includes('session expired') ||
+      msg.includes('cognito not configured') ||
+      msg.includes('url is not valid') ||
+      msg.includes('user credentials')
+    );
+  };
 
   const fetchConversations = async () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Skip fetch if auth is not ready yet
+      const authenticated = await authService.isAuthenticated();
+      if (!authenticated) {
+        setIsLoading(false);
+        return;
+      }
+
       const response = await api.listConversations();
       console.log('[CONVERSATIONS] Received conversations:', response);
 
@@ -33,7 +58,10 @@ export default function ConversationList({
       setConversations(sortedConversations);
     } catch (err) {
       console.error('[CONVERSATIONS] Failed to fetch conversations:', err);
-      setError(err.message || 'Failed to load conversations');
+      // Silently ignore auth errors — token may not be ready yet
+      if (!isAuthError(err)) {
+        setError(err.message || 'Failed to load conversations');
+      }
     } finally {
       setIsLoading(false);
     }

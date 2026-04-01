@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'frontend/**'
+      - 'scatterpilot/frontend/**'
       - '.github/workflows/deploy-frontend.yml'
 
   # Allow manual trigger from GitHub UI
@@ -35,14 +35,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: scatterpilot/frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend
+        working-directory: scatterpilot/frontend
         run: npm ci
 
       - name: Build production bundle
-        working-directory: frontend
+        working-directory: scatterpilot/frontend
         run: npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
@@ -60,7 +60,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy assets to S3 (with long cache)
-        working-directory: frontend
+        working-directory: scatterpilot/frontend
         run: |
           # Upload all files except index.html with long cache headers
           aws s3 sync dist/ s3://${{ env.S3_BUCKET }} \
@@ -69,7 +69,7 @@ jobs:
             --cache-control "public, max-age=31536000, immutable"
 
       - name: Deploy index.html to S3 (no cache)
-        working-directory: frontend
+        working-directory: scatterpilot/frontend
         run: |
           # Upload index.html separately with no-cache headers
           aws s3 cp dist/index.html s3://${{ env.S3_BUCKET }}/index.html \

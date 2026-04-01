@@ -132,10 +132,7 @@ export default function AppWithSidebar() {
       setRecentInvoices(recent);
     } catch (err) {
       console.error('Failed to load recent invoices:', err);
-      // Silently ignore auth errors — token may not be ready yet
-      if (!isAuthError(err)) {
-        throw err;
-      }
+      // Silently ignore all errors - this is a background fetch
     }
   };
 

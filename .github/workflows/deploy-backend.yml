@@ -55,10 +55,13 @@ jobs:
       - name: SAM Deploy
         run: |
           sam deploy \
-            --stack-name ${{ env.STACK_NAME }} \
+            --stack-name scatterpilot-vm-staging \
+            --region us-east-1 \
+            --s3-bucket ${{ secrets.SAM_ARTIFACTS_BUCKET }} \
+            --s3-prefix scatterpilot-vm-staging \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               ParameterKey=Environment,ParameterValue=staging \
               ParameterKey=StripePaymentWebhookSecret,ParameterValue=${{ secrets.STRIPE_PAYMENT_WEBHOOK_SECRET }}

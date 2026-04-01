@@ -100,8 +100,25 @@ export default function AppWithSidebar() {
     }
   };
 
+  const isAuthError = (err) => {
+    const msg = (err?.message || '').toLowerCase();
+    return (
+      msg.includes('not authenticated') ||
+      msg.includes('authentication required') ||
+      msg.includes('no user logged in') ||
+      msg.includes('session expired') ||
+      msg.includes('cognito not configured') ||
+      msg.includes('url is not valid') ||
+      msg.includes('user credentials')
+    );
+  };
+
   const loadRecentInvoices = async () => {
     try {
+      // Skip fetch if auth is not ready yet
+      const authenticated = await authService.isAuthenticated();
+      if (!authenticated) return;
+
       const invoices = await api.listInvoices();
       // Get the 5 most recent invoices
       const recent = invoices.invoices
@@ -115,6 +132,10 @@ export default function AppWithSidebar() {
       setRecentInvoices(recent);
     } catch (err) {
       console.error('Failed to load recent invoices:', err);
+      // Silently ignore auth errors — token may not be ready yet
+      if (!isAuthError(err)) {
+        throw err;
+      }
     }
   };
 

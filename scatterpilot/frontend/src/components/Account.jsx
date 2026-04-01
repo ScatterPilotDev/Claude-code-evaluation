@@ -56,8 +56,28 @@ export default function Account() {
     loadAccountData();
   }, []);
 
+  const isAuthError = (err) => {
+    const msg = (err?.message || '').toLowerCase();
+    return (
+      msg.includes('not authenticated') ||
+      msg.includes('authentication required') ||
+      msg.includes('no user logged in') ||
+      msg.includes('session expired') ||
+      msg.includes('cognito not configured') ||
+      msg.includes('url is not valid') ||
+      msg.includes('user credentials')
+    );
+  };
+
   const loadAccountData = async () => {
     try {
+      // Skip fetch if auth is not ready yet
+      const authenticated = await authService.isAuthenticated();
+      if (!authenticated) {
+        setLoading(false);
+        return;
+      }
+
       console.log('[Account] Loading account data...');
       const [sub, userInfo, profileData, stripeStatus] = await Promise.all([
         apiService.getSubscription(),
@@ -115,12 +135,15 @@ export default function Account() {
       console.log('[Account] Account data loaded successfully');
     } catch (err) {
       console.error('[Account] Failed to load account data:', err);
-      console.error('[Account] Error details:', {
-        name: err.name,
-        message: err.message,
-        stack: err.stack
-      });
-      setError('Failed to load account information.');
+      // Silently ignore auth errors — token may not be ready yet
+      if (!isAuthError(err)) {
+        console.error('[Account] Error details:', {
+          name: err.name,
+          message: err.message,
+          stack: err.stack
+        });
+        setError('Failed to load account information.');
+      }
     } finally {
       setLoading(false);
     }

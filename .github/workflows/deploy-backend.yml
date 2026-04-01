@@ -60,8 +60,8 @@ jobs:
             --no-fail-on-empty-changeset \
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --parameter-overrides \
-              Environment=staging \
-              StripePaymentWebhookSecret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+              ParameterKey=Environment,ParameterValue=staging \
+              ParameterKey=StripePaymentWebhookSecret,ParameterValue=${{ secrets.STRIPE_PAYMENT_WEBHOOK_SECRET }}
 
       - name: Deployment summary
         run: |

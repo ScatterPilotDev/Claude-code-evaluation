@@ -291,10 +291,48 @@ Resources:
             Resource: !Sub '${InvoiceBucket.Arn}/invoices/*'
 
   # ---------------------------------------------------------------------------
+  # KMS Key for Cognito Custom Email Sender
+  # ---------------------------------------------------------------------------
+  CognitoEmailSenderKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for Cognito custom email sender code encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowRootAccount
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Sid: AllowCognitoEncrypt
+            Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+            Action:
+              - kms:GenerateDataKey
+              - kms:Encrypt
+            Resource: '*'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
+  CognitoEmailSenderKmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/scatterpilot-cognito-email-${Environment}
+      TargetKeyId: !Ref CognitoEmailSenderKmsKey
+
+  # ---------------------------------------------------------------------------
   # Cognito User Pool for Authentication
   # ---------------------------------------------------------------------------
   ScatterPilotUserPool:
     Type: AWS::Cognito::UserPool
+    DependsOn: ResendEmailSenderFunction
     Properties:
       UserPoolName: !Sub ScatterPilot-Users-${Environment}
       AutoVerifiedAttributes:
@@ -323,7 +361,12 @@ Resources:
       UserPoolAddOns:
         AdvancedSecurityMode: ENFORCED
       EmailConfiguration:
-        EmailSendingAccount: COGNITO_DEFAULT
+        EmailSendingAccount: DEVELOPER
+      LambdaConfig:
+        CustomEmailSender:
+          LambdaArn: !GetAtt ResendEmailSenderFunction.Arn
+          LambdaVersion: V1_0
+        KMSKeyID: !GetAtt CognitoEmailSenderKmsKey.Arn
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: false
       UserPoolTags:
@@ -897,6 +940,45 @@ Resources:
             Path: /feedback
             Method: POST
             # No auth required - allow anonymous feedback
+
+  # ---------------------------------------------------------------------------
+  # Cognito Custom Email Sender (Resend)
+  # ---------------------------------------------------------------------------
+  ResendEmailSenderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-ResendEmailSender-${Environment}
+      CodeUri: ../functions/resend_email_sender/
+      Handler: handler.handler
+      Description: Cognito custom email sender using Resend API
+      Timeout: 30
+      MemorySize: 256
+      Policies:
+        - Statement:
+            - Sid: GetResendApiKey
+              Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:us-east-1:${AWS::AccountId}:secret:resend-api-key*
+            - Sid: DecryptCognitoCode
+              Effect: Allow
+              Action:
+                - kms:Decrypt
+              Resource: !GetAtt CognitoEmailSenderKmsKey.Arn
+
+  ResendEmailSenderCognitoPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt ResendEmailSenderFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*
+
+  ResendEmailSenderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-ResendEmailSender-${Environment}
+      RetentionInDays: 30
 
   # ---------------------------------------------------------------------------
   # API Gateway

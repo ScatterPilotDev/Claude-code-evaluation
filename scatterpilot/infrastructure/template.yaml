@@ -362,6 +362,8 @@ Resources:
         AdvancedSecurityMode: ENFORCED
       EmailConfiguration:
         EmailSendingAccount: DEVELOPER
+        SourceArn: arn:aws:ses:us-east-1:373345867629:identity/scatterpilot.com
+        From: noreply@scatterpilot.com
       LambdaConfig:
         CustomEmailSender:
           LambdaArn: !GetAtt ResendEmailSenderFunction.Arn

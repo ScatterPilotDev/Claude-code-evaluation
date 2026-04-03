@@ -295,7 +295,6 @@ Resources:
   # ---------------------------------------------------------------------------
   CognitoEmailSenderKmsKey:
     Type: AWS::KMS::Key
-    DependsOn: ResendEmailSenderFunction
     Properties:
       Description: KMS key for Cognito custom email sender code encryption
       EnableKeyRotation: true
@@ -315,13 +314,6 @@ Resources:
             Action:
               - kms:GenerateDataKey
               - kms:Encrypt
-            Resource: '*'
-          - Sid: AllowLambdaDecrypt
-            Effect: Allow
-            Principal:
-              AWS: !GetAtt ResendEmailSenderFunctionRole.Arn
-            Action:
-              - kms:Decrypt
             Resource: '*'
       Tags:
         - Key: Environment

@@ -23,15 +23,9 @@ def _get_resend_api_key():
     return _resend_api_key
 
 
-def _decrypt_code(encrypted_code, user_pool_id, trigger_source):
+def _decrypt_code(encrypted_code):
     decoded = base64.b64decode(encrypted_code)
-    response = kms_client.decrypt(
-        CiphertextBlob=decoded,
-        EncryptionContext={
-            "userPoolId": user_pool_id,
-            "triggerSource": trigger_source,
-        },
-    )
+    response = kms_client.decrypt(CiphertextBlob=decoded)
     return response["Plaintext"].decode("utf-8")
 
 
@@ -156,7 +150,6 @@ def handler(event, context):
     logger.info("Received Cognito custom email sender event: triggerSource=%s", event.get("triggerSource"))
 
     trigger_source = event.get("triggerSource", "")
-    user_pool_id = event.get("userPoolId", "")
     request = event.get("request", {})
     encrypted_code = request.get("code")
     user_attributes = request.get("userAttributes", {})
@@ -170,7 +163,7 @@ def handler(event, context):
         logger.error("No code in request")
         return event
 
-    code = _decrypt_code(encrypted_code, user_pool_id, trigger_source)
+    code = _decrypt_code(encrypted_code)
     api_key = _get_resend_api_key()
 
     if trigger_source in ("CustomEmailSender_SignUp", "CustomEmailSender_ResendCode"):

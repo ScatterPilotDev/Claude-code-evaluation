@@ -350,32 +350,54 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
         Returns:
             Parsed JSON object or None if not found
         """
-        # Look for JSON object in response
         try:
-            # Try to find JSON block (might be wrapped in markdown code blocks)
             json_str = response.strip()
 
             # Remove markdown code blocks if present
             if json_str.startswith('```json'):
-                json_str = json_str[7:]  # Remove ```json
+                json_str = json_str[7:]
             if json_str.startswith('```'):
-                json_str = json_str[3:]  # Remove ```
+                json_str = json_str[3:]
             if json_str.endswith('```'):
-                json_str = json_str[:-3]  # Remove trailing ```
+                json_str = json_str[:-3]
+
+            # Strip stop tokens that Claude Sonnet 4.6 may append
+            for stop_token in ('</s>', '<|endoftext|>', '<|end|>'):
+                if json_str.endswith(stop_token):
+                    json_str = json_str[:-len(stop_token)]
 
             json_str = json_str.strip()
 
-            # Try to parse JSON
-            if json_str.startswith('{'):
-                data = json.loads(json_str)
+            # Find the start of the JSON object
+            start = json_str.find('{')
+            if start == -1:
+                return None
+            json_str = json_str[start:]
 
-                # Validate it has the expected structure
-                if isinstance(data, dict) and 'action' in data:
-                    logger.info(
-                        "Extracted structured data from response",
-                        action=data.get('action')
-                    )
-                    return data
+            # Use brace-depth tracking to find the exact closing brace,
+            # ignoring any trailing text or stop tokens after the object
+            depth = 0
+            end = -1
+            for i, ch in enumerate(json_str):
+                if ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        break
+
+            if end == -1:
+                return None
+
+            data = json.loads(json_str[:end])
+
+            if isinstance(data, dict) and 'action' in data:
+                logger.info(
+                    "Extracted structured data from response",
+                    action=data.get('action')
+                )
+                return data
 
         except json.JSONDecodeError:
             # Not JSON, that's okay - conversational response

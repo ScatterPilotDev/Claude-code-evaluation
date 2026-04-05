@@ -125,7 +125,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
         // Add success message to chat
         setMessages(prev => [...prev, {
           role: 'system',
-          content: '✓ Invoice created successfully! You can now download the PDF or create a new invoice.'
+          content: 'invoice_created' // Special marker for invoice created UI
         }]);
 
         onInvoiceGenerated({
@@ -223,22 +223,22 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-xl font-semibold text-navy">
-              {viewMode === 'viewing' ? 'Historical Invoice' : viewMode === 'created' ? 'Invoice Created!' : 'Invoice Generator'}
+              {viewMode === 'viewing' ? 'Historical Invoice' : 'Invoice Generator'}
             </h2>
             <p className="text-sm text-navy-light">
               {viewMode === 'viewing'
                 ? 'Viewing a previously generated invoice'
                 : viewMode === 'created'
-                ? 'Your invoice is ready - check the preview panel'
+                ? 'Invoice created — keep editing via chat or use the panel on the right'
                 : 'Chat with AI to create your invoice'}
             </p>
           </div>
-          {viewMode === 'viewing' && onNewInvoice && (
+          {(viewMode === 'viewing' || viewMode === 'created') && onNewInvoice && (
             <button
               onClick={onNewInvoice}
-              className="px-4 py-2 bg-sage hover:bg-sage-dark text-white font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-md"
+              className="px-3 py-1.5 border border-gray-300 text-navy-light hover:text-navy hover:border-sage text-sm font-medium rounded-lg transition-all duration-200 flex items-center space-x-1.5"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span>New Invoice</span>
@@ -277,6 +277,25 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
         ) : (
           <>
             {displayMessages.map((msg, idx) => {
+              // Special handling for invoice created confirmation
+              if (msg.role === 'system' && msg.content === 'invoice_created') {
+                return (
+                  <div key={idx} className="flex justify-start animate-fade-in">
+                    <div className="max-w-[80%] rounded-xl px-4 py-3 shadow-md bg-green-50 text-green-800 border border-green-200">
+                      <div className="flex items-start space-x-2">
+                        <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <p className="font-medium text-sm">Invoice created!</p>
+                          <p className="text-xs text-green-700 mt-0.5">You can continue editing via chat, or use the edit panel on the right.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
               // Special handling for upgrade prompt
               if (msg.role === 'system' && msg.content === 'upgrade_prompt') {
                 return (
@@ -393,25 +412,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
             <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            Read-only mode - Click "New Invoice" to create a new invoice
-          </div>
-        ) : viewMode === 'created' ? (
-          <div className="space-y-3">
-            <div className="flex items-center justify-center py-3 text-sm text-green-700 bg-green-100 rounded-lg border border-green-300">
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Invoice created successfully!
-            </div>
-            <button
-              onClick={onNewInvoice}
-              className="w-full px-4 py-3 bg-sage hover:bg-sage-dark text-white font-semibold rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 shadow-md"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Create New Invoice</span>
-            </button>
+            Read-only mode — click "New Invoice" to start a new invoice
           </div>
         ) : (
           <div className="flex space-x-3">
@@ -419,7 +420,11 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isMobile ? "Describe your invoice details..." : "Describe your invoice details... (Enter to send, Shift+Enter for new line)"}
+              placeholder={
+                viewMode === 'created'
+                  ? (isMobile ? "Ask to change something..." : "Ask to change something... (Enter to send, Shift+Enter for new line)")
+                  : (isMobile ? "Describe your invoice details..." : "Describe your invoice details... (Enter to send, Shift+Enter for new line)")
+              }
               className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-navy placeholder-navy-muted focus:outline-none focus:ring-2 focus:ring-sage focus:border-sage resize-none transition-all duration-200"
               rows="2"
               disabled={loading}

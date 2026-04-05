@@ -230,6 +230,12 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
     return filtered !== null;
   });
 
+  // Index of the most recent invoice_created marker — only that one gets the suggestion button
+  const lastInvoiceCreatedIdx = displayMessages.reduce(
+    (last, m, i) => (m.role === 'system' && m.content === 'invoice_created' ? i : last),
+    -1
+  );
+
   console.log('[CHAT] Rendering - viewMode:', viewMode, 'messages count:', messages.length);
 
   return (
@@ -295,6 +301,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
             {displayMessages.map((msg, idx) => {
               // Special handling for invoice created confirmation
               if (msg.role === 'system' && msg.content === 'invoice_created') {
+                const isLatest = idx === lastInvoiceCreatedIdx;
                 return (
                   <div key={idx} className="flex justify-start animate-fade-in">
                     <div className="max-w-[80%] rounded-xl px-4 py-3 shadow-md bg-green-50 text-green-800 border border-green-200">
@@ -302,9 +309,20 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                         <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium text-sm">Invoice created!</p>
                           <p className="text-xs text-green-700 mt-0.5">You can continue editing via chat, or use the edit panel on the right.</p>
+                          {isLatest && (
+                            <button
+                              onClick={() => setInput('Create another invoice for the same client')}
+                              className="mt-2 inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-900 border border-green-300 hover:border-green-500 bg-white hover:bg-green-50 rounded px-2 py-1 transition-all duration-150"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Create another invoice for this client
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

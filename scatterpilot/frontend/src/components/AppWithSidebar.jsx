@@ -260,9 +260,10 @@ export default function AppWithSidebar() {
         setViewMode('created');
         try {
           const invoicesResponse = await api.listInvoices();
-          const match = (invoicesResponse.invoices || []).find(
-            inv => inv.conversation_id === conversation.conversation_id
-          );
+          // Sort descending by created_at so the most recent invoice is shown
+          const match = (invoicesResponse.invoices || [])
+            .filter(inv => inv.conversation_id === conversation.conversation_id)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
           if (match) {
             const fullInvoice = await api.getInvoice(match.invoice_id);
             setCurrentInvoice({

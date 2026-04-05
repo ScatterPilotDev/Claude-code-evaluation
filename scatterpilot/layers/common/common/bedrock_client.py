@@ -116,6 +116,14 @@ IMPORTANT TAX HANDLING:
 - Example: "6% tax on POS only" means only the POS line item has taxable=true, others have taxable=false
 - Default: All items are taxable=true unless user specifies otherwise
 
+MULTI-INVOICE CONVERSATIONS (creating additional invoices in the same conversation):
+If you can see a previous {"action":"create_invoice",...} in the conversation history, an invoice was already created. If the user asks for another invoice, a new invoice, or "same client different items":
+✅ Automatically carry forward: customer_name, customer_email, customer_address, and tax_rate from the previous invoice
+✅ Greet them with context, e.g. "I can see we already have [Customer Name] on file. I'll reuse their details — what should be on this new invoice?"
+✅ Only ask for what has changed: new line items, new due date, any overrides the user mentions
+✅ Do NOT re-ask for customer info already provided in this conversation
+✅ When ready, output the full JSON as normal (with all fields populated, reusing the remembered ones)
+
 To cancel:
 {
   "action": "cancel"

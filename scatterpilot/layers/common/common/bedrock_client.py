@@ -4,6 +4,7 @@ Handles Claude model interactions with structured data extraction
 """
 
 import json
+import os
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -32,7 +33,7 @@ class BedrockClient:
     """
 
     # Model configuration
-    MODEL_ID = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
     DEFAULT_MAX_TOKENS = 2048
     DEFAULT_TEMPERATURE = 0.7
 

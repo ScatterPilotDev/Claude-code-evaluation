@@ -89,6 +89,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 last_message = last_msg.content[:100]  # First 100 chars
                 last_message_timestamp = last_msg.timestamp.isoformat()
 
+            # Find first user message that isn't JSON, for use as a human-readable title
+            first_user_message = None
+            for msg in conv.messages:
+                if msg.role == 'user':
+                    content = msg.content.strip()
+                    is_json = content.startswith('{') or (
+                        '"action"' in content and '"create_invoice"' in content
+                    )
+                    if not is_json:
+                        first_user_message = content[:60]
+                        break
+
             conversations_data.append({
                 'conversation_id': conv.conversation_id,
                 'state': conv.state.value,
@@ -97,6 +109,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'message_count': len(conv.messages),
                 'last_message': last_message,
                 'last_message_timestamp': last_message_timestamp,
+                'first_user_message': first_user_message,
                 'has_invoice': bool(conv.extracted_data and
                                    conv.extracted_data.get('action') == 'create_invoice')
             })

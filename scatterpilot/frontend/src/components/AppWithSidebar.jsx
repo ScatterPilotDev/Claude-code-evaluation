@@ -234,27 +234,58 @@ export default function AppWithSidebar() {
   const handleConversationSelect = async (conversation) => {
     console.log('[APP] Conversation selected:', conversation);
 
-    // Set the active conversation
     setActiveConversationId(conversation.conversation_id);
     conversationStorage.saveActiveConversation(conversation.conversation_id);
-
-    // Load conversation into API service
     api.loadConversation(conversation.conversation_id);
 
-    // Fetch full conversation data to load messages
+    // Always show the chat panel immediately
+    setShowWelcome(false);
+    setCurrentInvoice(null);
+    setSelectedInvoiceId(null);
+
     try {
       const conversationData = await api.getConversation(conversation.conversation_id);
       console.log('[APP] Loaded conversation data:', conversationData);
 
-      // Show chat interface
-      setShowWelcome(false);
-      setViewMode('new');
+      // Load messages into ChatInterface
+      if (chatInterfaceRef.current) {
+        chatInterfaceRef.current.loadConversation(
+          conversationData.messages || [],
+          conversation.conversation_id
+        );
+      }
 
-      // TODO: Load messages into ChatInterface
-      // This will require extending ChatInterface to accept initial messages
+      // If conversation produced an invoice, find it and show the preview
+      if (conversation.has_invoice) {
+        setViewMode('created');
+        try {
+          const invoicesResponse = await api.listInvoices();
+          const match = (invoicesResponse.invoices || []).find(
+            inv => inv.conversation_id === conversation.conversation_id
+          );
+          if (match) {
+            const fullInvoice = await api.getInvoice(match.invoice_id);
+            setCurrentInvoice({
+              invoice_id: match.invoice_id,
+              invoice_data: fullInvoice.data,
+              data: fullInvoice.data
+            });
+            setSelectedInvoiceId(match.invoice_id);
+          }
+        } catch (err) {
+          console.error('[APP] Failed to load invoice for conversation:', err);
+        }
+      } else {
+        setViewMode('new');
+      }
 
     } catch (error) {
       console.error('[APP] Failed to load conversation:', error);
+      // Fall back to empty chat for this conversation
+      setViewMode('new');
+      if (chatInterfaceRef.current) {
+        chatInterfaceRef.current.loadConversation([], conversation.conversation_id);
+      }
     }
   };
 

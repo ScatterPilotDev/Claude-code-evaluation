@@ -70,10 +70,44 @@ export default function ConversationList({
     return text.length > max ? text.substring(0, max) + '…' : text;
   };
 
-  const getPreviewText = (conversation) => {
-    if (conversation.last_message) return truncate(conversation.last_message, 55);
-    if (conversation.state) return `State: ${conversation.state}`;
-    return 'No messages yet';
+  const isJsonContent = (text) => {
+    if (!text) return false;
+    const t = text.trim();
+    return t.startsWith('{') || (t.includes('"action"') && t.includes('"create_invoice"'));
+  };
+
+  const extractCustomerName = (text) => {
+    if (!text) return null;
+    const m = text.match(/"customer_name"\s*:\s*"([^"]+)"/);
+    return m ? m[1] : null;
+  };
+
+  const getConversationTitle = (conversation) => {
+    const { first_user_message, last_message, message_count, state, has_invoice } = conversation;
+
+    // Empty / just-started conversation
+    if (!message_count || message_count === 0 || state === 'initiated') {
+      return 'New conversation';
+    }
+
+    // Best case: first user message returned by the backend (non-JSON)
+    if (first_user_message) {
+      return truncate(first_user_message, 40);
+    }
+
+    // last_message is JSON → try to extract a readable title from it
+    if (isJsonContent(last_message)) {
+      const customer = extractCustomerName(last_message);
+      if (customer) return truncate(`${customer} invoice`, 40);
+      return has_invoice ? 'Invoice conversation' : 'Invoice conversation';
+    }
+
+    // last_message is human text — use it
+    if (last_message) {
+      return truncate(last_message, 40);
+    }
+
+    return 'Invoice conversation';
   };
 
   if (isLoading) {
@@ -127,7 +161,7 @@ export default function ConversationList({
             }`}
           >
             <p className="text-sm font-medium text-navy truncate leading-snug">
-              {getPreviewText(conversation)}
+              {getConversationTitle(conversation)}
             </p>
             <div className="flex items-center justify-between mt-1">
               <span className="text-xs text-navy-muted">

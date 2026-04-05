@@ -31,13 +31,29 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
     }
   }, [viewMode]);
 
-  // Expose reset method to parent
+  // Expose methods to parent
   useImperativeHandle(ref, () => ({
     resetConversation: () => {
       apiService.conversationId = null;
       setMessages([
         { role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }
       ]);
+      setInput('');
+    },
+    // Load a historical conversation's messages into the chat UI
+    loadConversation: (conversationMessages, conversationId) => {
+      if (conversationId) {
+        apiService.conversationId = conversationId;
+      }
+      const mapped = (conversationMessages || []).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      setMessages(
+        mapped.length > 0
+          ? mapped
+          : [{ role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }]
+      );
       setInput('');
     }
   }));

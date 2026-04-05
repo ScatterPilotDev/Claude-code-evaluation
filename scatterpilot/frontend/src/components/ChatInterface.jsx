@@ -184,8 +184,12 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
     // Trim the result
     filtered = filtered.trim();
 
-    // If content looks like raw JSON (starts with { or [), try to parse and filter
+    // If content looks like raw JSON (starts with { or [), filter it out
     if (filtered.startsWith('{') || filtered.startsWith('[')) {
+      // Always hide create_invoice actions even if trailing stop tokens break JSON.parse
+      if (filtered.includes('"action"') && filtered.includes('"create_invoice"')) {
+        return null;
+      }
       try {
         JSON.parse(filtered);
         // It's valid JSON, don't display it

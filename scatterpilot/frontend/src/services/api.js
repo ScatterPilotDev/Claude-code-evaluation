@@ -172,6 +172,27 @@ class ApiService {
     }
   }
 
+  async updateInvoice(invoiceId, invoiceData) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(invoiceData)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Update invoice failed:', error);
+      throw error;
+    }
+  }
+
   async generatePdf(invoiceId) {
     try {
       const headers = await this.getAuthHeaders();

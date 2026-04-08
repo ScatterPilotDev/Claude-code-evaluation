@@ -5,6 +5,7 @@ import Layout from './ui/Layout';
 import ChatInterface from './ChatInterface';
 import InvoicePreview from './InvoicePreview';
 import DashboardHome from './DashboardHome';
+import InvoicesPage from './InvoicesPage';
 import ClientsPage from './ClientsPage';
 import ClientDetailPage from './ClientDetailPage';
 import OnboardingOverlay from './OnboardingOverlay';
@@ -66,7 +67,8 @@ export default function AppWithSidebar() {
   // Derive current section from URL
   const pathname = location.pathname;
   const isHome         = pathname === '/app';
-  const isInvoices     = pathname.startsWith('/app/invoices');
+  const isInvoicesList = pathname === '/app/invoices';
+  const isInvoicesNew  = pathname === '/app/invoices/new';
   const isClients      = pathname === '/app/clients';
   const isClientDetail = pathname.startsWith('/app/clients/');
   const isReports      = pathname.startsWith('/app/reports');
@@ -215,11 +217,10 @@ export default function AppWithSidebar() {
     setSelectedInvoiceId(null);
     setInvoiceError(null);
     setViewMode('new');
-    setSelectedCustomer(null);
     if (chatInterfaceRef.current) {
       chatInterfaceRef.current.resetConversation();
     }
-    navigate('/app/invoices');
+    navigate('/app/invoices/new');
   };
 
   const handleInvoiceGenerated = async (invoice) => {
@@ -329,8 +330,18 @@ export default function AppWithSidebar() {
       return <ComingSoonPage title="Reports" />;
     }
 
-    // /app/invoices — chat + invoice preview
-    if (isInvoices) {
+    // /app/invoices — filterable invoice list
+    if (isInvoicesList) {
+      return (
+        <InvoicesPage
+          subscription={subscription}
+          onNewInvoice={handleNewInvoice}
+        />
+      );
+    }
+
+    // /app/invoices/new — AI chat creation flow (full-bleed, breaks out of layout padding)
+    if (isInvoicesNew) {
       return (
         <div className="-mx-8 -my-8 h-[calc(100vh-0px)] flex overflow-hidden">
           <div className="flex-1 h-full">
@@ -367,14 +378,15 @@ export default function AppWithSidebar() {
       );
     }
 
-    // Fallback — redirect to home
+    // Fallback — dashboard
     return (
       <DashboardHome
         userName={userName || userEmail}
-        metrics={dashboardMetrics}
+        invoices={allInvoices}
         isLoading={isDashboardLoading}
         onNewInvoice={handleNewInvoice}
         onInvoiceClick={handleInvoiceClick}
+        onClientNewInvoice={handleCustomerNewInvoice}
       />
     );
   };

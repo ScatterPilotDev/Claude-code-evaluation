@@ -1021,6 +1021,93 @@ Resources:
             # No Cognito auth - Stripe signature validation instead
 
   # ---------------------------------------------------------------------------
+  # Stripe Connect Standard Account Functions
+  # ---------------------------------------------------------------------------
+
+  # Create Standard Connected Account & return onboarding URL
+  StripeConnectAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-StripeConnectAccount-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: connect_account.handler
+      Description: Creates a Stripe Standard connected account and returns Account Link URL
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        StripeConnectAccount:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/connect/account
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Get Standard Connected Account Status
+  StripeConnectStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-StripeConnectStatus-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: connect_status.handler
+      Description: Returns live status of user's Stripe Standard connected account
+      Timeout: 30
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        StripeConnectStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/connect/status
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Get Stripe Dashboard Link (Standard accounts)
+  StripeConnectDashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-StripeConnectDashboard-${Environment}
+      CodeUri: ../functions/stripe/
+      Handler: connect_dashboard.handler
+      Description: Returns Stripe dashboard URL for Standard connected account
+      Timeout: 15
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        StripeConnectDashboard:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /stripe/connect/dashboard-link
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # ---------------------------------------------------------------------------
   # Feedback System
   # ---------------------------------------------------------------------------
 
@@ -1247,6 +1334,24 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-PaymentWebhook-${Environment}
+      RetentionInDays: 30
+
+  StripeConnectAccountLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeConnectAccount-${Environment}
+      RetentionInDays: 30
+
+  StripeConnectStatusLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeConnectStatus-${Environment}
+      RetentionInDays: 30
+
+  StripeConnectDashboardLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeConnectDashboard-${Environment}
       RetentionInDays: 30
 
 # =============================================================================

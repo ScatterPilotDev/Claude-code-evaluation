@@ -55,6 +55,7 @@ export default function AppWithSidebar() {
   const [subscription, setSubscription] = useState(null);
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
+  const [allInvoices, setAllInvoices] = useState([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const chatInterfaceRef = useRef(null);
 
@@ -162,6 +163,7 @@ export default function AppWithSidebar() {
           date: inv.created_at,
         }));
 
+      setAllInvoices(invoices);
       setDashboardMetrics({ outstanding, receivedThisMonth, overdueCount, recentActivity });
 
       if (invoices.length === 0 && !userName) {
@@ -306,10 +308,11 @@ export default function AppWithSidebar() {
       return (
         <DashboardHome
           userName={userName || userEmail}
-          metrics={dashboardMetrics}
+          invoices={allInvoices}
           isLoading={isDashboardLoading}
           onNewInvoice={handleNewInvoice}
           onInvoiceClick={handleInvoiceClick}
+          onClientNewInvoice={handleCustomerNewInvoice}
         />
       );
     }

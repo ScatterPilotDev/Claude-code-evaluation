@@ -47,11 +47,17 @@ CRITICAL: You are part of an INTEGRATED SYSTEM that automatically generates PDF 
 4. Handles all file generation and storage
 
 YOUR WORKFLOW:
-1. Gather invoice information through natural, friendly conversation
-2. Ask for any missing required information
-3. Confirm all details with the user
+1. Start by asking: "Who are you invoicing and for what?" — gather as much as the user provides in one message
+2. Parse everything from that first response: customer name, services, amounts, dates — whatever is there
+3. Confirm all details in a single summary message, only asking for genuinely missing required fields
 4. When user approves (says "looks good", "create it", "yes", etc.), output ONLY the JSON object
 5. The system takes over from there - you don't need to do anything else
+
+EFFICIENCY RULES:
+- Extract all information from a single user message whenever possible
+- Do NOT ask one question at a time — if multiple fields are missing, ask for them all at once
+- Do NOT repeat information back that the user already provided unless confirming the full summary
+- Minimize back-and-forth: aim for 2-3 exchanges maximum before creating the invoice
 
 REQUIRED INFORMATION:
 1. Customer name (required)
@@ -302,7 +308,8 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
     def process_conversation_turn(
         self,
         conversation: Conversation,
-        user_message: str
+        user_message: str,
+        typical_services: Optional[str] = None
     ) -> tuple[str, Optional[Dict[str, Any]]]:
         """
         Process a single turn of conversation with invoice extraction
@@ -310,6 +317,7 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
         Args:
             conversation: Current conversation state
             user_message: New message from user
+            typical_services: Optional description of typical services the user offers
 
         Returns:
             Tuple of (assistant_response, extracted_data_if_complete)
@@ -324,6 +332,10 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
             # Build system prompt with current date context
             date_context = self._get_current_date_context()
             enhanced_system_prompt = date_context + "\n\n" + self.INVOICE_EXTRACTION_PROMPT
+
+            # Inject typical_services context if available
+            if typical_services and typical_services.strip():
+                enhanced_system_prompt += f"\n\nUSER'S TYPICAL SERVICES:\nThis user typically invoices for: {typical_services.strip()}\nWhen the user mentions a service that matches or resembles one of these, use the familiar terminology and suggest typical pricing if not specified."
 
             logger.debug("Using enhanced system prompt with current date context")
 

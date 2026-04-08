@@ -213,7 +213,7 @@ class PDFGenerator:
         payment_link_url: Optional[str] = None
     ) -> bytes:
         """
-        Generate PDF from invoice data using MAYROD template design
+        Generate PDF from invoice data — clean premium design with generous whitespace.
 
         Args:
             invoice_data: Invoice data dictionary
@@ -227,107 +227,178 @@ class PDFGenerator:
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
-            rightMargin=inch,
-            leftMargin=inch,
-            topMargin=inch,
-            bottomMargin=inch
+            rightMargin=0.9 * inch,
+            leftMargin=0.9 * inch,
+            topMargin=0.85 * inch,
+            bottomMargin=0.85 * inch
         )
 
-        # Build PDF content
         story = []
 
-        # =================================================================
-        # HEADER SECTION
-        # =================================================================
-
-        # Company name and user info side-by-side
-        # Handle invoice number - never show "None"
+        # ------------------------------------------------------------------
+        # Resolve invoice number
+        # ------------------------------------------------------------------
         invoice_num = invoice_data.get("invoice_number")
         if not invoice_num or invoice_num == "None":
-            # Generate from invoice_id last 8 chars if available
-            if invoice_id:
-                invoice_num = invoice_id[-8:].upper()
-            else:
-                invoice_num = "N/A"
+            invoice_num = invoice_id[-8:].upper() if invoice_id else "N/A"
 
-        # Tier-based header:
-        # - Free tier: Always "INVOICE" (no customization)
-        # - Pro tier: business_name from profile, or "INVOICE" if not set (optional customization)
-        business_name = self.user_info.get('business_name', 'INVOICE')
-        header_data = [
-            [
-                Paragraph(f'<b>{business_name}</b>', self.styles['CompanyName']),
-                Paragraph(f'<b>INVOICE # {invoice_num}</b>', self.styles['RightAlign'])
+        # ------------------------------------------------------------------
+        # Format dates
+        # ------------------------------------------------------------------
+        def fmt_date(raw):
+            if isinstance(raw, str) and len(raw) == 10:
+                try:
+                    return datetime.strptime(raw, '%Y-%m-%d').strftime('%B %d, %Y')
+                except Exception:
+                    pass
+            return raw or ''
+
+        invoice_date = fmt_date(invoice_data.get('invoice_date', datetime.now().strftime('%Y-%m-%d')))
+        due_date = fmt_date(invoice_data.get('due_date', ''))
+
+        # ------------------------------------------------------------------
+        # PAGE WIDTH (usable)
+        # ------------------------------------------------------------------
+        page_width = letter[0] - 1.8 * inch  # left + right margins
+
+        # ------------------------------------------------------------------
+        # HEADER: large INVOICE heading + invoice number
+        # ------------------------------------------------------------------
+        business_name = self.user_info.get('business_name', '')
+
+        invoice_label_style = ParagraphStyle(
+            'InvoiceLabel',
+            parent=self.styles['Normal'],
+            fontSize=36,
+            fontName='Helvetica-Bold',
+            textColor=self.color_palette['primary'],
+            leading=40,
+        )
+        invoice_num_style = ParagraphStyle(
+            'InvoiceNum',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            fontName='Helvetica',
+            textColor=self.color_palette['text_light'],
+            alignment=TA_RIGHT,
+            leading=14,
+        )
+
+        if business_name:
+            biz_style = ParagraphStyle(
+                'BizName',
+                parent=self.styles['Normal'],
+                fontSize=13,
+                fontName='Helvetica-Bold',
+                textColor=self.color_palette['text'],
+                leading=16,
+            )
+            top_left = [
+                Paragraph('INVOICE', invoice_label_style),
+                Paragraph(business_name, biz_style),
             ]
-        ]
+        else:
+            top_left = [Paragraph('INVOICE', invoice_label_style)]
 
-        # User contact information (displayed for all tiers - Free and Pro)
-        # CRITICAL: No "ScatterPilot" branding in header - only user's contact info
-        user_contact_parts = []
-        if self.user_info.get('name'):
-            user_contact_parts.append(str(self.user_info['name']))
-        if self.user_info.get('phone'):
-            user_contact_parts.append(str(self.user_info['phone']))
-        if self.user_info.get('email'):
-            user_contact_parts.append(str(self.user_info['email']))
-        if self.user_info.get('address'):
-            user_contact_parts.append(str(self.user_info['address']))
+        top_right_content = Paragraph(
+            f'<b>#{invoice_num}</b><br/>'
+            f'<font color="#718096">Date: {invoice_date}</font><br/>'
+            f'<font color="#718096">Due: {due_date}</font>',
+            invoice_num_style
+        )
 
-        # If no contact info provided, show nothing (no fallback to ScatterPilot)
-        user_contact_text = '<br/>'.join(user_contact_parts) if user_contact_parts else ''
-
-        invoice_date = invoice_data.get('invoice_date', datetime.now().strftime('%m.%d.%Y'))
-        if isinstance(invoice_date, str) and len(invoice_date) == 10:  # ISO format
-            try:
-                date_obj = datetime.strptime(invoice_date, '%Y-%m-%d')
-                invoice_date = date_obj.strftime('%m.%d.%Y')
-            except:
-                pass
-
-        due_date = invoice_data.get('due_date', '')
-        if isinstance(due_date, str) and len(due_date) == 10:  # ISO format
-            try:
-                date_obj = datetime.strptime(due_date, '%Y-%m-%d')
-                due_date = date_obj.strftime('%m.%d.%Y')
-            except:
-                pass
-
-        header_data.append([
-            Paragraph(f'<font size="9">{user_contact_text}</font>', self.styles['LeftAlign']),
-            Paragraph(f'<font size="9">Date: {invoice_date}<br/>Due Date: {due_date}</font>',
-                     self.styles['RightAlign'])
-        ])
-
-        header_table = Table(header_data, colWidths=[3.5 * inch, 3 * inch])
+        header_table = Table(
+            [[top_left, top_right_content]],
+            colWidths=[page_width * 0.55, page_width * 0.45]
+        )
         header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
         ]))
         story.append(header_table)
+
+        # Thick accent rule below header
+        rule_table = Table([[''] * 1], colWidths=[page_width])
+        rule_table.setStyle(TableStyle([
+            ('LINEBELOW', (0, 0), (-1, 0), 3, self.color_palette['primary']),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(rule_table)
         story.append(Spacer(1, 0.4 * inch))
 
-        # =================================================================
-        # CLIENT INFO SECTION
-        # =================================================================
+        # ------------------------------------------------------------------
+        # FROM / BILL TO  — two-column info block
+        # ------------------------------------------------------------------
+        label_style = ParagraphStyle(
+            'InfoLabel',
+            parent=self.styles['Normal'],
+            fontSize=8,
+            fontName='Helvetica-Bold',
+            textColor=self.color_palette['text_light'],
+            spaceAfter=3,
+            leading=10,
+        )
+        info_style = ParagraphStyle(
+            'InfoText',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            fontName='Helvetica',
+            textColor=self.color_palette['text'],
+            leading=14,
+        )
 
-        client_info_parts = [f"<b>To:</b> {invoice_data['customer_name']}"]
+        # FROM column (user / sender)
+        from_parts = []
+        if self.user_info.get('name'):
+            from_parts.append(str(self.user_info['name']))
+        if self.user_info.get('phone'):
+            from_parts.append(str(self.user_info['phone']))
+        if self.user_info.get('email'):
+            from_parts.append(str(self.user_info['email']))
+        if self.user_info.get('address'):
+            from_parts.append(str(self.user_info['address']))
+
+        from_col = [Paragraph('FROM', label_style)]
+        if from_parts:
+            from_col.append(Paragraph('<br/>'.join(from_parts), info_style))
+        else:
+            from_col.append(Paragraph('—', info_style))
+
+        # BILL TO column (customer)
+        bill_parts = [f'<b>{invoice_data["customer_name"]}</b>']
         if invoice_data.get('customer_email'):
-            client_info_parts.append(invoice_data['customer_email'])
+            bill_parts.append(invoice_data['customer_email'])
         if invoice_data.get('customer_phone'):
-            client_info_parts.append(invoice_data['customer_phone'])
+            bill_parts.append(invoice_data['customer_phone'])
         if invoice_data.get('customer_address'):
-            client_info_parts.append(invoice_data['customer_address'])
+            bill_parts.append(invoice_data['customer_address'])
 
-        client_info = Paragraph('<br/>'.join(client_info_parts), self.styles['Normal'])
-        story.append(client_info)
-        story.append(Spacer(1, 0.4 * inch))
+        bill_col = [
+            Paragraph('BILL TO', label_style),
+            Paragraph('<br/>'.join(bill_parts), info_style),
+        ]
 
-        # =================================================================
+        info_table = Table(
+            [[from_col, bill_col]],
+            colWidths=[page_width * 0.48, page_width * 0.52]
+        )
+        info_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 0.45 * inch))
+
+        # ------------------------------------------------------------------
         # LINE ITEMS TABLE
-        # =================================================================
-
-        line_items_data = [['Qty', 'Description', 'Unit Price', 'Line Total']]
+        # ------------------------------------------------------------------
+        line_items_data = [['QTY', 'DESCRIPTION', 'UNIT PRICE', 'AMOUNT']]
 
         for item in invoice_data['line_items']:
             line_items_data.append([
@@ -337,32 +408,37 @@ class PDFGenerator:
                 f"${float(item['total']):,.2f}"
             ])
 
-        line_items_table = Table(line_items_data, colWidths=[0.6 * inch, 3.3 * inch, 1.3 * inch, 1.3 * inch])
+        col_widths = [0.55 * inch, page_width - 0.55 * inch - 1.25 * inch - 1.2 * inch, 1.25 * inch, 1.2 * inch]
+        line_items_table = Table(line_items_data, colWidths=col_widths)
 
-        # Build table style with alternating row colors
         table_style_commands = [
             # Header row
             ('BACKGROUND', (0, 0), (-1, 0), self.color_palette['table_header']),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 9),
+            ('TOPPADDING', (0, 0), (-1, 0), 9),
+            ('LEFTPADDING', (0, 0), (-1, 0), 8),
+            ('RIGHTPADDING', (0, 0), (-1, 0), 8),
 
             # Body rows
-            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Qty center
-            ('ALIGN', (1, 1), (1, -1), 'LEFT'),    # Description left
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),  # Prices right
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),   # QTY center
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),     # Description left
+            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),   # Prices right
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('TOPPADDING', (0, 1), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+            ('LEFTPADDING', (0, 1), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 1), (-1, -1), 8),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            # Subtle row separator only
+            ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
         ]
 
-        # Add alternating row colors
+        # Alternating row tint
         for i in range(1, len(line_items_data)):
             if i % 2 == 0:
                 table_style_commands.append(
@@ -371,118 +447,116 @@ class PDFGenerator:
 
         line_items_table.setStyle(TableStyle(table_style_commands))
         story.append(line_items_table)
-        story.append(Spacer(1, 0.3 * inch))
+        story.append(Spacer(1, 0.35 * inch))
 
-        # =================================================================
-        # TOTALS SECTION
-        # =================================================================
-
-        totals_data = [
-            ['Subtotal:', f"${float(invoice_data['subtotal']):,.2f}"],
-        ]
-
-        if float(invoice_data.get('discount', 0)) > 0:
-            totals_data.append(['Discount:', f"-${float(invoice_data['discount']):,.2f}"])
-
+        # ------------------------------------------------------------------
+        # TOTALS — right-aligned stacked rows, then highlighted TOTAL box
+        # ------------------------------------------------------------------
+        subtotal = float(invoice_data['subtotal'])
+        discount = float(invoice_data.get('discount', 0))
         tax_rate_percent = float(invoice_data['tax_rate']) * 100
-        totals_data.append([f'Sales Tax ({tax_rate_percent:.2f}%):', f"${float(invoice_data['tax_amount']):,.2f}"])
-        totals_data.append(['Total:', f"${float(invoice_data['total']):,.2f}"])
+        tax_amount = float(invoice_data['tax_amount'])
+        total = float(invoice_data['total'])
 
-        totals_table = Table(totals_data, colWidths=[1.8 * inch, 1.5 * inch], hAlign='RIGHT')
-        totals_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Bold font for Total row
-            ('FONTSIZE', (0, 0), (-1, -2), 10),
-            ('FONTSIZE', (0, -1), (-1, -1), 12),
-            ('LINEABOVE', (0, -1), (-1, -1), 1.5, self.color_palette['accent']),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        totals_rows = []
+        totals_rows.append(['Subtotal', f"${subtotal:,.2f}"])
+        if discount > 0:
+            totals_rows.append(['Discount', f"-${discount:,.2f}"])
+        totals_rows.append([f'Tax ({tax_rate_percent:.2f}%)', f"${tax_amount:,.2f}"])
+
+        sub_totals_table = Table(totals_rows, colWidths=[1.6 * inch, 1.4 * inch], hAlign='RIGHT')
+        sub_totals_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 0), (-1, -1), self.color_palette['text_light']),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ]))
-        story.append(totals_table)
+        story.append(sub_totals_table)
+        story.append(Spacer(1, 0.12 * inch))
 
-        # =================================================================
-        # NOTES SECTION
-        # =================================================================
+        # Highlighted total box
+        total_box_data = [[f'TOTAL DUE', f"${total:,.2f}"]]
+        total_box_table = Table(total_box_data, colWidths=[1.6 * inch, 1.55 * inch], hAlign='RIGHT')
+        total_box_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), self.color_palette['primary']),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (0, 0), 9),
+            ('FONTSIZE', (1, 0), (1, 0), 14),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('ROUNDEDCORNERS', [4]),
+        ]))
+        story.append(total_box_table)
 
+        # ------------------------------------------------------------------
+        # NOTES
+        # ------------------------------------------------------------------
         if invoice_data.get('notes'):
-            story.append(Spacer(1, 0.4 * inch))
-            notes_heading = Paragraph('<b>NOTES</b>', self.styles['SectionHeading'])
-            story.append(notes_heading)
-            notes = Paragraph(invoice_data['notes'], self.styles['Normal'])
-            story.append(notes)
+            story.append(Spacer(1, 0.45 * inch))
+            story.append(Paragraph('NOTES', label_style))
+            story.append(Spacer(1, 0.06 * inch))
+            story.append(Paragraph(invoice_data['notes'], info_style))
 
-        # =================================================================
-        # PAYMENT SECTION (Pro users with Stripe connected)
-        # =================================================================
-
-        if payment_link_url and not self.is_free_tier:
+        # ------------------------------------------------------------------
+        # PAYMENT SECTION — QR code only when Stripe payment link provided
+        # ------------------------------------------------------------------
+        if payment_link_url:
             story.append(Spacer(1, 0.5 * inch))
 
-            # Divider line
-            divider_data = [['', '', '']]
-            divider_table = Table(divider_data, colWidths=[2 * inch, 2.5 * inch, 2 * inch])
-            divider_table.setStyle(TableStyle([
-                ('LINEABOVE', (1, 0), (1, 0), 1, self.color_palette['accent']),
+            # Thin separator
+            sep = Table([['']], colWidths=[page_width])
+            sep.setStyle(TableStyle([
+                ('LINEABOVE', (0, 0), (-1, 0), 0.75, colors.HexColor('#e2e8f0')),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
             ]))
-            story.append(divider_table)
+            story.append(sep)
             story.append(Spacer(1, 0.3 * inch))
 
-            # Payment heading
-            payment_heading = Paragraph(
+            pay_heading = Paragraph(
                 '<b>Pay This Invoice</b>',
                 self.styles['PaymentHeading']
             )
-            story.append(payment_heading)
+            story.append(pay_heading)
 
-            # Generate and add QR code (centered, 2 inches square)
             try:
-                qr_image = self.generate_qr_code(payment_link_url, size_inches=2.0)
-                # Center the QR code using a table
-                qr_table = Table([[qr_image]], colWidths=[6.5 * inch])
+                qr_image = self.generate_qr_code(payment_link_url, size_inches=1.8)
+                qr_table = Table([[qr_image]], colWidths=[page_width])
                 qr_table.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (0, 0), 'CENTER'),
                     ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
                 ]))
                 story.append(qr_table)
             except Exception as qr_error:
-                # Log error but don't fail PDF generation
                 logger.warning("Failed to generate QR code", error=str(qr_error))
 
-            # Instructions text
-            story.append(Spacer(1, 0.15 * inch))
-            scan_text = Paragraph(
-                '<font size="10">Scan to pay securely via Stripe</font>',
+            story.append(Spacer(1, 0.12 * inch))
+            story.append(Paragraph(
+                '<font size="9" color="#718096">Scan to pay securely via Stripe</font>',
                 self.styles['CenterAlign']
-            )
-            story.append(scan_text)
+            ))
 
-            # Clickable payment link
-            story.append(Spacer(1, 0.1 * inch))
-            # Truncate long URLs for display
-            display_url = payment_link_url
-            if len(display_url) > 60:
-                display_url = display_url[:57] + "..."
-            link_text = Paragraph(
-                f'<link href="{payment_link_url}"><font color="{self.color_palette["accent"]}">{display_url}</font></link>',
+            display_url = payment_link_url if len(payment_link_url) <= 60 else payment_link_url[:57] + '...'
+            story.append(Spacer(1, 0.08 * inch))
+            story.append(Paragraph(
+                f'<link href="{payment_link_url}"><font size="9" color="{self.color_palette["accent"]}">{display_url}</font></link>',
                 self.styles['CenterAlign']
-            )
-            story.append(link_text)
+            ))
 
-        # =================================================================
-        # FOOTER SECTION (Tier-based watermark)
-        # =================================================================
-
+        # ------------------------------------------------------------------
+        # FOOTER — "Powered by ScatterPilot" (always visible, small & muted)
+        # ------------------------------------------------------------------
         story.append(Spacer(1, 0.5 * inch))
-
-        # Free tier: Show watermark "Generated by ScatterPilot"
-        # Pro tier: Clean professional footer (no watermark)
-        if self.is_free_tier:
-            footer_text = f'<font size="8" color="#718096">Generated by ScatterPilot on {datetime.now().strftime("%B %d, %Y at %I:%M %p")}</font>'
-            footer = Paragraph(footer_text, self.styles['CenterAlign'])
-            story.append(footer)
-        # Pro tier: no watermark - clean professional look
+        story.append(Paragraph(
+            '<font size="7" color="#a0aec0">Powered by ScatterPilot</font>',
+            self.styles['CenterAlign']
+        ))
 
         # Build PDF
         doc.build(story)

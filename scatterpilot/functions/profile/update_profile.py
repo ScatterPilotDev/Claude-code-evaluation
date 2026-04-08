@@ -73,6 +73,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         state = body.get('state')
         zip_code = body.get('zip_code')
         country = body.get('country')
+        typical_services = body.get('typical_services')
 
         logger.info("Profile fields extracted",
                    has_business_name=business_name is not None,
@@ -123,7 +124,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             city=city,
             state=state,
             zip_code=zip_code,
-            country=country
+            country=country,
+            typical_services=typical_services
         )
         logger.info("Database update completed successfully")
 

@@ -741,7 +741,8 @@ class DynamoDBHelper:
                 'subscription_status': subscription.get('subscription_status', 'free'),
                 'subscription_end_date': subscription.get('subscription_end_date'),
                 'invoices_this_month': int(subscription.get('invoices_this_month', 0)),  # Convert Decimal to int
-                'invoice_color': subscription.get('invoice_color', 'purple')
+                'invoice_color': subscription.get('invoice_color', 'purple'),
+                'typical_services': subscription.get('typical_services', '')
             }
 
             return profile
@@ -762,7 +763,8 @@ class DynamoDBHelper:
         city: Optional[str] = None,
         state: Optional[str] = None,
         zip_code: Optional[str] = None,
-        country: Optional[str] = None
+        country: Optional[str] = None,
+        typical_services: Optional[str] = None
     ) -> None:
         """
         Update user profile information
@@ -779,6 +781,7 @@ class DynamoDBHelper:
             state: State/province
             zip_code: Postal/ZIP code
             country: Country
+            typical_services: Description of typical services offered
 
         Raises:
             DynamoDBException: If update fails
@@ -827,6 +830,10 @@ class DynamoDBHelper:
             if country is not None:
                 update_parts.append('country = :country')
                 expr_values[':country'] = country
+
+            if typical_services is not None:
+                update_parts.append('typical_services = :typical_services')
+                expr_values[':typical_services'] = typical_services
 
             # Build expression attribute names for reserved words
             expr_names = {}

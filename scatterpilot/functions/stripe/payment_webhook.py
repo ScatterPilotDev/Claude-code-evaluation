@@ -27,8 +27,10 @@ WEBHOOK_SECRET = os.environ.get('STRIPE_PAYMENT_WEBHOOK_SECRET', '')
 
 # DynamoDB
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'ScatterPilot-Invoices-dev')
+SUBSCRIPTIONS_TABLE = os.environ.get('SUBSCRIPTIONS_TABLE', 'ScatterPilot-Subscriptions-dev')
 dynamodb = boto3.resource('dynamodb')
 invoices_table = dynamodb.Table(INVOICES_TABLE)
+subscriptions_table = dynamodb.Table(SUBSCRIPTIONS_TABLE)
 
 
 def verify_webhook_signature(body: str, sig_header: str) -> Optional[Dict[str, Any]]:
@@ -277,6 +279,61 @@ def handle_payment_intent_succeeded(payment_intent: Dict[str, Any], stripe_accou
     )
 
 
+def handle_account_updated(account: Dict[str, Any]) -> bool:
+    """
+    Handle account.updated Connect event.
+
+    When a connected account's verification status changes (e.g., charges_enabled
+    flips to True after identity verification), sync stripe_connect_status in the
+    SubscriptionsTable.
+
+    The connected account's metadata contains 'scatterpilot_user_id' (set at account
+    creation time in connect_account.py), so we can look up the user directly without
+    a table scan.
+
+    TODO: Register this webhook in the Stripe dashboard under Connect > Webhooks
+          (or the platform-level webhook endpoint) so account.updated events are delivered.
+    """
+    account_id = account.get('id')
+    charges_enabled = account.get('charges_enabled', False)
+    metadata = account.get('metadata', {})
+    user_id = metadata.get('scatterpilot_user_id')
+
+    if not user_id:
+        logger.warning(
+            "account.updated event missing scatterpilot_user_id in metadata",
+            account_id=account_id
+        )
+        return False
+
+    new_status = 'active' if charges_enabled else 'pending'
+
+    try:
+        subscriptions_table.update_item(
+            Key={'user_id': user_id},
+            UpdateExpression='SET stripe_connect_status = :status, updated_at = :now',
+            ExpressionAttributeValues={
+                ':status': new_status,
+                ':now': datetime.utcnow().isoformat(),
+            },
+            ConditionExpression='attribute_exists(user_id)',
+        )
+        logger.info(
+            "Synced connect status from account.updated",
+            account_id=account_id,
+            user_id=user_id,
+            new_status=new_status,
+        )
+        return True
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', '')
+        if error_code == 'ConditionalCheckFailedException':
+            logger.warning("User not found for account.updated", user_id=user_id, account_id=account_id)
+        else:
+            logger.error("Failed to update connect status", error=str(e))
+        return False
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler for Stripe Connect payment webhooks
@@ -341,6 +398,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         elif event_type == 'payment_intent.succeeded':
             processed = handle_payment_intent_succeeded(event_data, stripe_account_id)
+
+        elif event_type == 'account.updated':
+            processed = handle_account_updated(event_data)
 
         elif event_type == 'checkout.session.expired':
             # Log but don't process - session expired without payment

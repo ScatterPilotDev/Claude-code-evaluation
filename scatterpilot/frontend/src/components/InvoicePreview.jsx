@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import analytics from '../utils/analytics';
 
@@ -47,6 +48,12 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
   const [currentStatus, setCurrentStatus] = useState(invoiceStatus || 'draft');
   const [statusUpdating, setStatusUpdating] = useState(false);
 
+  // Payment link state
+  const [paymentUrl, setPaymentUrl] = useState(null);
+  const [isGettingLink, setIsGettingLink] = useState(false);
+  const [linkError, setLinkError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
   // When a new invoice is loaded, reset all edit state
   useEffect(() => {
     setDisplayData(invoiceData);
@@ -54,7 +61,31 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
     setEditData(null);
     setSaveError(null);
     setCurrentStatus(invoiceStatus || 'draft');
+    setPaymentUrl(null);
+    setLinkError(null);
+    setCopied(false);
   }, [invoiceId]);
+
+  const handleGetPaymentLink = useCallback(async () => {
+    setIsGettingLink(true);
+    setLinkError(null);
+    try {
+      const result = await api.createCheckoutSession(invoiceId);
+      setPaymentUrl(result.paymentUrl);
+    } catch (err) {
+      setLinkError(err?.message || 'Failed to create payment link. Please try again.');
+    } finally {
+      setIsGettingLink(false);
+    }
+  }, [invoiceId]);
+
+  const handleCopyLink = useCallback(() => {
+    if (!paymentUrl) return;
+    navigator.clipboard.writeText(paymentUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [paymentUrl]);
 
   const activeData = isEditing ? editData : displayData;
 
@@ -504,6 +535,95 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
             )}
           </button>
         </div>
+
+        {/* ── Payment Link Section ── */}
+        {currentStatus !== 'paid' && currentStatus !== 'cancelled' && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-xs font-bold text-navy-muted uppercase tracking-wide mb-3">
+              Accept Online Payment
+            </p>
+
+            {/* Has Stripe connected */}
+            {subscription?.stripe_connected_account_id ? (
+              <>
+                {!paymentUrl ? (
+                  <>
+                    <button
+                      onClick={handleGetPaymentLink}
+                      disabled={isGettingLink}
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-navy-light hover:text-navy hover:border-sage font-medium rounded-lg transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGettingLink ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Generating…
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          Get Payment Link
+                        </>
+                      )}
+                    </button>
+                    {linkError && (
+                      <p className="mt-2 text-xs text-red-600">{linkError}</p>
+                    )}
+                  </>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={paymentUrl}
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm text-navy-light bg-cream-light focus:outline-none focus:ring-1 focus:ring-sage truncate"
+                        onFocus={e => e.target.select()}
+                      />
+                      <button
+                        onClick={handleCopyLink}
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 border border-gray-300 hover:border-sage text-navy-light hover:text-navy rounded-lg text-sm font-medium transition-all duration-200"
+                      >
+                        {copied ? (
+                          <>
+                            <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Copy
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-navy-muted">
+                      Share this link with your client so they can pay online via Stripe.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* No Stripe connected */
+              <p className="text-sm text-navy-light">
+                <Link
+                  to="/app/settings"
+                  className="text-sage hover:text-sage-dark underline font-medium transition-colors"
+                >
+                  Connect Stripe to accept payments
+                </Link>
+                {' '}and get paid directly from your invoices.
+              </p>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

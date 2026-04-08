@@ -17,6 +17,8 @@ const Success = lazy(() => import('./components/Success'));
 const StripeCallback = lazy(() => import('./pages/StripeCallback'));
 const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
+const PayInvoicePage = lazy(() => import('./components/PayInvoicePage'));
+const PayInvoiceSuccessPage = lazy(() => import('./components/PayInvoiceSuccessPage'));
 
 // Loading fallback component
 function LoadingFallback() {
@@ -54,6 +56,9 @@ export default function Router() {
               <Route path="/stripe-callback" element={<StripeCallback />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:slug" element={<BlogPost />} />
+              {/* Public invoice payment pages — no auth required */}
+              <Route path="/pay/:invoiceId" element={<PayInvoicePage />} />
+              <Route path="/pay/:invoiceId/success" element={<PayInvoiceSuccessPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

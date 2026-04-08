@@ -991,6 +991,63 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Create Checkout Session for Invoice Payment
+  CreateCheckoutSessionInvoiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-CreateInvoiceCheckout-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: create_checkout_session.handler
+      Description: Creates a Stripe Checkout Session for paying an invoice
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        CreateInvoicePaymentLink:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices/{invoice_id}/payment-link
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Get Public Invoice Data (no auth — for client-facing payment page)
+  GetPublicInvoiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GetPublicInvoice-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: get_public.handler
+      Description: Returns public invoice data for the client-facing payment page
+      Timeout: 15
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        GetPublicInvoice:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices/{invoice_id}/public
+            Method: GET
+            # No Cognito auth — public endpoint for invoice recipients
+
   # Payment Webhook Handler (Stripe Connect)
   PaymentWebhookFunction:
     Type: AWS::Serverless::Function
@@ -1011,6 +1068,8 @@ Resources:
             TableName: !Ref InvoicesTable
         - DynamoDBWritePolicy:
             TableName: !Ref InvoicesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
       Events:
         PaymentWebhook:
           Type: Api
@@ -1322,6 +1381,18 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-ListCustomers-${Environment}
+      RetentionInDays: 30
+
+  CreateInvoiceCheckoutLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-CreateInvoiceCheckout-${Environment}
+      RetentionInDays: 30
+
+  GetPublicInvoiceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetPublicInvoice-${Environment}
       RetentionInDays: 30
 
   CreatePaymentLinkLogGroup:

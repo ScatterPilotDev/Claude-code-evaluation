@@ -588,6 +588,39 @@ class ApiService {
     }
   }
 
+  async createCheckoutSession(invoiceId) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/invoices/${invoiceId}/payment-link`, {
+        method: 'POST',
+        headers,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] createCheckoutSession failed:', error);
+      throw error;
+    }
+  }
+
+  // No auth — for the public client-facing payment page
+  async getPublicInvoice(invoiceId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/invoices/${invoiceId}/public`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] getPublicInvoice failed:', error);
+      throw error;
+    }
+  }
+
   // Clear conversation for new invoice
   clearConversation() {
     this.conversationId = null;

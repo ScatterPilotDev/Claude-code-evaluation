@@ -635,6 +635,45 @@ class ApiService {
     }
   }
 
+  async updateInvoiceStatus(invoiceId, status) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ status })
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Update invoice status failed:', error);
+      throw error;
+    }
+  }
+
+  async updateCustomer(customerName, profileData) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const encodedName = encodeURIComponent(customerName);
+      const response = await fetch(`${this.baseUrl}/customers/${encodedName}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(profileData)
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Update customer failed:', error);
+      throw error;
+    }
+  }
+
   async listCustomers() {
     try {
       const headers = await this.getAuthHeaders();

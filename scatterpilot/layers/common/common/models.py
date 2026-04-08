@@ -15,8 +15,11 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 class InvoiceStatus(str, Enum):
     """Invoice lifecycle states"""
     DRAFT = "draft"
-    PENDING = "pending"
+    SENT = "sent"
     PAID = "paid"
+    OVERDUE = "overdue"
+    # Legacy values kept for backward compatibility with existing records
+    PENDING = "pending"
     CANCELLED = "cancelled"
 
 

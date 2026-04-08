@@ -17,7 +17,8 @@ export default function Layout({
   activeConversationId,
   onNewConversation,
   refreshConversationList,
-  onCustomerNewInvoice
+  onCustomerNewInvoice,
+  onCustomerClick
 }) {
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
@@ -130,6 +131,7 @@ export default function Layout({
           onNewConversation={onNewConversation}
           refreshConversationList={refreshConversationList}
           onCustomerNewInvoice={onCustomerNewInvoice}
+          onCustomerClick={onCustomerClick}
           userEmail={userEmail}
           userName={userName}
           userInitials={userInitials}

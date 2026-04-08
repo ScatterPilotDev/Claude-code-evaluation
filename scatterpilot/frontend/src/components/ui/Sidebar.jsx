@@ -81,7 +81,8 @@ export default function Sidebar({
   activeConversationId,
   onNewConversation,
   refreshConversationList,
-  onCustomerNewInvoice
+  onCustomerNewInvoice,
+  onCustomerClick
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -162,10 +163,12 @@ export default function Sidebar({
 
   const getStatusColor = (status) => {
     const map = {
-      paid:    'bg-green-100 text-green-700 border border-green-200',
-      pending: 'bg-amber-100 text-amber-700 border border-amber-200',
-      overdue: 'bg-red-100  text-red-700   border border-red-200',
-      draft:   'bg-gray-100 text-gray-600  border border-gray-200',
+      paid:      'bg-green-100 text-green-700 border border-green-200',
+      sent:      'bg-blue-100  text-blue-700  border border-blue-200',
+      overdue:   'bg-red-100   text-red-700   border border-red-200',
+      draft:     'bg-gray-100  text-gray-600  border border-gray-200',
+      pending:   'bg-amber-100 text-amber-700 border border-amber-200',
+      cancelled: 'bg-gray-100  text-gray-500  border border-gray-200',
     };
     return map[status?.toLowerCase()] ?? 'bg-gray-100 text-gray-600 border border-gray-200';
   };
@@ -322,6 +325,7 @@ export default function Sidebar({
                         onConversationSelect={onConversationSelect}
                         activeConversationId={activeConversationId}
                         onCustomerNewInvoice={onCustomerNewInvoice}
+                        onCustomerClick={onCustomerClick}
                         refreshTrigger={refreshConversationList}
                       />
                     </div>

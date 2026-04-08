@@ -22,7 +22,19 @@ function computeDerivedTotals(data) {
   };
 }
 
-export default function InvoicePreview({ invoiceId, invoiceData, onNewInvoice, subscription }) {
+const STATUS_OPTIONS = [
+  { value: 'draft',   label: 'Draft',   cls: 'bg-gray-100  text-gray-600  border-gray-200' },
+  { value: 'sent',    label: 'Sent',    cls: 'bg-blue-100  text-blue-700  border-blue-200'  },
+  { value: 'paid',    label: 'Paid',    cls: 'bg-green-100 text-green-700 border-green-200' },
+  { value: 'overdue', label: 'Overdue', cls: 'bg-red-100   text-red-700   border-red-200'   },
+];
+
+function getStatusCls(status) {
+  const opt = STATUS_OPTIONS.find(o => o.value === status?.toLowerCase());
+  return opt ? opt.cls : 'bg-gray-100 text-gray-600 border-gray-200';
+}
+
+export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, onNewInvoice, subscription }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -31,6 +43,9 @@ export default function InvoicePreview({ invoiceId, invoiceData, onNewInvoice, s
   const [displayData, setDisplayData] = useState(invoiceData);
   // editData is the working copy during edit mode
   const [editData, setEditData] = useState(null);
+  // Status management
+  const [currentStatus, setCurrentStatus] = useState(invoiceStatus || 'draft');
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   // When a new invoice is loaded, reset all edit state
   useEffect(() => {
@@ -38,6 +53,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, onNewInvoice, s
     setIsEditing(false);
     setEditData(null);
     setSaveError(null);
+    setCurrentStatus(invoiceStatus || 'draft');
   }, [invoiceId]);
 
   const activeData = isEditing ? editData : displayData;
@@ -97,6 +113,21 @@ export default function InvoicePreview({ invoiceId, invoiceData, onNewInvoice, s
       ...prev,
       line_items: prev.line_items.filter((_, i) => i !== idx)
     }));
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (newStatus === currentStatus || statusUpdating) return;
+    setStatusUpdating(true);
+    const prev = currentStatus;
+    setCurrentStatus(newStatus); // optimistic
+    try {
+      await api.updateInvoiceStatus(invoiceId, newStatus);
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      setCurrentStatus(prev); // rollback
+    } finally {
+      setStatusUpdating(false);
+    }
   };
 
   const formatCurrency = (amount) =>
@@ -159,7 +190,32 @@ export default function InvoicePreview({ invoiceId, invoiceData, onNewInvoice, s
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-4xl font-bold text-navy mb-2">INVOICE</h1>
-              <p className="text-sm text-navy-muted">ID: {invoiceId}</p>
+              <p className="text-sm text-navy-muted mb-3">ID: {invoiceId}</p>
+              {/* Status dropdown */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-navy-muted font-medium">Status:</span>
+                <div className="relative">
+                  <select
+                    value={currentStatus}
+                    onChange={e => handleStatusChange(e.target.value)}
+                    disabled={statusUpdating}
+                    className={`appearance-none text-xs font-semibold px-3 py-1.5 pr-7 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-sage transition-colors ${getStatusCls(currentStatus)} disabled:opacity-60`}
+                  >
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-current opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                {statusUpdating && (
+                  <svg className="animate-spin h-3.5 w-3.5 text-sage" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+              </div>
             </div>
             <div className="text-right space-y-2">
               <div>

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout, { WelcomeScreen } from './ui/Layout';
 import ChatInterface from './ChatInterface';
 import InvoicePreview from './InvoicePreview';
+import CustomerProfile from './CustomerProfile';
 import InvoiceHistory from './InvoiceHistory';
 import Login from './Login';
 import Signup from './Signup';
@@ -36,6 +37,9 @@ export default function AppWithSidebar() {
   // Conversation state
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [refreshConversationList, setRefreshConversationList] = useState(0);
+
+  // Customer profile state
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   // Check authentication on mount
   useEffect(() => {
@@ -232,7 +236,8 @@ export default function AppWithSidebar() {
       setCurrentInvoice({
         invoice_id: invoiceId,
         invoice_data: invoice.data,
-        data: invoice.data
+        data: invoice.data,
+        status: invoice.status || 'draft'
       });
       setViewMode('viewing');
     } catch (error) {
@@ -294,7 +299,8 @@ export default function AppWithSidebar() {
             setCurrentInvoice({
               invoice_id: match.invoice_id,
               invoice_data: fullInvoice.data,
-              data: fullInvoice.data
+              data: fullInvoice.data,
+              status: match.status || 'draft'
             });
             setSelectedInvoiceId(match.invoice_id);
           }
@@ -332,6 +338,7 @@ export default function AppWithSidebar() {
 
   const handleCustomerNewInvoice = (customerName, customerEmail) => {
     console.log('[APP] New invoice for customer:', customerName);
+    setSelectedCustomer(null);
     handleNewInvoice();
     if (chatInterfaceRef.current) {
       chatInterfaceRef.current.setCustomerContext(customerName);
@@ -339,6 +346,12 @@ export default function AppWithSidebar() {
         `Create a new invoice for ${customerName}`
       );
     }
+  };
+
+  const handleCustomerClick = (customer) => {
+    console.log('[APP] Customer profile opened:', customer.customer_name);
+    setSelectedCustomer(customer);
+    setShowWelcome(false);
   };
 
   // Show loading spinner during auth check
@@ -379,11 +392,18 @@ export default function AppWithSidebar() {
       onNewConversation={handleNewConversation}
       refreshConversationList={refreshConversationList}
       onCustomerNewInvoice={handleCustomerNewInvoice}
+      onCustomerClick={handleCustomerClick}
     >
       {/* Main content area */}
       <div className="h-full bg-cream">
-        {/* Show Welcome Screen on initial load */}
-        {showWelcome ? (
+        {/* Customer Profile view */}
+        {selectedCustomer ? (
+          <CustomerProfile
+            customerName={selectedCustomer.customer_name}
+            onNewInvoice={handleCustomerNewInvoice}
+            onBack={() => setSelectedCustomer(null)}
+          />
+        ) : showWelcome ? (
           <WelcomeScreen
             userName={userName || userEmail}
             onNewInvoice={handleNewInvoice}
@@ -415,6 +435,7 @@ export default function AppWithSidebar() {
                   <InvoicePreview
                     invoiceId={currentInvoice.invoice_id}
                     invoiceData={currentInvoice.data || currentInvoice.invoice_data}
+                    invoiceStatus={currentInvoice.status || 'draft'}
                     onNewInvoice={handleNewInvoice}
                     subscription={subscription}
                   />

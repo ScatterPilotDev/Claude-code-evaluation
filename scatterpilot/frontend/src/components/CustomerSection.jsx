@@ -9,6 +9,7 @@ export default function CustomerSection({
   onConversationSelect,
   activeConversationId,
   onCustomerNewInvoice,
+  onCustomerClick,
   refreshTrigger
 }) {
   const [customers, setCustomers] = useState([]);
@@ -134,7 +135,7 @@ export default function CustomerSection({
             <div className="flex items-center gap-1 group">
               <button
                 onClick={() => toggleCustomer(customer.customer_name)}
-                className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-cream transition-all duration-200 text-left min-w-0"
+                className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-cream transition-all duration-200 text-left min-w-0 group/row"
               >
                 <ChevronDownIcon
                   className={`h-3.5 w-3.5 text-navy-muted transition-transform duration-200 flex-shrink-0 ${
@@ -148,9 +149,24 @@ export default function CustomerSection({
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-navy truncate leading-snug">
+                  {/* Clickable customer name opens profile */}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={e => {
+                      e.stopPropagation();
+                      onCustomerClick && onCustomerClick(customer);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        onCustomerClick && onCustomerClick(customer);
+                      }
+                    }}
+                    className="text-sm font-medium text-navy truncate leading-snug hover:text-sage hover:underline cursor-pointer block"
+                  >
                     {customer.customer_name}
-                  </p>
+                  </span>
                   <p className="text-[11px] text-navy-muted leading-snug">
                     {customer.invoice_count} invoice{customer.invoice_count !== 1 ? 's' : ''}
                     {parseFloat(customer.total_revenue) > 0

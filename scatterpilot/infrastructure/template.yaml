@@ -514,6 +514,29 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Update Customer Profile Function
+  UpdateCustomerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-UpdateCustomer-${Environment}
+      CodeUri: ../functions/customers/
+      Handler: update.handler
+      Description: Stores customer profile metadata (phone, notes) in subscriptions table
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        UpdateCustomer:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /customers/{customer_name}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   # List Customers Function
   ListCustomersFunction:
     Type: AWS::Serverless::Function
@@ -586,6 +609,29 @@ Resources:
             RestApiId: !Ref ScatterPilotApi
             Path: /invoices
             Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Update Invoice Function
+  UpdateInvoiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-UpdateInvoice-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: update.handler
+      Description: Updates invoice status and/or content fields
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InvoicesTable
+      Events:
+        UpdateInvoice:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices/{invoice_id}
+            Method: PUT
             Auth:
               Authorizer: CognitoAuthorizer
 
@@ -1171,6 +1217,18 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-SubmitFeedback-${Environment}
+      RetentionInDays: 30
+
+  UpdateInvoiceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-UpdateInvoice-${Environment}
+      RetentionInDays: 30
+
+  UpdateCustomerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-UpdateCustomer-${Environment}
       RetentionInDays: 30
 
   ListCustomersLogGroup:

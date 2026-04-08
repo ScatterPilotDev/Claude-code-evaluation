@@ -1,9 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import Layout from './ui/Layout';
-import ChatInterface from './ChatInterface';
-import InvoicePreview from './InvoicePreview';
+import InvoiceCreationPanel from './InvoiceCreationPanel';
 import DashboardHome from './DashboardHome';
 import InvoicesPage from './InvoicesPage';
 import ClientsPage from './ClientsPage';
@@ -41,10 +39,6 @@ export default function AppWithSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [currentInvoice, setCurrentInvoice] = useState(null);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
-  const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
-  const [invoiceError, setInvoiceError] = useState(null);
   const [refreshInvoiceList, setRefreshInvoiceList] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,22 +47,21 @@ export default function AppWithSidebar() {
   const [pendingEmail, setPendingEmail] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
-  const [viewMode, setViewMode] = useState('new');
   const [subscription, setSubscription] = useState(null);
-  const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [allInvoices, setAllInvoices] = useState([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const chatInterfaceRef = useRef(null);
+
+  // Invoice creation panel state
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [panelClientContext, setPanelClientContext] = useState(null);
 
   const [activeConversationId, setActiveConversationId] = useState(null);
-  const [refreshConversationList, setRefreshConversationList] = useState(0);
 
   // Derive current section from URL
   const pathname = location.pathname;
   const isHome         = pathname === '/app';
   const isInvoicesList = pathname === '/app/invoices';
-  const isInvoicesNew  = pathname === '/app/invoices/new';
   const isClients      = pathname === '/app/clients';
   const isClientDetail = pathname.startsWith('/app/clients/');
   const isReports      = pathname.startsWith('/app/reports');
@@ -76,6 +69,15 @@ export default function AppWithSidebar() {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  const openPanel = (clientName = null) => {
+    setPanelClientContext(clientName || null);
+    setIsPanelOpen(true);
+  };
+
+  const closePanel = () => {
+    setIsPanelOpen(false);
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -213,26 +215,15 @@ export default function AppWithSidebar() {
   };
 
   const handleNewInvoice = () => {
-    setCurrentInvoice(null);
-    setSelectedInvoiceId(null);
-    setInvoiceError(null);
-    setViewMode('new');
-    if (chatInterfaceRef.current) {
-      chatInterfaceRef.current.resetConversation();
-    }
-    navigate('/app/invoices/new');
+    openPanel();
   };
 
   const handleInvoiceGenerated = async (invoice) => {
-    setCurrentInvoice(invoice);
-    setSelectedInvoiceId(invoice.invoice_id);
-    setViewMode('created');
     setRefreshInvoiceList(prev => prev + 1);
 
     if (api.conversationId) {
       setActiveConversationId(api.conversationId);
       conversationStorage.saveActiveConversation(api.conversationId);
-      setRefreshConversationList(prev => prev + 1);
     }
 
     try {
@@ -241,43 +232,12 @@ export default function AppWithSidebar() {
     } catch { /* keep existing */ }
   };
 
-  const handleInvoiceClick = async (invoiceId, customerName) => {
-    setIsLoadingInvoice(true);
-    setInvoiceError(null);
+  const handleInvoiceClick = (invoiceId) => {
     navigate('/app/invoices');
-
-    try {
-      const invoice = await api.getInvoice(invoiceId);
-      api.clearConversation();
-      setActiveConversationId(null);
-      conversationStorage.clearActiveConversation();
-      if (chatInterfaceRef.current) {
-        chatInterfaceRef.current.resetConversation();
-        if (customerName) {
-          chatInterfaceRef.current.prefillInput(`Create a new invoice for ${customerName}`);
-        }
-      }
-      setSelectedInvoiceId(invoiceId);
-      setCurrentInvoice({ invoice_id: invoiceId, invoice_data: invoice.data, data: invoice.data, status: invoice.status || 'draft' });
-      setViewMode('viewing');
-    } catch {
-      setInvoiceError('Failed to load invoice. Please try again.');
-    } finally {
-      setIsLoadingInvoice(false);
-    }
   };
 
   const handleCustomerNewInvoice = (customerName) => {
-    setSelectedCustomer(null);
-    handleNewInvoice();
-    if (chatInterfaceRef.current) {
-      chatInterfaceRef.current.setCustomerContext?.(customerName);
-      chatInterfaceRef.current.prefillInput(`Create a new invoice for ${customerName}`);
-    }
-  };
-
-  const handleCustomerClick = (customer) => {
-    navigate(`/app/clients/${encodeURIComponent(customer.customer_name)}`);
+    openPanel(customerName);
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────
@@ -340,44 +300,6 @@ export default function AppWithSidebar() {
       );
     }
 
-    // /app/invoices/new — AI chat creation flow (full-bleed, breaks out of layout padding)
-    if (isInvoicesNew) {
-      return (
-        <div className="-mx-8 -my-8 h-[calc(100vh-0px)] flex overflow-hidden">
-          <div className="flex-1 h-full">
-            <ChatInterface
-              ref={chatInterfaceRef}
-              onInvoiceGenerated={handleInvoiceGenerated}
-              viewMode={viewMode}
-              onNewInvoice={handleNewInvoice}
-              onMessageSent={() => setRefreshConversationList(prev => prev + 1)}
-            />
-          </div>
-
-          <AnimatePresence>
-            {currentInvoice && (
-              <motion.div
-                key="invoice-preview"
-                initial={{ x: 384, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 384, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="w-96 h-full border-l border-surface-border bg-surface-card"
-              >
-                <InvoicePreview
-                  invoiceId={currentInvoice.invoice_id}
-                  invoiceData={currentInvoice.data || currentInvoice.invoice_data}
-                  invoiceStatus={currentInvoice.status || 'draft'}
-                  onNewInvoice={handleNewInvoice}
-                  subscription={subscription}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      );
-    }
-
     // Fallback — dashboard
     return (
       <DashboardHome
@@ -393,6 +315,15 @@ export default function AppWithSidebar() {
 
   return (
     <Layout onNewInvoice={handleNewInvoice}>
+      {/* Invoice creation slide-over panel */}
+      <InvoiceCreationPanel
+        isOpen={isPanelOpen}
+        clientContext={panelClientContext}
+        onClose={closePanel}
+        onInvoiceCreated={handleInvoiceGenerated}
+        subscription={subscription}
+      />
+
       {/* Onboarding overlay */}
       {showOnboarding && (
         <OnboardingOverlay
@@ -404,29 +335,6 @@ export default function AppWithSidebar() {
       )}
 
       {renderContent()}
-
-      {/* Loading overlay */}
-      {isLoadingInvoice && (
-        <div className="fixed inset-0 bg-ink-primary/40 flex items-center justify-center z-50">
-          <div className="bg-surface-card rounded-card p-6 shadow-modal">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-sage-100 border-t-sage-500 mx-auto"></div>
-            <p className="mt-4 text-body text-ink-primary text-center">Loading invoice…</p>
-          </div>
-        </div>
-      )}
-
-      {/* Error toast */}
-      {invoiceError && (
-        <div className="fixed bottom-5 right-5 bg-danger-400 text-white px-5 py-3.5 rounded-card shadow-modal z-50">
-          <p className="text-body">{invoiceError}</p>
-          <button
-            onClick={() => setInvoiceError(null)}
-            className="mt-1.5 text-body-sm underline hover:no-underline opacity-80 hover:opacity-100"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
     </Layout>
   );
 }

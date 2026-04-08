@@ -41,7 +41,7 @@ export default function Router() {
               {/* Authenticated app shell — all /app/* routes */}
               <Route path="/app" element={<AppWithSidebar />} />
               <Route path="/app/invoices" element={<AppWithSidebar />} />
-              <Route path="/app/invoices/new" element={<AppWithSidebar />} />
+              <Route path="/app/invoices/new" element={<Navigate to="/app/invoices" replace />} />
               <Route path="/app/clients" element={<AppWithSidebar />} />
               <Route path="/app/clients/:clientId" element={<AppWithSidebar />} />
               <Route path="/app/reports" element={<AppWithSidebar />} />

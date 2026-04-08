@@ -135,22 +135,22 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
     : (isMobile ? 'Who are you invoicing?' : 'Who are you invoicing? (Enter to send)');
 
   return (
-    <div className="flex flex-col h-full bg-cream">
+    <div className="flex flex-col h-full bg-surface-bg">
 
       {/* Customer context banner */}
       {customerName && viewMode !== 'viewing' && (
-        <div className="px-5 py-2.5 bg-sage/10 border-b border-sage/20 flex items-center justify-between">
+        <div className="px-5 py-2.5 bg-sage-50 border-b border-sage-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-sage/25 flex items-center justify-center flex-shrink-0">
-              <svg className="w-3 h-3 text-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-5 h-5 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-sage-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-sm text-sage font-medium">Invoicing {customerName}</span>
+            <span className="text-body-sm text-sage-600 font-medium">Invoicing {customerName}</span>
           </div>
           <button onClick={() => setCustomerName(null)}
-            className="text-sage/50 hover:text-sage transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="text-ink-tertiary hover:text-ink-secondary transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Clear customer">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -159,49 +159,20 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
         </div>
       )}
 
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-200 bg-white">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-base font-semibold text-navy">
-              {viewMode === 'viewing' ? 'Invoice' : 'New Invoice'}
-            </h2>
-            <p className="text-xs text-navy-muted mt-0.5">
-              {viewMode === 'viewing'
-                ? 'Viewing a past invoice'
-                : viewMode === 'created'
-                ? 'Invoice ready — keep chatting to make changes'
-                : 'Chat with your AI assistant'}
-            </p>
-          </div>
-          {(viewMode === 'viewing' || viewMode === 'created') && onNewInvoice && (
-            <button
-              onClick={onNewInvoice}
-              className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] border border-gray-200 text-navy-light hover:text-navy hover:border-sage text-sm font-medium rounded-lg transition-all duration-150"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-5 py-5 space-y-4">
         {viewMode === 'viewing' ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-sm p-8 bg-white rounded-2xl border border-gray-100 shadow-light-sm">
-              <svg className="mx-auto h-12 w-12 text-sage mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-center max-w-sm p-8 bg-surface-card rounded-card border border-surface-border">
+              <svg className="mx-auto h-12 w-12 text-sage-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="text-base font-semibold text-navy mb-1">Past Invoice</h3>
-              <p className="text-sm text-navy-muted">The full invoice is shown on the right.</p>
+              <h3 className="text-heading font-semibold text-ink-primary mb-1">Past Invoice</h3>
+              <p className="text-body-sm text-ink-secondary">The full invoice is shown above.</p>
               {onNewInvoice && (
                 <button onClick={onNewInvoice}
-                  className="mt-4 px-4 py-2 bg-sage text-white text-sm font-medium rounded-lg hover:bg-sage-dark transition-colors min-h-[44px]">
+                  className="mt-4 px-4 py-2 bg-sage-500 text-white text-body-sm font-medium rounded-button hover:bg-sage-600 transition-colors min-h-[44px]">
                   Create New Invoice
                 </button>
               )}
@@ -276,23 +247,23 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                   transition={{ duration: 0.2 }}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  <div className={`max-w-[80%] rounded-card px-4 py-3 text-body-sm leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-sage text-white rounded-br-md shadow-sm'
-                      : 'bg-white text-navy border border-gray-100 shadow-light-sm rounded-bl-md'
+                      ? 'bg-sage-500 text-white rounded-tr-sm'
+                      : 'bg-surface-card text-ink-primary border border-surface-border rounded-tl-sm'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <ReactMarkdown
                         components={{
-                          p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                          strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                          p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-ink-primary" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-semibold text-ink-primary" {...props} />,
                           ul: ({node, ...props}) => <ul className="list-disc ml-4 my-2 space-y-1" {...props} />,
                           ol: ({node, ...props}) => <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />,
-                          li: ({node, ...props}) => <li className="my-0.5" {...props} />,
+                          li: ({node, ...props}) => <li className="my-0.5 text-ink-primary" {...props} />,
                           code: ({node, inline, ...props}) =>
                             inline
-                              ? <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono" {...props} />
-                              : <code className="block bg-gray-50 p-3 rounded-lg my-2 text-xs font-mono overflow-x-auto" {...props} />,
+                              ? <code className="bg-surface-muted px-1 py-0.5 rounded text-xs font-mono text-ink-secondary" {...props} />
+                              : <code className="block bg-surface-muted p-3 rounded-card my-2 text-xs font-mono overflow-x-auto text-ink-secondary" {...props} />,
                         }}
                       >
                         {filtered}
@@ -314,12 +285,12 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                   exit={{ opacity: 0, y: 4 }}
                   className="flex justify-start"
                 >
-                  <div className="bg-white border border-gray-100 shadow-light-sm rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="bg-surface-card border border-surface-border rounded-card rounded-tl-sm px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       {[0, 0.15, 0.3].map((delay, i) => (
                         <motion.div
                           key={i}
-                          className="w-2 h-2 bg-sage rounded-full"
+                          className="w-2 h-2 bg-sage-400 rounded-full"
                           animate={{ y: [0, -5, 0] }}
                           transition={{ duration: 0.6, repeat: Infinity, delay, ease: 'easeInOut' }}
                         />
@@ -336,9 +307,9 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
       </div>
 
       {/* Input area */}
-      <div className="px-4 md:px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-gray-200 bg-white">
+      <div className="px-4 md:px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-surface-border bg-surface-card flex-shrink-0">
         {viewMode === 'viewing' ? (
-          <div className="flex items-center justify-center py-3 text-sm text-navy-muted bg-gray-50 rounded-xl min-h-[44px]">
+          <div className="flex items-center justify-center py-3 text-body-sm text-ink-secondary bg-surface-muted rounded-input min-h-[44px]">
             Read-only — create a new invoice to chat
           </div>
         ) : (
@@ -349,14 +320,14 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              rows={isMobile ? 2 : 2}
+              rows={2}
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-navy placeholder-navy-muted focus:outline-none focus:ring-2 focus:ring-sage/50 focus:border-sage resize-none transition-all duration-150 text-sm min-h-[44px]"
+              className="flex-1 px-4 py-3 bg-surface-bg border border-surface-border rounded-input text-body-sm text-ink-primary placeholder:text-ink-tertiary focus:outline-none focus:ring-1 focus:ring-sage-500/20 focus:border-sage-500 resize-none transition-all duration-150 min-h-[44px]"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="px-5 py-3 min-h-[44px] bg-sage hover:bg-sage-dark text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 font-medium text-sm flex-shrink-0"
+              className="px-5 py-3 min-h-[44px] bg-sage-500 hover:bg-sage-600 text-white rounded-button disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 font-medium text-body-sm flex-shrink-0"
             >
               Send
             </button>

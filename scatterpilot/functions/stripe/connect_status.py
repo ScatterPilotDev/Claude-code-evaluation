@@ -92,8 +92,8 @@ def handler(event: dict, context) -> dict:
         if not account.details_submitted:
             account_link = stripe.AccountLink.create(
                 account=account_id,
-                refresh_url=f"{FRONTEND_URL}/settings/payments?refresh=true",
-                return_url=f"{FRONTEND_URL}/settings/payments?onboarding=complete",
+                refresh_url=f"{FRONTEND_URL}/app/settings/payments?refresh=true",
+                return_url=f"{FRONTEND_URL}/app/settings/payments?onboarding=complete",
                 type='account_onboarding',
             )
             onboarding_url = account_link.url

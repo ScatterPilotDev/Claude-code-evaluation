@@ -51,8 +51,8 @@ def _create_account_link(account_id: str) -> str:
     """Create a Stripe Account Link for the hosted onboarding wizard."""
     link = stripe.AccountLink.create(
         account=account_id,
-        refresh_url=f"{FRONTEND_URL}/settings/payments?refresh=true",
-        return_url=f"{FRONTEND_URL}/settings/payments?onboarding=complete",
+        refresh_url=f"{FRONTEND_URL}/app/settings/payments?refresh=true",
+        return_url=f"{FRONTEND_URL}/app/settings/payments?onboarding=complete",
         type='account_onboarding',
     )
     return link.url

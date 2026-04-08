@@ -8,6 +8,7 @@ import ClientsPage from './ClientsPage';
 import ClientDetailPage from './ClientDetailPage';
 import OnboardingFlow from './OnboardingFlow';
 import ReportsPage from './ReportsPage';
+import SettingsPage from './SettingsPage';
 import Login from './Login';
 import Signup from './Signup';
 import VerifyEmail from './VerifyEmail';
@@ -66,6 +67,7 @@ export default function AppWithSidebar() {
   const isClients      = pathname === '/app/clients';
   const isClientDetail = pathname.startsWith('/app/clients/');
   const isReports      = pathname.startsWith('/app/reports');
+  const isSettings     = pathname.startsWith('/app/settings');
 
   useEffect(() => {
     checkAuth();
@@ -295,6 +297,10 @@ export default function AppWithSidebar() {
 
     if (isReports) {
       return <ReportsPage />;
+    }
+
+    if (isSettings) {
+      return <SettingsPage />;
     }
 
     // /app/invoices — filterable invoice list

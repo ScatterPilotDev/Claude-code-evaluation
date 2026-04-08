@@ -133,11 +133,11 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
       {/* ── Bottom section ── */}
       <div className="mt-auto border-t border-surface-border pt-3 flex flex-col gap-0.5">
         <Link
-          to="/settings"
+          to="/app/settings"
           className={[
             'flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
-            location.pathname === '/settings'
+            location.pathname.startsWith('/app/settings')
               ? 'bg-sage-50 text-sage-600 font-medium'
               : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',
           ].join(' ')}

@@ -45,6 +45,8 @@ export default function Router() {
               <Route path="/app/clients" element={<AppWithSidebar />} />
               <Route path="/app/clients/:clientId" element={<AppWithSidebar />} />
               <Route path="/app/reports" element={<AppWithSidebar />} />
+              <Route path="/app/settings" element={<AppWithSidebar />} />
+              <Route path="/app/settings/payments" element={<AppWithSidebar />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />

@@ -553,6 +553,41 @@ class ApiService {
     }
   }
 
+  async createConnectAccount() {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/stripe/connect/account`, {
+        method: 'POST',
+        headers,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] createConnectAccount failed:', error);
+      throw error;
+    }
+  }
+
+  async getConnectStatus() {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/stripe/connect/status`, {
+        headers,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] getConnectStatus failed:', error);
+      throw error;
+    }
+  }
+
   // Clear conversation for new invoice
   clearConversation() {
     this.conversationId = null;

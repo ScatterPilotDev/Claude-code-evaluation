@@ -6,7 +6,7 @@ import DashboardHome from './DashboardHome';
 import InvoicesPage from './InvoicesPage';
 import ClientsPage from './ClientsPage';
 import ClientDetailPage from './ClientDetailPage';
-import OnboardingOverlay from './OnboardingOverlay';
+import OnboardingFlow from './OnboardingFlow';
 import Login from './Login';
 import Signup from './Signup';
 import VerifyEmail from './VerifyEmail';
@@ -107,6 +107,11 @@ export default function AppWithSidebar() {
         try {
           const profile = await api.getProfile();
           setUserName(profile?.contact_name || '');
+          // Show onboarding if business name is missing and not already completed
+          const completedFlag = localStorage.getItem('sp_onboarding_completed') === 'true';
+          if (!completedFlag && !profile?.business_name) {
+            setShowOnboarding(true);
+          }
         } catch {
           setUserName('');
         }
@@ -171,7 +176,8 @@ export default function AppWithSidebar() {
       setAllInvoices(invoices);
       setDashboardMetrics({ outstanding, receivedThisMonth, overdueCount, recentActivity });
 
-      if (invoices.length === 0 && !userName) {
+      const completedFlag = localStorage.getItem('sp_onboarding_completed') === 'true';
+      if (!completedFlag && invoices.length === 0 && !userName) {
         setShowOnboarding(true);
       }
     } catch (err) {
@@ -313,6 +319,21 @@ export default function AppWithSidebar() {
     );
   };
 
+  // ── Full-screen onboarding (no sidebar/nav) ──────────────────────────────
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow
+        onComplete={({ clientName, clientCreated }) => {
+          setShowOnboarding(false);
+          loadDashboardData();
+          if (clientCreated && clientName) {
+            openPanel(clientName);
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <Layout onNewInvoice={handleNewInvoice}>
       {/* Invoice creation slide-over panel */}
@@ -323,16 +344,6 @@ export default function AppWithSidebar() {
         onInvoiceCreated={handleInvoiceGenerated}
         subscription={subscription}
       />
-
-      {/* Onboarding overlay */}
-      {showOnboarding && (
-        <OnboardingOverlay
-          onComplete={() => {
-            setShowOnboarding(false);
-            handleNewInvoice();
-          }}
-        />
-      )}
 
       {renderContent()}
     </Layout>

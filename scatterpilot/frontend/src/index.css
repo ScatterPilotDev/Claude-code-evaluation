@@ -191,6 +191,29 @@ body {
   perspective: 1000px;
 }
 
+/* iPhone safe-area bottom padding */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Skeleton shimmer animation */
+@keyframes shimmer {
+  0%   { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(to right, #f0f0ef 8%, #e8e8e5 18%, #f0f0ef 33%);
+  background-size: 800px 104px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Minimum touch target helper */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;

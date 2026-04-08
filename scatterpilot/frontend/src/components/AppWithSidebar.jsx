@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import Layout, { WelcomeScreen } from './ui/Layout';
+import Layout from './ui/Layout';
 import ChatInterface from './ChatInterface';
 import InvoicePreview from './InvoicePreview';
 import CustomerProfile from './CustomerProfile';
@@ -9,6 +9,8 @@ import InvoiceHistory from './InvoiceHistory';
 import Login from './Login';
 import Signup from './Signup';
 import VerifyEmail from './VerifyEmail';
+import DashboardHome from './DashboardHome';
+import OnboardingOverlay from './OnboardingOverlay';
 import authService from '../services/auth';
 import api from '../services/api';
 import analytics from '../utils/analytics';
@@ -30,8 +32,10 @@ export default function AppWithSidebar() {
   const [userName, setUserName] = useState('');
   const [viewMode, setViewMode] = useState('new');
   const [subscription, setSubscription] = useState(null);
-  const [recentInvoices, setRecentInvoices] = useState([]);
+  const [dashboardMetrics, setDashboardMetrics] = useState(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const chatInterfaceRef = useRef(null);
 
   // Conversation state
@@ -58,10 +62,10 @@ export default function AppWithSidebar() {
     }
   }, [isAuthenticated]);
 
-  // Load recent invoices
+  // Load dashboard data
   useEffect(() => {
     if (isAuthenticated) {
-      loadRecentInvoices();
+      loadDashboardData();
     }
   }, [isAuthenticated, refreshInvoiceList]);
 
@@ -117,26 +121,59 @@ export default function AppWithSidebar() {
     );
   };
 
-  const loadRecentInvoices = async () => {
+  const loadDashboardData = async () => {
+    setIsDashboardLoading(true);
     try {
-      // Skip fetch if auth is not ready yet
       const authenticated = await authService.isAuthenticated();
       if (!authenticated) return;
 
-      const invoices = await api.listInvoices();
-      // Get the 5 most recent invoices
-      const recent = invoices.invoices
-        ?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 5)
+      const response = await api.listInvoices();
+      const invoices = response.invoices || [];
+
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+
+      const outstanding = invoices
+        .filter(i => !['paid', 'cancelled'].includes(i.status))
+        .reduce((sum, i) => sum + parseFloat(i.total || i.invoice_data?.total || 0), 0);
+
+      const receivedThisMonth = invoices
+        .filter(i => {
+          if (i.status !== 'paid') return false;
+          const d = new Date(i.updated_at || i.created_at);
+          return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        })
+        .reduce((sum, i) => sum + parseFloat(i.total || i.invoice_data?.total || 0), 0);
+
+      const overdueCount = invoices.filter(i => {
+        if (['paid', 'cancelled'].includes(i.status)) return false;
+        if (i.status === 'overdue') return true;
+        const due = i.invoice_data?.due_date || i.invoice_data?.dueDate;
+        return due && new Date(due) < now;
+      }).length;
+
+      const recentActivity = [...invoices]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 3)
         .map(inv => ({
           invoice_id: inv.invoice_id,
-          client_name: inv.invoice_data?.billTo?.company || inv.invoice_data?.billTo?.name,
-          starred: false // TODO: Add star functionality
-        })) || [];
-      setRecentInvoices(recent);
+          client_name: inv.customer_name || inv.invoice_data?.billTo?.company || inv.invoice_data?.billTo?.name || 'Unknown',
+          amount: parseFloat(inv.total || inv.invoice_data?.total || 0),
+          status: inv.status || 'draft',
+          date: inv.created_at,
+        }));
+
+      setDashboardMetrics({ outstanding, receivedThisMonth, overdueCount, recentActivity });
+
+      // Show onboarding for new users with no invoices and incomplete profile
+      if (invoices.length === 0 && !userName) {
+        setShowOnboarding(true);
+      }
     } catch (err) {
-      console.error('Failed to load recent invoices:', err);
-      // Silently ignore all errors - this is a background fetch
+      console.error('Failed to load dashboard data:', err);
+    } finally {
+      setIsDashboardLoading(false);
     }
   };
 
@@ -394,6 +431,16 @@ export default function AppWithSidebar() {
       onCustomerNewInvoice={handleCustomerNewInvoice}
       onCustomerClick={handleCustomerClick}
     >
+      {/* Onboarding overlay for new users */}
+      {showOnboarding && (
+        <OnboardingOverlay
+          onComplete={() => {
+            setShowOnboarding(false);
+            handleNewInvoice();
+          }}
+        />
+      )}
+
       {/* Main content area */}
       <div className="h-full bg-cream">
         {/* Customer Profile view */}
@@ -404,9 +451,12 @@ export default function AppWithSidebar() {
             onBack={() => setSelectedCustomer(null)}
           />
         ) : showWelcome ? (
-          <WelcomeScreen
+          <DashboardHome
             userName={userName || userEmail}
+            metrics={dashboardMetrics}
+            isLoading={isDashboardLoading}
             onNewInvoice={handleNewInvoice}
+            onInvoiceClick={handleInvoiceClick}
           />
         ) : (
           <div className="h-full flex">

@@ -870,6 +870,31 @@ export default function Account() {
           </ul>
         </div>
 
+        {/* Trust & Security badges */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Security & Compliance</h2>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <svg className="w-5 h-5 text-orange-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+              </svg>
+              <span className="text-sm font-medium text-gray-700">Secured by AWS</span>
+            </div>
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+              </svg>
+              <span className="text-sm font-medium text-gray-700">Payments by Stripe</span>
+            </div>
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-sm font-medium text-gray-700">256-bit Encryption</span>
+            </div>
+          </div>
+        </div>
+
         {/* Actions */}
         <div className="flex justify-between">
           <button

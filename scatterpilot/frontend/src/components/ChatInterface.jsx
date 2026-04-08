@@ -1,276 +1,157 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import apiService from '../services/api';
 import analytics from '../utils/analytics';
 import { isMobileDevice } from '../utils/deviceDetection';
 
+const INITIAL_MESSAGE = {
+  role: 'assistant',
+  content: "Hi! Who are you invoicing today, and what are you billing for?"
+};
+
 const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewInvoice, onMessageSent }, ref) => {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }
-  ]);
+  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [customerName, setCustomerName] = useState(null);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // Detect if device is mobile
   const isMobile = useMemo(() => isMobileDevice(), []);
 
-  // Update messages when switching modes
-  useEffect(() => {
-    console.log('[CHAT] useEffect triggered - viewMode:', viewMode);
-
-    // Only reset messages when explicitly switching to viewing mode
-    // Don't reset when going from 'new' to 'created' (invoice just generated)
-    if (viewMode === 'viewing') {
-      console.log('[CHAT] Switching to viewing mode - showing read-only state');
-      // Messages will be hidden by the UI in viewing mode
-    }
-  }, [viewMode]);
-
-  // Expose methods to parent
   useImperativeHandle(ref, () => ({
     resetConversation: () => {
       apiService.conversationId = null;
       setCustomerName(null);
-      setMessages([
-        { role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }
-      ]);
+      setMessages([INITIAL_MESSAGE]);
       setInput('');
     },
-    // Load a historical conversation's messages into the chat UI
     loadConversation: (conversationMessages, conversationId, customer = null) => {
-      if (conversationId) {
-        apiService.conversationId = conversationId;
-      }
+      if (conversationId) apiService.conversationId = conversationId;
       setCustomerName(customer || null);
       const mapped = (conversationMessages || []).map(msg => ({
         role: msg.role,
         content: msg.content
       }));
-      setMessages(
-        mapped.length > 0
-          ? mapped
-          : [{ role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }]
-      );
+      setMessages(mapped.length > 0 ? mapped : [INITIAL_MESSAGE]);
       setInput('');
     },
-    // Pre-fill the chat input (e.g. when opening invoice history to create another)
     prefillInput: (text) => {
       setInput(text);
+      setTimeout(() => inputRef.current?.focus(), 100);
     },
-    // Set the active customer context (shown as a banner)
     setCustomerContext: (name) => {
       setCustomerName(name || null);
     }
   }));
 
-  const scrollToBottom = () => {
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Debug state changes
-  useEffect(() => {
-    console.log('[DEBUG STATE] Messages state changed. New count:', messages.length);
-    console.log('[DEBUG STATE] Latest message:', messages[messages.length - 1]);
-  }, [messages]);
-
-  useEffect(() => {
-    console.log('[DEBUG STATE] Loading state changed to:', loading);
-  }, [loading]);
-
-  useEffect(() => {
-    console.log('[DEBUG STATE] Input state changed to:', input);
-  }, [input]);
+  }, [messages, loading]);
 
   const handleSend = async () => {
-    console.log('[DEBUG] ========== handleSend called ==========');
-    console.log('[DEBUG] Current input:', input);
-    console.log('[DEBUG] Current loading state:', loading);
-    console.log('[DEBUG] Current messages count:', messages.length);
-    console.log('[DEBUG] Current conversationId in apiService:', apiService.conversationId);
-
-    if (!input.trim() || loading) {
-      console.log('[DEBUG] handleSend early return - empty input or loading:', { emptyInput: !input.trim(), loading });
-      return;
-    }
+    if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
-    console.log('[DEBUG] Sending message:', userMessage);
-    console.log('[DEBUG] Clearing input and updating state...');
-
     setInput('');
-    setMessages(prev => {
-      console.log('[DEBUG] setMessages called, adding user message. Previous count:', prev.length);
-      return [...prev, { role: 'user', content: userMessage }];
-    });
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
-    console.log('[DEBUG] State updates queued (input cleared, user message added, loading set to true)');
 
     try {
-      console.log('[DEBUG] About to call apiService.sendMessage');
-      console.log('[DEBUG] ConversationId before API call:', apiService.conversationId);
-
-      // Call the real API
       const data = await apiService.sendMessage(userMessage);
-      console.log('[DEBUG] API response received:', data);
-      console.log('[DEBUG] ConversationId after API call:', apiService.conversationId);
 
-      setMessages(prev => {
-        console.log('[DEBUG] setMessages called, adding assistant response. Previous count:', prev.length);
-        return [...prev, {
-          role: 'assistant',
-          content: data.message || data.response
-        }];
-      });
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.message || data.response
+      }]);
 
-      // Handle usage limit reached - show upgrade prompt
       if (data.usage_limit_reached) {
-        console.log('[DEBUG] Usage limit reached, showing upgrade prompt');
-        setMessages(prev => [...prev, {
-          role: 'system',
-          content: 'upgrade_prompt' // Special marker for upgrade UI
-        }]);
+        setMessages(prev => [...prev, { role: 'system', content: 'upgrade_prompt' }]);
         return;
       }
 
-      // If the API returned invoice_ready: true, pass invoice data to preview
       if (data.invoice_ready && data.invoice_data) {
-        console.log('[DEBUG] Invoice ready, calling onInvoiceGenerated');
-
-        // Track invoice creation
         analytics.trackInvoiceCreated(data.invoice_id);
-
-        // Add success message to chat
-        setMessages(prev => [...prev, {
-          role: 'system',
-          content: 'invoice_created' // Special marker for invoice created UI
-        }]);
-
+        setMessages(prev => [...prev, { role: 'system', content: 'invoice_created' }]);
         onInvoiceGenerated({
           invoice_id: data.invoice_id,
           invoice_data: data.invoice_data,
-          data: data.invoice_data // Also pass as 'data' for InvoicePreview
+          data: data.invoice_data,
+          status: 'draft',
         });
 
-        // Show warning toast if running low on invoices (1-2 left)
         if (data.invoices_remaining !== undefined && data.invoices_remaining <= 2 && data.invoices_remaining > 0) {
-          setToastMessage(`⚠️ Only ${data.invoices_remaining} invoice${data.invoices_remaining === 1 ? '' : 's'} left on free plan! Upgrade to Pro for unlimited invoices.`);
+          setToastMessage(`Only ${data.invoices_remaining} invoice${data.invoices_remaining === 1 ? '' : 's'} left on your free plan.`);
           setShowToast(true);
-          setTimeout(() => setShowToast(false), 8000); // Hide after 8 seconds
+          setTimeout(() => setShowToast(false), 8000);
         }
       }
     } catch (error) {
-      console.error('[DEBUG] !!!!! Error sending message !!!!!');
-      console.error('[DEBUG] Error details:', error);
-      console.error('[DEBUG] Error message:', error.message);
-      console.error('[DEBUG] Error stack:', error.stack);
-
-      setMessages(prev => {
-        console.log('[DEBUG] setMessages called, adding error message. Previous count:', prev.length);
-        return [...prev, {
-          role: 'assistant',
-          content: 'Sorry, there was an error connecting to the API. Please check your API configuration in .env and try again.'
-        }];
-      });
+      console.error('Error sending message:', error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: "Something went wrong — please try again."
+      }]);
     } finally {
-      console.log('[DEBUG] handleSend finished, setting loading to false');
       setLoading(false);
-      console.log('[DEBUG] ========== handleSend complete ==========');
       if (onMessageSent) onMessageSent();
     }
   };
 
   const handleKeyDown = (e) => {
-    // On mobile: Enter creates new line, only Send button submits
-    // On desktop: Enter submits, Shift+Enter creates new line
     if (e.key === 'Enter' && !isMobile && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  // Filter out JSON-like messages from display
+  // Strip JSON blocks the user shouldn't see
   const filterMessage = (content) => {
-    // Remove markdown code blocks containing JSON
     let filtered = content;
-
-    // Remove ```json ... ``` blocks
     filtered = filtered.replace(/```json\s*\n[\s\S]*?\n```/g, '');
-
-    // Remove ``` ... ``` blocks that contain JSON
     filtered = filtered.replace(/```\s*\n?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*\n?```/g, '');
-
-    // Trim the result
     filtered = filtered.trim();
 
-    // If content looks like raw JSON (starts with { or [), filter it out
     if (filtered.startsWith('{') || filtered.startsWith('[')) {
-      // Always hide create_invoice actions even if trailing stop tokens break JSON.parse
-      if (filtered.includes('"action"') && filtered.includes('"create_invoice"')) {
-        return null;
-      }
-      try {
-        JSON.parse(filtered);
-        // It's valid JSON, don't display it
-        return null;
-      } catch (e) {
-        // Not valid JSON, display as-is
-        return filtered;
-      }
+      if (filtered.includes('"action"') && filtered.includes('"create_invoice"')) return null;
+      try { JSON.parse(filtered); return null; } catch { return filtered; }
     }
-
-    // If after filtering we have no content, return null
-    if (!filtered) {
-      return null;
-    }
-
-    return filtered;
+    return filtered || null;
   };
 
-  // Filter messages for display
-  const displayMessages = messages.filter(msg => {
-    const filtered = filterMessage(msg.content);
-    return filtered !== null;
-  });
+  const displayMessages = messages.filter(msg => filterMessage(msg.content) !== null);
 
-  // Index of the most recent invoice_created marker — only that one gets the suggestion button
   const lastInvoiceCreatedIdx = displayMessages.reduce(
-    (last, m, i) => (m.role === 'system' && m.content === 'invoice_created' ? i : last),
-    -1
+    (last, m, i) => (m.role === 'system' && m.content === 'invoice_created' ? i : last), -1
   );
 
-  console.log('[CHAT] Rendering - viewMode:', viewMode, 'messages count:', messages.length);
+  const placeholder = viewMode === 'created'
+    ? (isMobile ? 'Ask to change something…' : 'Ask to change something… (Enter to send)')
+    : (isMobile ? 'Who are you invoicing?' : 'Who are you invoicing? (Enter to send)');
 
   return (
     <div className="flex flex-col h-full bg-cream">
+
       {/* Customer context banner */}
       {customerName && viewMode !== 'viewing' && (
-        <div className="px-6 py-2 bg-sage/10 border-b border-sage/20 flex items-center justify-between">
+        <div className="px-5 py-2.5 bg-sage/10 border-b border-sage/20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sage/20 flex-shrink-0">
+            <div className="w-5 h-5 rounded-full bg-sage/25 flex items-center justify-center flex-shrink-0">
               <svg className="w-3 h-3 text-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-sm text-sage font-medium">
-              Invoicing: {customerName}
-            </span>
+            <span className="text-sm text-sage font-medium">Invoicing {customerName}</span>
           </div>
-          <button
-            onClick={() => setCustomerName(null)}
-            className="text-sage/60 hover:text-sage transition-colors"
-            title="Clear customer context"
-          >
+          <button onClick={() => setCustomerName(null)}
+            className="text-sage/50 hover:text-sage transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Clear customer">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -279,232 +160,203 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
       )}
 
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="px-5 py-4 border-b border-gray-200 bg-white">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-semibold text-navy">
-              {viewMode === 'viewing' ? 'Historical Invoice' : 'Invoice Generator'}
+            <h2 className="text-base font-semibold text-navy">
+              {viewMode === 'viewing' ? 'Invoice' : 'New Invoice'}
             </h2>
-            <p className="text-sm text-navy-light">
+            <p className="text-xs text-navy-muted mt-0.5">
               {viewMode === 'viewing'
-                ? 'Viewing a previously generated invoice'
+                ? 'Viewing a past invoice'
                 : viewMode === 'created'
-                ? 'Invoice created — keep editing via chat or use the panel on the right'
-                : 'Chat with AI to create your invoice'}
+                ? 'Invoice ready — keep chatting to make changes'
+                : 'Chat with your AI assistant'}
             </p>
           </div>
           {(viewMode === 'viewing' || viewMode === 'created') && onNewInvoice && (
             <button
               onClick={onNewInvoice}
-              className="px-3 py-1.5 border border-gray-300 text-navy-light hover:text-navy hover:border-sage text-sm font-medium rounded-lg transition-all duration-200 flex items-center space-x-1.5"
+              className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] border border-gray-200 text-navy-light hover:text-navy hover:border-sage text-sm font-medium rounded-lg transition-all duration-150"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>New Invoice</span>
+              New
             </button>
           )}
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-4">
         {viewMode === 'viewing' ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-md p-8 bg-white rounded-xl border border-gray-200 shadow-md">
-              <svg
-                className="mx-auto h-16 w-16 text-sage mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
+            <div className="text-center max-w-sm p-8 bg-white rounded-2xl border border-gray-100 shadow-light-sm">
+              <svg className="mx-auto h-12 w-12 text-sage mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="text-lg font-semibold text-navy mb-2">Invoice from History</h3>
-              <p className="text-sm text-navy-light mb-4">
-                You're viewing a previously generated invoice. The full invoice details are displayed on the right.
-              </p>
-              <p className="text-xs text-navy-muted">
-                Click "New Invoice" above to create a new invoice.
-              </p>
+              <h3 className="text-base font-semibold text-navy mb-1">Past Invoice</h3>
+              <p className="text-sm text-navy-muted">The full invoice is shown on the right.</p>
+              {onNewInvoice && (
+                <button onClick={onNewInvoice}
+                  className="mt-4 px-4 py-2 bg-sage text-white text-sm font-medium rounded-lg hover:bg-sage-dark transition-colors min-h-[44px]">
+                  Create New Invoice
+                </button>
+              )}
             </div>
           </div>
         ) : (
           <>
             {displayMessages.map((msg, idx) => {
-              // Special handling for invoice created confirmation
+
+              // Invoice created confirmation
               if (msg.role === 'system' && msg.content === 'invoice_created') {
                 const isLatest = idx === lastInvoiceCreatedIdx;
                 return (
-                  <div key={idx} className="flex justify-start animate-fade-in">
-                    <div className="max-w-[80%] rounded-xl px-4 py-3 shadow-md bg-green-50 text-green-800 border border-green-200">
-                      <div className="flex items-start space-x-2">
-                        <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <motion.div key={idx}
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex justify-start">
+                    <div className="max-w-[80%] rounded-2xl px-4 py-3.5 bg-green-50 border border-green-200 text-green-800">
+                      <div className="flex items-start gap-2.5">
+                        <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">Invoice created!</p>
-                          <p className="text-xs text-green-700 mt-0.5">You can continue editing via chat, or use the edit panel on the right.</p>
+                        <div>
+                          <p className="text-sm font-semibold">Invoice ready.</p>
+                          <p className="text-xs text-green-700 mt-0.5">Download or send it to your client from the panel on the right.</p>
                           {isLatest && (
                             <button
                               onClick={() => setInput('Create another invoice for the same client')}
-                              className="mt-2 inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-900 border border-green-300 hover:border-green-500 bg-white hover:bg-green-50 rounded px-2 py-1 transition-all duration-150"
+                              className="mt-2.5 text-xs text-green-700 hover:text-green-900 border border-green-300 hover:border-green-400 bg-white hover:bg-green-50 rounded-lg px-2.5 py-1.5 transition-all duration-150 min-h-[36px]"
                             >
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              Create another invoice for this client
+                              + Another invoice for this client
                             </button>
                           )}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               }
 
-              // Special handling for upgrade prompt
+              // Usage limit prompt
               if (msg.role === 'system' && msg.content === 'upgrade_prompt') {
                 return (
-                  <div key={idx} className="flex justify-center">
-                    <div className="max-w-md p-6 bg-white rounded-xl border-2 border-purple-500/30 shadow-glow-purple">
-                      <div className="text-center">
-                        <div className="text-4xl mb-4">🚀</div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">
-                          You've used all 5 free invoices!
-                        </h3>
-                        <p className="text-navy-light mb-6">
-                          Upgrade to Pro for unlimited invoices at just <span className="font-bold text-sage">$18/month</span>
-                        </p>
-                        <div className="flex flex-col space-y-3">
-                          <button
-                            onClick={() => {
-                              analytics.trackUpgradeClicked('usage_limit_prompt');
-                              navigate('/pricing');
-                            }}
-                            className="w-full px-6 py-3 bg-sage hover:bg-sage-dark text-white font-semibold rounded-lg transition-all duration-200 shadow-md"
-                          >
-                            Upgrade to Pro
-                          </button>
-                          <button
-                            onClick={() => {
-                              analytics.event('CTA', 'Click', 'View_Pricing_From_Limit');
-                              navigate('/pricing');
-                            }}
-                            className="w-full px-6 py-2 text-navy-light font-medium hover:text-navy transition-colors"
-                          >
-                            View Pricing
-                          </button>
-                        </div>
-                      </div>
+                  <motion.div key={idx}
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex justify-center">
+                    <div className="max-w-sm w-full p-6 bg-white rounded-2xl border border-gray-200 shadow-light-sm text-center">
+                      <p className="text-2xl mb-3">🚀</p>
+                      <h3 className="text-base font-bold text-navy mb-1">You've used all 5 free invoices</h3>
+                      <p className="text-sm text-navy-light mb-5">
+                        Upgrade to Pro for unlimited invoices at <span className="font-semibold text-sage">$18/month</span>
+                      </p>
+                      <button
+                        onClick={() => { analytics.trackUpgradeClicked('usage_limit_prompt'); navigate('/pricing'); }}
+                        className="w-full py-2.5 bg-sage hover:bg-sage-dark text-white font-semibold rounded-xl transition-colors min-h-[44px]"
+                      >
+                        Upgrade to Pro
+                      </button>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               }
 
+              // Regular message bubble
+              const filtered = filterMessage(msg.content);
+              if (!filtered) return null;
+
               return (
-                <div
+                <motion.div
                   key={idx}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[80%] rounded-xl px-4 py-3 shadow-md ${
-                      msg.role === 'user'
-                        ? 'bg-sage text-white'
-                        : msg.role === 'system'
-                        ? 'bg-green-100 text-green-800 border border-green-300'
-                        : 'bg-white text-navy border border-gray-200'
-                    }`}
-                  >
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-sage text-white rounded-br-md shadow-sm'
+                      : 'bg-white text-navy border border-gray-100 shadow-light-sm rounded-bl-md'
+                  }`}>
                     {msg.role === 'assistant' ? (
                       <ReactMarkdown
                         components={{
                           p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                          strong: ({node, ...props}) => (
-                            <strong className="font-semibold text-purple-300" {...props} />
-                          ),
-                          em: ({node, ...props}) => (
-                            <em className="italic text-purple-200" {...props} />
-                          ),
-                          ul: ({node, ...props}) => (
-                            <ul className="list-disc ml-4 my-2 space-y-1" {...props} />
-                          ),
-                          ol: ({node, ...props}) => (
-                            <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />
-                          ),
+                          strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc ml-4 my-2 space-y-1" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />,
                           li: ({node, ...props}) => <li className="my-0.5" {...props} />,
                           code: ({node, inline, ...props}) =>
-                            inline ? (
-                              <code
-                                className="bg-purple-900/40 px-1.5 py-0.5 rounded text-sm font-mono text-purple-200"
-                                {...props}
-                              />
-                            ) : (
-                              <code
-                                className="block bg-purple-900/40 p-3 rounded my-2 text-sm font-mono overflow-x-auto text-purple-100"
-                                {...props}
-                              />
-                            ),
+                            inline
+                              ? <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono" {...props} />
+                              : <code className="block bg-gray-50 p-3 rounded-lg my-2 text-xs font-mono overflow-x-auto" {...props} />,
                         }}
                       >
-                        {msg.content}
+                        {filtered}
                       </ReactMarkdown>
                     ) : (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <p className="whitespace-pre-wrap">{filtered}</p>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-            {loading && (
-              <div className="flex justify-start animate-fade-in">
-                <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-md">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-sage rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-sage rounded-full animate-bounce delay-100"></div>
-                    <div className="w-2 h-2 bg-sage rounded-full animate-bounce delay-200"></div>
+
+            {/* Typing indicator */}
+            <AnimatePresence>
+              {loading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  className="flex justify-start"
+                >
+                  <div className="bg-white border border-gray-100 shadow-light-sm rounded-2xl rounded-bl-md px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {[0, 0.15, 0.3].map((delay, i) => (
+                        <motion.div
+                          key={i}
+                          className="w-2 h-2 bg-sage rounded-full"
+                          animate={{ y: [0, -5, 0] }}
+                          transition={{ duration: 0.6, repeat: Infinity, delay, ease: 'easeInOut' }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div ref={messagesEndRef} />
           </>
         )}
       </div>
 
-      {/* Input */}
-      <div className="px-6 py-4 border-t border-gray-200">
+      {/* Input area */}
+      <div className="px-4 md:px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-gray-200 bg-white">
         {viewMode === 'viewing' ? (
-          <div className="flex items-center justify-center py-3 text-sm text-navy-light bg-white rounded-lg border border-gray-200">
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Read-only mode — click "New Invoice" to start a new invoice
+          <div className="flex items-center justify-center py-3 text-sm text-navy-muted bg-gray-50 rounded-xl min-h-[44px]">
+            Read-only — create a new invoice to chat
           </div>
         ) : (
-          <div className="flex space-x-3">
+          <div className="flex gap-2.5 items-end">
             <textarea
+              ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={
-                viewMode === 'created'
-                  ? (isMobile ? "Ask to change something..." : "Ask to change something... (Enter to send, Shift+Enter for new line)")
-                  : (isMobile ? "Describe your invoice details..." : "Describe your invoice details... (Enter to send, Shift+Enter for new line)")
-              }
-              className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-navy placeholder-navy-muted focus:outline-none focus:ring-2 focus:ring-sage focus:border-sage resize-none transition-all duration-200"
-              rows="2"
+              placeholder={placeholder}
+              rows={isMobile ? 2 : 2}
               disabled={loading}
+              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-navy placeholder-navy-muted focus:outline-none focus:ring-2 focus:ring-sage/50 focus:border-sage resize-none transition-all duration-150 text-sm min-h-[44px]"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="px-6 py-2 bg-sage hover:bg-sage-dark text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md font-medium"
+              className="px-5 py-3 min-h-[44px] bg-sage hover:bg-sage-dark text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 font-medium text-sm flex-shrink-0"
             >
               Send
             </button>
@@ -512,43 +364,38 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
         )}
       </div>
 
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 animate-slide-down">
-          <div className="bg-orange-100 border-2 border-orange-400 rounded-lg shadow-2xl p-4 max-w-md">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 text-2xl">⚠️</div>
+      {/* Low-quota toast */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4"
+          >
+            <div className="bg-amber-50 border border-amber-300 rounded-xl shadow-light-md px-4 py-3.5 flex items-start gap-3">
+              <span className="text-amber-500 text-lg flex-shrink-0">⚡</span>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-orange-900 mb-2">
-                  {toastMessage}
-                </p>
-                <div className="flex space-x-2">
+                <p className="text-sm text-amber-900 font-medium">{toastMessage}</p>
+                <div className="flex gap-3 mt-2">
                   <button
-                    onClick={() => {
-                      analytics.trackUpgradeClicked('low_invoice_toast');
-                      navigate('/pricing');
-                      setShowToast(false);
-                    }}
-                    className="px-3 py-1.5 bg-orange-600 text-white text-xs font-semibold rounded hover:bg-orange-700 transition-colors"
+                    onClick={() => { analytics.trackUpgradeClicked('low_invoice_toast'); navigate('/pricing'); setShowToast(false); }}
+                    className="text-xs font-semibold text-amber-800 underline hover:no-underline"
                   >
-                    Upgrade Now
+                    Upgrade to Pro
                   </button>
-                  <button
-                    onClick={() => setShowToast(false)}
-                    className="px-3 py-1.5 text-orange-800 text-xs font-medium hover:text-orange-900 transition-colors"
-                  >
+                  <button onClick={() => setShowToast(false)} className="text-xs text-amber-600 hover:text-amber-800">
                     Dismiss
                   </button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
 
 ChatInterface.displayName = 'ChatInterface';
-
 export default ChatInterface;

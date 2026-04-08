@@ -211,14 +211,14 @@ function RowActions({ inv, onView, onMarkPaid, onCancel, visible }) {
     <div className={`flex items-center justify-end gap-2 transition-opacity duration-100 ${visible ? 'opacity-100' : 'opacity-0'}`}>
       <button
         onClick={e => { e.stopPropagation(); onView(); }}
-        className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors"
+        className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded"
       >
         View
       </button>
       {canMarkPaid && (
         <button
           onClick={e => onMarkPaid(e, inv)}
-          className="text-body-sm text-ink-secondary hover:text-success-400 font-medium transition-colors"
+          className="text-body-sm text-ink-secondary hover:text-success-400 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded"
           title="Mark as paid"
         >
           Mark paid
@@ -227,7 +227,7 @@ function RowActions({ inv, onView, onMarkPaid, onCancel, visible }) {
       {canCancel && (
         <button
           onClick={e => onCancel(e, inv)}
-          className="text-body-sm text-ink-secondary hover:text-danger-400 font-medium transition-colors"
+          className="text-body-sm text-ink-secondary hover:text-danger-400 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded"
           title="Delete draft"
         >
           Delete
@@ -241,6 +241,11 @@ function RowActions({ inv, onView, onMarkPaid, onCancel, visible }) {
 
 export default function InvoicesPage({ subscription, onNewInvoice: onNewInvoiceProp }) {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = 'Invoices — ScatterPilot';
+  }, []);
+
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -379,7 +384,7 @@ export default function InvoicesPage({ subscription, onNewInvoice: onNewInvoiceP
       {error && (
         <div className="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 rounded-card text-body-sm text-danger-400 flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={load} className="underline hover:no-underline ml-4">Retry</button>
+          <button onClick={load} className="underline hover:no-underline ml-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded">Retry</button>
         </div>
       )}
 

@@ -137,6 +137,11 @@ function EmptyClients({ onNewInvoice }) {
 
 export default function ClientsPage({ onClientNewInvoice }) {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = 'Clients — ScatterPilot';
+  }, []);
+
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -241,7 +246,7 @@ export default function ClientsPage({ onClientNewInvoice }) {
       {error && (
         <div className="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 rounded-card text-body-sm text-danger-400 flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={load} className="underline hover:no-underline ml-4">Retry</button>
+          <button onClick={load} className="underline hover:no-underline ml-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded">Retry</button>
         </div>
       )}
 

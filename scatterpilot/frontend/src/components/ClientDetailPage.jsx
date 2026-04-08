@@ -95,6 +95,10 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
   const [savedNotes, setSavedNotes] = useState('');
 
   useEffect(() => {
+    document.title = customerName ? `${customerName} — ScatterPilot` : 'Client — ScatterPilot';
+  }, [customerName]);
+
+  useEffect(() => {
     if (customerName) fetchInvoices();
   }, [customerName]);
 
@@ -162,7 +166,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
       {/* Back link */}
       <button
         onClick={() => navigate('/app/clients')}
-        className="flex items-center gap-1.5 text-body text-ink-secondary hover:text-ink-primary transition-colors duration-150 mb-5"
+        className="flex items-center gap-1.5 text-body text-ink-secondary hover:text-ink-primary transition-colors duration-150 mb-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2 rounded"
       >
         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="19" y1="12" x2="5" y2="12"/>
@@ -255,7 +259,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
                   <div className="flex justify-end">
                     <button
                       onClick={() => navigate('/app/invoices')}
-                      className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150"
+                      className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded"
                     >
                       View
                     </button>
@@ -274,7 +278,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150"
+              className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1 rounded"
             >
               Edit
             </button>

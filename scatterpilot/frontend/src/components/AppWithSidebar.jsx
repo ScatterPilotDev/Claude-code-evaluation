@@ -7,6 +7,7 @@ import InvoicesPage from './InvoicesPage';
 import ClientsPage from './ClientsPage';
 import ClientDetailPage from './ClientDetailPage';
 import OnboardingFlow from './OnboardingFlow';
+import ReportsPage from './ReportsPage';
 import Login from './Login';
 import Signup from './Signup';
 import VerifyEmail from './VerifyEmail';
@@ -293,7 +294,7 @@ export default function AppWithSidebar() {
     }
 
     if (isReports) {
-      return <ComingSoonPage title="Reports" />;
+      return <ReportsPage />;
     }
 
     // /app/invoices — filterable invoice list

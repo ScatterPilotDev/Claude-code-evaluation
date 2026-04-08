@@ -101,7 +101,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
       {/* ── New Invoice CTA ── */}
       <button
         onClick={onNewInvoice}
-        className="flex items-center justify-center gap-2 w-full py-2.5 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150"
+        className="flex items-center justify-center gap-2 w-full py-2.5 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
       >
         <IconPlus className="h-4 w-4" />
         New Invoice
@@ -117,6 +117,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
               to={href}
               className={[
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
                 active
                   ? 'bg-sage-50 text-sage-600 font-medium'
                   : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',
@@ -135,6 +136,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
           to="/settings"
           className={[
             'flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
             location.pathname === '/settings'
               ? 'bg-sage-50 text-sage-600 font-medium'
               : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',

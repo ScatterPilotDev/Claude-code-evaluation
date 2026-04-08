@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import MoneyDisplay from './ui/MoneyDisplay';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
@@ -69,11 +70,11 @@ function EmptyState({ onNewInvoice }) {
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
       <div className="mb-6">
         <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="72" height="72" rx="36" fill="#E6ECE4"/>
-          <path d="M24 20h16l8 8v24a2 2 0 0 1-2 2H24a2 2 0 0 1-2-2V22a2 2 0 0 1 2-2z" stroke="#4A6741" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-          <path d="M40 20v8h8" stroke="#4A6741" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="36" y1="34" x2="36" y2="44" stroke="#4A6741" strokeWidth="1.75" strokeLinecap="round"/>
-          <line x1="31" y1="39" x2="41" y2="39" stroke="#4A6741" strokeWidth="1.75" strokeLinecap="round"/>
+          <rect width="72" height="72" rx="36" className="fill-sage-100"/>
+          <path d="M24 20h16l8 8v24a2 2 0 0 1-2 2H24a2 2 0 0 1-2-2V22a2 2 0 0 1 2-2z" className="stroke-sage-500" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <path d="M40 20v8h8" className="stroke-sage-500" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="36" y1="34" x2="36" y2="44" className="stroke-sage-500" strokeWidth="1.75" strokeLinecap="round"/>
+          <line x1="31" y1="39" x2="41" y2="39" className="stroke-sage-500" strokeWidth="1.75" strokeLinecap="round"/>
         </svg>
       </div>
       <h1 className="text-display text-ink-primary mb-3">Send your first invoice</h1>
@@ -231,7 +232,7 @@ function NeedsAttention({ invoices, onInvoiceClick, onNewInvoice, onClientNewInv
           <button
             key={name}
             onClick={() => onClientNewInvoice?.(name)}
-            className="bg-surface-muted hover:bg-surface-hover border border-surface-border rounded-pill px-3 py-1.5 text-body-sm text-ink-secondary hover:text-ink-primary transition-colors duration-150"
+            className="bg-surface-muted hover:bg-surface-hover border border-surface-border rounded-pill px-3 py-1.5 text-body-sm text-ink-secondary hover:text-ink-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1"
           >
             {name}
           </button>
@@ -290,7 +291,7 @@ function RecentActivity({ invoices, onInvoiceClick }) {
             <button
               key={inv.invoice_id}
               onClick={() => onInvoiceClick?.(inv.invoice_id, getClientName(inv))}
-              className="w-full flex items-start gap-3 px-4 py-3 hover:bg-surface-hover transition-colors duration-150 text-left"
+              className="w-full flex items-start gap-3 px-4 py-3 hover:bg-surface-hover transition-colors duration-150 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sage-500"
             >
               <ActivityDot status={inv.status} />
               <p className="flex-1 text-body text-ink-primary">{activityDescription(inv)}</p>
@@ -313,6 +314,10 @@ export default function DashboardHome({
   onInvoiceClick,
   onClientNewInvoice,
 }) {
+  useEffect(() => {
+    document.title = 'Home — ScatterPilot';
+  }, []);
+
   if (isLoading) {
     return (
       <div className="space-y-4">

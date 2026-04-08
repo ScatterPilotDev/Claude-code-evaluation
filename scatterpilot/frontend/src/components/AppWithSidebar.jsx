@@ -205,20 +205,33 @@ export default function AppWithSidebar() {
     }
   };
 
-  const handleInvoiceClick = async (invoiceId) => {
-    console.log('[APP] Invoice clicked:', invoiceId);
+  const handleInvoiceClick = async (invoiceId, customerName) => {
+    console.log('[APP] Invoice clicked:', invoiceId, customerName);
     setIsLoadingInvoice(true);
     setInvoiceError(null);
-    setShowWelcome(false); // Hide welcome screen when viewing invoice
+    setShowWelcome(false);
 
     try {
       const invoice = await api.getInvoice(invoiceId);
       console.log('[APP] Fetched invoice data:', invoice);
 
+      // Start a fresh conversation pre-filled with the customer's name
+      api.clearConversation();
+      setActiveConversationId(null);
+      conversationStorage.clearActiveConversation();
+      if (chatInterfaceRef.current) {
+        chatInterfaceRef.current.resetConversation();
+        if (customerName) {
+          chatInterfaceRef.current.prefillInput(
+            `Create a new invoice for ${customerName}`
+          );
+        }
+      }
+
       setSelectedInvoiceId(invoiceId);
       setCurrentInvoice({
         invoice_id: invoiceId,
-        invoice_data: invoice.data, // Backend returns data nested under 'data' field
+        invoice_data: invoice.data,
         data: invoice.data
       });
       setViewMode('viewing');
@@ -228,6 +241,17 @@ export default function AppWithSidebar() {
     } finally {
       setIsLoadingInvoice(false);
     }
+  };
+
+  const handleConversationDelete = (deletedId) => {
+    console.log('[APP] Conversation deleted:', deletedId);
+    if (activeConversationId === deletedId) {
+      setActiveConversationId(null);
+      conversationStorage.clearActiveConversation();
+      api.clearConversation();
+      handleNewInvoice();
+    }
+    setRefreshConversationList(prev => prev + 1);
   };
 
   // Conversation handlers
@@ -251,7 +275,8 @@ export default function AppWithSidebar() {
       if (chatInterfaceRef.current) {
         chatInterfaceRef.current.loadConversation(
           conversationData.messages || [],
-          conversation.conversation_id
+          conversation.conversation_id,
+          conversation.customer_name || null
         );
       }
 
@@ -305,6 +330,17 @@ export default function AppWithSidebar() {
     setRefreshConversationList(prev => prev + 1);
   };
 
+  const handleCustomerNewInvoice = (customerName, customerEmail) => {
+    console.log('[APP] New invoice for customer:', customerName);
+    handleNewInvoice();
+    if (chatInterfaceRef.current) {
+      chatInterfaceRef.current.setCustomerContext(customerName);
+      chatInterfaceRef.current.prefillInput(
+        `Create a new invoice for ${customerName}`
+      );
+    }
+  };
+
   // Show loading spinner during auth check
   if (isLoading) {
     return (
@@ -338,9 +374,11 @@ export default function AppWithSidebar() {
       selectedInvoiceId={selectedInvoiceId}
       refreshInvoiceList={refreshInvoiceList}
       onConversationSelect={handleConversationSelect}
+      onConversationDelete={handleConversationDelete}
       activeConversationId={activeConversationId}
       onNewConversation={handleNewConversation}
       refreshConversationList={refreshConversationList}
+      onCustomerNewInvoice={handleCustomerNewInvoice}
     >
       {/* Main content area */}
       <div className="h-full bg-cream">
@@ -359,6 +397,7 @@ export default function AppWithSidebar() {
                 onInvoiceGenerated={handleInvoiceGenerated}
                 viewMode={viewMode}
                 onNewInvoice={handleNewInvoice}
+                onMessageSent={() => setRefreshConversationList(prev => prev + 1)}
               />
             </div>
 

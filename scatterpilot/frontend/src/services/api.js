@@ -612,6 +612,44 @@ class ApiService {
     }
   }
 
+  async deleteConversation(conversationId) {
+    try {
+      console.log('[API] deleteConversation - START', conversationId);
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+
+      const data = await response.json();
+      console.log('[API] deleteConversation - SUCCESS');
+      return data;
+    } catch (error) {
+      console.error('[API] deleteConversation error:', error);
+      throw error;
+    }
+  }
+
+  async listCustomers() {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/customers`, { headers });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] List customers failed:', error);
+      throw error;
+    }
+  }
+
   // Load a conversation into the current session
   loadConversation(conversationId) {
     this.conversationId = conversationId;

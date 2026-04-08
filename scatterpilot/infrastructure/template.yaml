@@ -468,6 +468,77 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Get Conversation Function
+  GetConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-GetConversation-${Environment}
+      CodeUri: ../functions/conversations/
+      Handler: get.handler
+      Description: Gets a single conversation with full message history
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ConversationsTable
+      Events:
+        GetConversation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /conversations/{conversation_id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Delete Conversation Function
+  DeleteConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-DeleteConversation-${Environment}
+      CodeUri: ../functions/conversations/
+      Handler: delete.handler
+      Description: Deletes a conversation owned by the authenticated user
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationsTable
+      Events:
+        DeleteConversation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /conversations/{conversation_id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # List Customers Function
+  ListCustomersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-ListCustomers-${Environment}
+      CodeUri: ../functions/customers/
+      Handler: list.handler
+      Description: Aggregates unique customers from invoices and conversations
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ConversationsTable
+      Events:
+        ListCustomers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /customers
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   # Create Invoice Function
   CreateInvoiceFunction:
     Type: AWS::Serverless::Function
@@ -1030,6 +1101,18 @@ Resources:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-ListConversations-${Environment}
       RetentionInDays: 30
 
+  GetConversationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetConversation-${Environment}
+      RetentionInDays: 30
+
+  DeleteConversationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-DeleteConversation-${Environment}
+      RetentionInDays: 30
+
   CreateInvoiceLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -1088,6 +1171,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-SubmitFeedback-${Environment}
+      RetentionInDays: 30
+
+  ListCustomersLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-ListCustomers-${Environment}
       RetentionInDays: 30
 
   CreatePaymentLinkLogGroup:

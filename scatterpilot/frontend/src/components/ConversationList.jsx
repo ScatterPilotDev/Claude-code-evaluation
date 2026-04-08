@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
+import { TrashIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import authService from '../services/auth';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ConversationList({
   onConversationSelect,
+  onConversationDelete,
   activeConversationId,
   refreshTrigger
 }) {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -56,6 +60,25 @@ export default function ConversationList({
     }
   };
 
+  const handleDelete = async (e, conversationId) => {
+    e.stopPropagation();
+    if (confirmDeleteId !== conversationId) {
+      setConfirmDeleteId(conversationId);
+      return;
+    }
+    setConfirmDeleteId(null);
+    setDeletingId(conversationId);
+    try {
+      await api.deleteConversation(conversationId);
+      setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
+      if (onConversationDelete) onConversationDelete(conversationId);
+    } catch (err) {
+      console.error('[CONVERSATIONS] Failed to delete:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const formatRelativeTime = (dateString) => {
     if (!dateString) return '';
     try {
@@ -85,29 +108,52 @@ export default function ConversationList({
   const getConversationTitle = (conversation) => {
     const { first_user_message, last_message, message_count, state, has_invoice } = conversation;
 
-    // Empty / just-started conversation
     if (!message_count || message_count === 0 || state === 'initiated') {
       return 'New conversation';
     }
 
-    // Best case: first user message returned by the backend (non-JSON)
     if (first_user_message) {
       return truncate(first_user_message, 40);
     }
 
-    // last_message is JSON → try to extract a readable title from it
     if (isJsonContent(last_message)) {
       const customer = extractCustomerName(last_message);
       if (customer) return truncate(`${customer} invoice`, 40);
-      return has_invoice ? 'Invoice conversation' : 'Invoice conversation';
+      return 'Invoice conversation';
     }
 
-    // last_message is human text — use it
     if (last_message) {
       return truncate(last_message, 40);
     }
 
     return 'Invoice conversation';
+  };
+
+  // Group conversations by customer_name
+  const groupedConversations = () => {
+    const groups = {};
+    const ungroupedKey = '__other__';
+
+    for (const conv of conversations) {
+      const key = conv.customer_name || ungroupedKey;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(conv);
+    }
+
+    // Build ordered list: named groups (sorted by most recent conv) first, then ungrouped
+    const namedGroups = Object.entries(groups)
+      .filter(([k]) => k !== ungroupedKey)
+      .sort((a, b) => {
+        const aLatest = new Date(a[1][0].updated_at);
+        const bLatest = new Date(b[1][0].updated_at);
+        return bLatest - aLatest;
+      });
+
+    const result = namedGroups;
+    if (groups[ungroupedKey]) {
+      result.push([null, groups[ungroupedKey]]);
+    }
+    return result;
   };
 
   if (isLoading) {
@@ -146,40 +192,77 @@ export default function ConversationList({
     );
   }
 
+  const groups = groupedConversations();
+
   return (
     <div className="space-y-0.5">
-      {conversations.map((conversation) => {
-        const isActive = activeConversationId === conversation.conversation_id;
-        return (
-          <button
-            key={conversation.conversation_id}
-            onClick={() => onConversationSelect(conversation)}
-            className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200 ${
-              isActive
-                ? 'bg-sage-light text-navy border border-sage/30'
-                : 'text-navy-light hover:bg-cream hover:text-navy'
-            }`}
-          >
-            <p className="text-sm font-medium text-navy truncate leading-snug">
-              {getConversationTitle(conversation)}
+      {/* Dismiss confirm-delete on click outside */}
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setConfirmDeleteId(null)}
+        />
+      )}
+
+      {groups.map(([groupName, groupConvs]) => (
+        <div key={groupName || '__other__'}>
+          {groupName && (
+            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-navy-muted uppercase tracking-wider truncate">
+              {groupName}
             </p>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-navy-muted">
-                {conversation.message_count || 0} messages
-              </span>
-              <span className="text-xs text-navy-muted">
-                {formatRelativeTime(conversation.updated_at)}
-              </span>
-            </div>
-            {isActive && (
-              <div className="mt-1 flex items-center gap-1 text-xs text-sage font-medium">
-                <div className="w-1.5 h-1.5 bg-sage rounded-full animate-pulse" />
-                Active
+          )}
+          {groupConvs.map((conversation) => {
+            const isActive = activeConversationId === conversation.conversation_id;
+            const isDeleting = deletingId === conversation.conversation_id;
+            const isConfirming = confirmDeleteId === conversation.conversation_id;
+
+            return (
+              <div key={conversation.conversation_id} className="relative group">
+                <button
+                  onClick={() => onConversationSelect(conversation)}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200 pr-8 ${
+                    isActive
+                      ? 'bg-sage-light text-navy border border-sage/30'
+                      : 'text-navy-light hover:bg-cream hover:text-navy'
+                  }`}
+                >
+                  <p className="text-sm font-medium text-navy truncate leading-snug">
+                    {getConversationTitle(conversation)}
+                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-navy-muted">
+                      {conversation.message_count || 0} messages
+                    </span>
+                    <span className="text-xs text-navy-muted">
+                      {formatRelativeTime(conversation.updated_at)}
+                    </span>
+                  </div>
+                  {isActive && (
+                    <div className="mt-1 flex items-center gap-1 text-xs text-sage font-medium">
+                      <div className="w-1.5 h-1.5 bg-sage rounded-full animate-pulse" />
+                      Active
+                    </div>
+                  )}
+                </button>
+
+                {/* Delete button — visible on hover or while confirming */}
+                <button
+                  onClick={(e) => handleDelete(e, conversation.conversation_id)}
+                  disabled={isDeleting}
+                  title={isConfirming ? 'Click again to confirm delete' : 'Delete conversation'}
+                  className={`absolute right-1.5 top-1/2 -translate-y-1/2 z-20 p-1 rounded transition-all duration-150 ${
+                    isConfirming
+                      ? 'opacity-100 text-red-600 bg-red-50'
+                      : 'opacity-0 group-hover:opacity-100 text-navy-muted hover:text-red-600 hover:bg-red-50'
+                  } ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
               </div>
-            )}
-          </button>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

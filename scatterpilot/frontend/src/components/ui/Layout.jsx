@@ -13,9 +13,11 @@ export default function Layout({
   selectedInvoiceId,
   refreshInvoiceList,
   onConversationSelect,
+  onConversationDelete,
   activeConversationId,
   onNewConversation,
-  refreshConversationList
+  refreshConversationList,
+  onCustomerNewInvoice
 }) {
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
@@ -123,9 +125,11 @@ export default function Layout({
           selectedInvoiceId={selectedInvoiceId}
           refreshInvoiceList={refreshInvoiceList}
           onConversationSelect={onConversationSelect}
+          onConversationDelete={onConversationDelete}
           activeConversationId={activeConversationId}
           onNewConversation={onNewConversation}
           refreshConversationList={refreshConversationList}
+          onCustomerNewInvoice={onCustomerNewInvoice}
           userEmail={userEmail}
           userName={userName}
           userInitials={userInitials}

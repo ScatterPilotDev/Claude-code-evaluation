@@ -101,6 +101,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         first_user_message = content[:60]
                         break
 
+            has_invoice = bool(conv.extracted_data and
+                               conv.extracted_data.get('action') == 'create_invoice')
+            customer_name = None
+            if has_invoice and conv.extracted_data:
+                customer_name = conv.extracted_data.get('data', {}).get('customer_name')
+
             conversations_data.append({
                 'conversation_id': conv.conversation_id,
                 'state': conv.state.value,
@@ -110,8 +116,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'last_message': last_message,
                 'last_message_timestamp': last_message_timestamp,
                 'first_user_message': first_user_message,
-                'has_invoice': bool(conv.extracted_data and
-                                   conv.extracted_data.get('action') == 'create_invoice')
+                'has_invoice': has_invoice,
+                'customer_name': customer_name
             })
 
         logger.info(

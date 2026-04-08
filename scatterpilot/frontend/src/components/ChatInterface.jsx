@@ -5,7 +5,7 @@ import apiService from '../services/api';
 import analytics from '../utils/analytics';
 import { isMobileDevice } from '../utils/deviceDetection';
 
-const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewInvoice }, ref) => {
+const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewInvoice, onMessageSent }, ref) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }
@@ -14,6 +14,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [customerName, setCustomerName] = useState(null);
   const messagesEndRef = useRef(null);
 
   // Detect if device is mobile
@@ -35,16 +36,18 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
   useImperativeHandle(ref, () => ({
     resetConversation: () => {
       apiService.conversationId = null;
+      setCustomerName(null);
       setMessages([
         { role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }
       ]);
       setInput('');
     },
     // Load a historical conversation's messages into the chat UI
-    loadConversation: (conversationMessages, conversationId) => {
+    loadConversation: (conversationMessages, conversationId, customer = null) => {
       if (conversationId) {
         apiService.conversationId = conversationId;
       }
+      setCustomerName(customer || null);
       const mapped = (conversationMessages || []).map(msg => ({
         role: msg.role,
         content: msg.content
@@ -55,6 +58,14 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
           : [{ role: 'assistant', content: 'Hi! I can help you generate invoices. Just tell me the details like client name, items, and amounts.' }]
       );
       setInput('');
+    },
+    // Pre-fill the chat input (e.g. when opening invoice history to create another)
+    prefillInput: (text) => {
+      setInput(text);
+    },
+    // Set the active customer context (shown as a banner)
+    setCustomerContext: (name) => {
+      setCustomerName(name || null);
     }
   }));
 
@@ -174,6 +185,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
       console.log('[DEBUG] handleSend finished, setting loading to false');
       setLoading(false);
       console.log('[DEBUG] ========== handleSend complete ==========');
+      if (onMessageSent) onMessageSent();
     }
   };
 
@@ -240,6 +252,32 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
 
   return (
     <div className="flex flex-col h-full bg-cream">
+      {/* Customer context banner */}
+      {customerName && viewMode !== 'viewing' && (
+        <div className="px-6 py-2 bg-sage/10 border-b border-sage/20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sage/20 flex-shrink-0">
+              <svg className="w-3 h-3 text-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <span className="text-sm text-sage font-medium">
+              Invoicing: {customerName}
+            </span>
+          </div>
+          <button
+            onClick={() => setCustomerName(null)}
+            className="text-sage/60 hover:text-sage transition-colors"
+            title="Clear customer context"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex justify-between items-center">

@@ -141,6 +141,46 @@ class DynamoDBHelper:
             )
             raise DynamoDBException(f"Failed to update conversation: {str(e)}")
 
+    def delete_conversation(self, conversation_id: str, user_id: str) -> None:
+        """
+        Delete a conversation (only if it belongs to user_id)
+
+        Args:
+            conversation_id: Conversation identifier
+            user_id: Owner user identifier (for ownership check)
+
+        Raises:
+            ItemNotFoundError: If conversation not found or doesn't belong to user
+            DynamoDBException: If deletion fails
+        """
+        try:
+            # Verify ownership before deleting
+            response = self.conversations_table.get_item(
+                Key={'conversation_id': conversation_id}
+            )
+            if 'Item' not in response:
+                raise ItemNotFoundError(f"Conversation {conversation_id} not found")
+            if response['Item'].get('user_id') != user_id:
+                raise ItemNotFoundError(f"Conversation {conversation_id} not found")
+
+            self.conversations_table.delete_item(
+                Key={'conversation_id': conversation_id}
+            )
+            logger.info(
+                "Conversation deleted",
+                conversation_id=conversation_id,
+                user_id=user_id
+            )
+        except ItemNotFoundError:
+            raise
+        except ClientError as e:
+            logger.error(
+                "Failed to delete conversation",
+                error=e,
+                conversation_id=conversation_id
+            )
+            raise DynamoDBException(f"Failed to delete conversation: {str(e)}")
+
     def list_user_conversations(
         self,
         user_id: str,

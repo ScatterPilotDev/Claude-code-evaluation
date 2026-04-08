@@ -10,6 +10,7 @@ import {
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
   SparklesIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import {
   DocumentTextIcon as DocumentTextIconSolid,
@@ -20,6 +21,7 @@ import authService from '../../services/auth';
 import api from '../../services/api';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import ConversationList from '../ConversationList';
+import CustomerSection from '../CustomerSection';
 
 const shouldShowPaymentBadge = () =>
   !localStorage.getItem('scatterpilot_payment_badge_dismissed');
@@ -75,9 +77,11 @@ export default function Sidebar({
   selectedInvoiceId,
   refreshInvoiceList,
   onConversationSelect,
+  onConversationDelete,
   activeConversationId,
   onNewConversation,
-  refreshConversationList
+  refreshConversationList,
+  onCustomerNewInvoice
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,6 +95,7 @@ export default function Sidebar({
 
   // All sections expanded by default
   const [navExpanded, setNavExpanded] = useState(true);
+  const [customersExpanded, setCustomersExpanded] = useState(true);
   const [conversationsExpanded, setConversationsExpanded] = useState(true);
   const [invoicesExpanded, setInvoicesExpanded] = useState(true);
 
@@ -135,8 +140,8 @@ export default function Sidebar({
     navigate(href);
   };
 
-  const handleInvoiceClick = (invoiceId) => {
-    if (onInvoiceClick) onInvoiceClick(invoiceId);
+  const handleInvoiceClick = (invoiceId, customerName) => {
+    if (onInvoiceClick) onInvoiceClick(invoiceId, customerName);
     if (onNavigate) onNavigate();
   };
 
@@ -292,6 +297,44 @@ export default function Sidebar({
         {/* divider */}
         <div className="border-t border-gray-100 my-1" />
 
+        {/* ── Customers ────────────────────────────────────── */}
+        {onConversationSelect && (
+          <>
+            <div className="mb-1">
+              <SectionHeader
+                title="Customers"
+                expanded={customersExpanded}
+                onToggle={() => setCustomersExpanded(v => !v)}
+              />
+              <AnimatePresence initial={false}>
+                {customersExpanded && (
+                  <motion.div
+                    key="customers-content"
+                    variants={collapseVariants}
+                    initial="closed"
+                    animate="open"
+                    exit="closed"
+                    transition={{ duration: 0.18, ease: 'easeInOut' }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div className="pb-2">
+                      <CustomerSection
+                        onConversationSelect={onConversationSelect}
+                        activeConversationId={activeConversationId}
+                        onCustomerNewInvoice={onCustomerNewInvoice}
+                        refreshTrigger={refreshConversationList}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* divider */}
+            <div className="border-t border-gray-100 my-1" />
+          </>
+        )}
+
         {/* ── Conversations ────────────────────────────────── */}
         {onConversationSelect && (
           <>
@@ -317,6 +360,7 @@ export default function Sidebar({
                     <div className="pb-2">
                       <ConversationList
                         onConversationSelect={onConversationSelect}
+                        onConversationDelete={onConversationDelete}
                         activeConversationId={activeConversationId}
                         refreshTrigger={refreshConversationList}
                       />
@@ -380,7 +424,10 @@ export default function Sidebar({
                       {invoices.map((invoice) => (
                         <button
                           key={invoice.invoice_id}
-                          onClick={() => handleInvoiceClick(invoice.invoice_id)}
+                          onClick={() => handleInvoiceClick(
+                            invoice.invoice_id,
+                            invoice.customer_name || invoice.invoice_data?.billTo?.company || invoice.invoice_data?.billTo?.name
+                          )}
                           className={selectedInvoiceCls(invoice.invoice_id)}
                         >
                           {/* Customer + status */}

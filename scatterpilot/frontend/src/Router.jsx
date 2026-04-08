@@ -21,10 +21,10 @@ const BlogPost = lazy(() => import('./pages/BlogPost'));
 // Loading fallback component
 function LoadingFallback() {
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className="min-h-screen bg-surface-bg flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-        <p className="mt-4 text-slate-400">Loading...</p>
+        <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-sage-200 border-t-sage-500"></div>
+        <p className="mt-4 text-body text-ink-secondary">Loading…</p>
       </div>
     </div>
   );
@@ -38,7 +38,11 @@ export default function Router() {
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              {/* Authenticated app shell — all /app/* routes */}
               <Route path="/app" element={<AppWithSidebar />} />
+              <Route path="/app/invoices" element={<AppWithSidebar />} />
+              <Route path="/app/clients" element={<AppWithSidebar />} />
+              <Route path="/app/reports" element={<AppWithSidebar />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />

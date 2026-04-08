@@ -9,37 +9,33 @@ const Input = forwardRef(({
   containerClassName = '',
   ...props
 }, ref) => {
-  const baseStyles = 'w-full px-4 py-3 bg-slate-800 border rounded-lg text-white placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900';
+  const base = 'w-full px-3.5 py-2.5 bg-surface-card border rounded-input text-body text-ink-primary placeholder:text-ink-tertiary transition-all duration-150 focus:outline-none focus:ring-1';
   const borderStyles = error
-    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    : 'border-slate-600 focus:border-purple-500 focus:ring-purple-500';
-  const iconPadding = Icon ? 'pl-11' : '';
+    ? 'border-danger-400 focus:border-danger-400 focus:ring-danger-400/20'
+    : 'border-surface-border focus:border-sage-500 focus:ring-sage-500/20';
+  const iconPadding = Icon ? 'pl-10' : '';
 
   return (
-    <div className={`space-y-2 ${containerClassName}`}>
+    <div className={`space-y-1.5 ${containerClassName}`}>
       {label && (
-        <label className="block text-sm font-medium text-gray-100">
+        <label className="block text-label uppercase tracking-wider text-ink-secondary">
           {label}
         </label>
       )}
       <div className="relative">
         {Icon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
-            <Icon className="h-5 w-5" />
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none">
+            <Icon className="h-4 w-4" />
           </div>
         )}
         <input
           ref={ref}
-          className={`${baseStyles} ${borderStyles} ${iconPadding} ${className}`}
+          className={`${base} ${borderStyles} ${iconPadding} ${className}`}
           {...props}
         />
       </div>
-      {error && (
-        <p className="text-sm text-red-400">{error}</p>
-      )}
-      {!error && helperText && (
-        <p className="text-sm text-gray-300">{helperText}</p>
-      )}
+      {error && <p className="text-body-sm text-danger-400">{error}</p>}
+      {!error && helperText && <p className="text-body-sm text-ink-tertiary">{helperText}</p>}
     </div>
   );
 });
@@ -57,29 +53,25 @@ export function TextArea({
   rows = 4,
   ...props
 }) {
-  const baseStyles = 'w-full px-4 py-3 bg-slate-800 border rounded-lg text-white placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 resize-none';
+  const base = 'w-full px-3.5 py-2.5 bg-surface-card border rounded-input text-body text-ink-primary placeholder:text-ink-tertiary transition-all duration-150 focus:outline-none focus:ring-1 resize-none';
   const borderStyles = error
-    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    : 'border-slate-600 focus:border-purple-500 focus:ring-purple-500';
+    ? 'border-danger-400 focus:border-danger-400 focus:ring-danger-400/20'
+    : 'border-surface-border focus:border-sage-500 focus:ring-sage-500/20';
 
   return (
-    <div className={`space-y-2 ${containerClassName}`}>
+    <div className={`space-y-1.5 ${containerClassName}`}>
       {label && (
-        <label className="block text-sm font-medium text-gray-100">
+        <label className="block text-label uppercase tracking-wider text-ink-secondary">
           {label}
         </label>
       )}
       <textarea
-        className={`${baseStyles} ${borderStyles} ${className}`}
+        className={`${base} ${borderStyles} ${className}`}
         rows={rows}
         {...props}
       />
-      {error && (
-        <p className="text-sm text-red-400">{error}</p>
-      )}
-      {!error && helperText && (
-        <p className="text-sm text-gray-300">{helperText}</p>
-      )}
+      {error && <p className="text-body-sm text-danger-400">{error}</p>}
+      {!error && helperText && <p className="text-body-sm text-ink-tertiary">{helperText}</p>}
     </div>
   );
 }

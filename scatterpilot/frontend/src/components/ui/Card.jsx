@@ -1,31 +1,27 @@
-import { motion } from 'framer-motion';
-
 export default function Card({
   children,
   className = '',
   hover = false,
+  padding = 'default',
   onClick,
   ...props
 }) {
-  const baseStyles = 'bg-slate-800 border border-slate-700 rounded-xl shadow-lg transition-all duration-200';
-  const hoverStyles = hover ? 'hover:shadow-2xl hover:border-slate-600 cursor-pointer' : '';
-  const combinedClassName = `${baseStyles} ${hoverStyles} ${className}`;
+  const paddings = {
+    compact: 'p-4',
+    default: 'p-5',
+    spacious: 'p-6',
+    none: '',
+  };
 
-  if (hover || onClick) {
-    return (
-      <motion.div
-        whileHover={{ y: -2 }}
-        className={combinedClassName}
-        onClick={onClick}
-        {...props}
-      >
-        {children}
-      </motion.div>
-    );
-  }
+  const base = `bg-surface-card rounded-card shadow-card border border-surface-border transition-all duration-150 ${paddings[padding] ?? paddings.default}`;
+  const hoverStyles = hover || onClick ? 'hover:shadow-card-hover hover:border-surface-border-strong cursor-pointer' : '';
 
   return (
-    <div className={combinedClassName} {...props}>
+    <div
+      className={`${base} ${hoverStyles} ${className}`}
+      onClick={onClick}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -33,7 +29,7 @@ export default function Card({
 
 export function CardHeader({ children, className = '' }) {
   return (
-    <div className={`px-6 py-4 border-b border-slate-700 ${className}`}>
+    <div className={`px-5 py-4 border-b border-surface-border ${className}`}>
       {children}
     </div>
   );
@@ -41,7 +37,7 @@ export function CardHeader({ children, className = '' }) {
 
 export function CardBody({ children, className = '' }) {
   return (
-    <div className={`px-6 py-4 ${className}`}>
+    <div className={`px-5 py-4 ${className}`}>
       {children}
     </div>
   );
@@ -49,7 +45,7 @@ export function CardBody({ children, className = '' }) {
 
 export function CardFooter({ children, className = '' }) {
   return (
-    <div className={`px-6 py-4 border-t border-slate-700 ${className}`}>
+    <div className={`px-5 py-4 border-t border-surface-border ${className}`}>
       {children}
     </div>
   );

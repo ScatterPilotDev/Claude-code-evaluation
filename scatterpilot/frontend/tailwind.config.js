@@ -47,11 +47,6 @@ export default {
           light: '#435663',       // Slate grey (body text)
           muted: '#778873',       // Muted sage (labels)
         },
-        sage: {
-          DEFAULT: '#A3B087',     // Primary sage (CTAs)
-          dark: '#778873',        // Darker sage (hover)
-          light: 'rgba(163, 176, 135, 0.15)', // Light sage background
-        },
         purple: {
           DEFAULT: '#9B7EBD',     // Secondary accent
           light: '#D4BEE4',       // Light purple background
@@ -77,6 +72,67 @@ export default {
             muted: '#A0A0A0',    // Muted grey (labels)
           },
         },
+        // ── Design System v2 ──────────────────────────────────────────────
+        // Primary — Dark Sage
+        sage: {
+          50: '#F4F7F3',
+          100: '#E6ECE4',
+          200: '#CEDCC9',
+          300: '#AECA9F',
+          400: '#7FAF6F',
+          500: '#4A6741',   // PRIMARY — use for buttons, active nav, links
+          600: '#3D5636',
+          700: '#30442B',
+          800: '#243320',
+          900: '#1A2318',   // Text primary
+          950: '#0D1209',
+        },
+        // Accent — Warm Amber
+        amber: {
+          50: '#FFF9EB',
+          100: '#FFF0CC',
+          200: '#FFE099',
+          300: '#FFCC55',
+          400: '#DAA520',
+          500: '#B8860B',   // ACCENT — warnings, highlights, secondary CTAs
+          600: '#946B09',
+          700: '#705007',
+          800: '#4C3605',
+          900: '#2E2003',
+        },
+        // Semantic
+        success: {
+          50: '#EDFAF2',
+          100: '#D1F3DE',
+          200: '#A3E7BD',
+          300: '#5DD48D',
+          400: '#2D7A4F',   // SUCCESS
+          500: '#1D5E3A',
+        },
+        danger: {
+          50: '#FEF2F0',
+          100: '#FDE1DC',
+          200: '#FBC0B6',
+          300: '#F48E7D',
+          400: '#C2412D',   // DANGER
+          500: '#9C3424',
+        },
+        // Neutrals — sage-tinted
+        surface: {
+          bg: '#FAFBF9',
+          card: '#FFFFFF',
+          border: '#E2E5DE',
+          'border-strong': '#C8CEC3',
+          hover: '#F0F2ED',
+          muted: '#F5F7F3',
+        },
+        // Text
+        ink: {
+          primary: '#1A2318',
+          secondary: '#5F6B5A',
+          tertiary: '#8A9484',
+          inverse: '#FFFFFF',
+        },
       },
       fontFamily: {
         sans: [
@@ -92,6 +148,29 @@ export default {
           '"Helvetica Neue"',
           'sans-serif'
         ],
+        display: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        body: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', '"SF Mono"', 'monospace'],
+      },
+      fontSize: {
+        'display-xl': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.025em', fontWeight: '700' }],
+        'display-lg': ['3rem', { lineHeight: '1.1', letterSpacing: '-0.025em', fontWeight: '700' }],
+        'display': ['2.25rem', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '600' }],
+        'heading-lg': ['1.75rem', { lineHeight: '1.25', letterSpacing: '-0.015em', fontWeight: '600' }],
+        'heading': ['1.25rem', { lineHeight: '1.3', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'heading-sm': ['1.0625rem', { lineHeight: '1.4', fontWeight: '600' }],
+        'body-lg': ['1rem', { lineHeight: '1.6', fontWeight: '400' }],
+        'body': ['0.9375rem', { lineHeight: '1.6', fontWeight: '400' }],
+        'body-sm': ['0.8125rem', { lineHeight: '1.5', fontWeight: '400' }],
+        'label': ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.04em', fontWeight: '500' }],
+        'label-sm': ['0.6875rem', { lineHeight: '1.4', letterSpacing: '0.05em', fontWeight: '500' }],
+      },
+      borderRadius: {
+        'card': '10px',
+        'input': '8px',
+        'badge': '6px',
+        'button': '8px',
+        'pill': '9999px',
       },
       boxShadow: {
         'glow-purple': '0 0 20px rgba(147, 51, 234, 0.3)',
@@ -107,6 +186,18 @@ export default {
         'light-lg': '0 24px 64px rgba(49, 54, 71, 0.15)',
         'light-xl': '0 4px 24px rgba(49, 54, 71, 0.08)',
         'light-sage': '0 4px 16px rgba(163, 176, 135, 0.3)',
+        // Design System v2
+        'card': '0 1px 3px rgba(26, 35, 24, 0.04), 0 1px 2px rgba(26, 35, 24, 0.02)',
+        'card-hover': '0 4px 12px rgba(26, 35, 24, 0.06), 0 1px 3px rgba(26, 35, 24, 0.04)',
+        'dropdown': '0 8px 24px rgba(26, 35, 24, 0.08), 0 2px 6px rgba(26, 35, 24, 0.04)',
+        'modal': '0 16px 48px rgba(26, 35, 24, 0.12), 0 4px 12px rgba(26, 35, 24, 0.06)',
+      },
+      spacing: {
+        '4.5': '1.125rem',
+        '13': '3.25rem',
+        '15': '3.75rem',
+        '18': '4.5rem',
+        '22': '5.5rem',
       },
       backgroundImage: {
         'gradient-brand': 'linear-gradient(135deg, #9333EA 0%, #DB2777 100%)', // Original purple/pink for landing page

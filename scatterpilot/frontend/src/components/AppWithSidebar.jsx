@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout from './ui/Layout';
 import ChatInterface from './ChatInterface';
 import InvoicePreview from './InvoicePreview';
-import CustomerProfile from './CustomerProfile';
 import DashboardHome from './DashboardHome';
+import ClientsPage from './ClientsPage';
+import ClientDetailPage from './ClientDetailPage';
 import OnboardingOverlay from './OnboardingOverlay';
 import Login from './Login';
 import Signup from './Signup';
@@ -61,14 +62,14 @@ export default function AppWithSidebar() {
 
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [refreshConversationList, setRefreshConversationList] = useState(0);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   // Derive current section from URL
   const pathname = location.pathname;
-  const isHome     = pathname === '/app';
-  const isInvoices = pathname.startsWith('/app/invoices');
-  const isClients  = pathname.startsWith('/app/clients');
-  const isReports  = pathname.startsWith('/app/reports');
+  const isHome         = pathname === '/app';
+  const isInvoices     = pathname.startsWith('/app/invoices');
+  const isClients      = pathname === '/app/clients';
+  const isClientDetail = pathname.startsWith('/app/clients/');
+  const isReports      = pathname.startsWith('/app/reports');
 
   useEffect(() => {
     checkAuth();
@@ -275,8 +276,7 @@ export default function AppWithSidebar() {
   };
 
   const handleCustomerClick = (customer) => {
-    setSelectedCustomer(customer);
-    navigate('/app/clients');
+    navigate(`/app/clients/${encodeURIComponent(customer.customer_name)}`);
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────
@@ -318,16 +318,11 @@ export default function AppWithSidebar() {
     }
 
     if (isClients) {
-      if (selectedCustomer) {
-        return (
-          <CustomerProfile
-            customerName={selectedCustomer.customer_name}
-            onNewInvoice={handleCustomerNewInvoice}
-            onBack={() => setSelectedCustomer(null)}
-          />
-        );
-      }
-      return <ComingSoonPage title="Clients" />;
+      return <ClientsPage onClientNewInvoice={handleCustomerNewInvoice} />;
+    }
+
+    if (isClientDetail) {
+      return <ClientDetailPage onClientNewInvoice={handleCustomerNewInvoice} />;
     }
 
     if (isReports) {

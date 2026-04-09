@@ -1,26 +1,28 @@
 """
 Lambda function: Generate PDF
-Generates a professional PDF invoice from invoice data with tier-based styling
-Includes QR code payment links for Pro users with connected Stripe accounts
+Generates a premium-design invoice PDF from invoice data.
+Uses ReportLab with A4 layout, sage colour system, overdue banner,
+QR code payment link, and a pinned footer via onPage callback.
 """
 
 import io
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
-# Add layer to path
 sys.path.insert(0, '/opt/python')
 
 import boto3
 import qrcode
 from PIL import Image as PILImage
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.units import mm, inch
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, HRFlowable
+)
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 
 from common.dynamodb_helper import DynamoDBHelper, DynamoDBException
@@ -30,161 +32,77 @@ from common.security import (
     validate_uuid,
     create_error_response,
     create_success_response,
-    InputValidationError
+    InputValidationError,
 )
 from common.logger import get_logger
 
 logger = get_logger("generate_pdf")
 
-
 # =============================================================================
-# COLOR PALETTES - Tier-based styling
+# SAGE DESIGN SYSTEM — shared across all tiers, primary colour varies by pref
 # =============================================================================
 
-# FREE TIER - Grayscale only
-FREE_PALETTE = {
-    'primary': colors.HexColor('#2d3748'),      # Dark gray
-    'accent': colors.HexColor('#4a5568'),       # Medium gray
-    'table_header': colors.HexColor('#1e293b'), # Dark gray for header
-    'table_alt_row': colors.HexColor('#f7fafc'),# Light gray for alternating rows
-    'text': colors.HexColor('#1a202c'),         # Almost black
-    'text_light': colors.HexColor('#718096')    # Light gray text
+SAGE_DESIGN = {
+    # Invariant tokens — same for every invoice
+    'table_header_bg':   colors.HexColor('#F4F7F3'),  # sage light
+    'table_alt_row':     colors.HexColor('#F9FAF9'),  # very subtle tint
+    'text':              colors.HexColor('#1A2318'),  # text-primary
+    'text_secondary':    colors.HexColor('#5F6B5A'),  # text-secondary
+    'border':            colors.HexColor('#E2E5DE'),  # surface-border
+    'danger':            colors.HexColor('#C2412D'),  # danger
+    'danger_light':      colors.HexColor('#FEF2F1'),  # danger-50
+    'amount_due_bg':     colors.HexColor('#F4F7F3'),  # sage light
+    'white':             colors.white,
 }
 
-# PRO TIER - Color options
+# Free tier — sage as primary
+FREE_PALETTE = {**SAGE_DESIGN, 'primary': colors.HexColor('#4A6741'), 'accent': colors.HexColor('#3D5835')}
+
+# Pro palettes — primary/accent vary; layout tokens stay the same
 PRO_PALETTES = {
-    'purple': {
-        'primary': colors.HexColor('#6B46C1'),
-        'accent': colors.HexColor('#553C9A'),
-        'table_header': colors.HexColor('#6B46C1'),
-        'table_alt_row': colors.HexColor('#FAF5FF'),
-        'text': colors.HexColor('#1a202c'),
-        'text_light': colors.HexColor('#718096')
-    },
-    'blue': {
-        'primary': colors.HexColor('#3B82F6'),
-        'accent': colors.HexColor('#2563EB'),
-        'table_header': colors.HexColor('#3B82F6'),
-        'table_alt_row': colors.HexColor('#EFF6FF'),
-        'text': colors.HexColor('#1a202c'),
-        'text_light': colors.HexColor('#718096')
-    },
-    'green': {
-        'primary': colors.HexColor('#10B981'),
-        'accent': colors.HexColor('#059669'),
-        'table_header': colors.HexColor('#10B981'),
-        'table_alt_row': colors.HexColor('#ECFDF5'),
-        'text': colors.HexColor('#1a202c'),
-        'text_light': colors.HexColor('#718096')
-    },
-    'orange': {
-        'primary': colors.HexColor('#F59E0B'),
-        'accent': colors.HexColor('#D97706'),
-        'table_header': colors.HexColor('#F59E0B'),
-        'table_alt_row': colors.HexColor('#FFFBEB'),
-        'text': colors.HexColor('#1a202c'),
-        'text_light': colors.HexColor('#718096')
-    },
-    'red': {
-        'primary': colors.HexColor('#EF4444'),
-        'accent': colors.HexColor('#DC2626'),
-        'table_header': colors.HexColor('#EF4444'),
-        'table_alt_row': colors.HexColor('#FEF2F2'),
-        'text': colors.HexColor('#1a202c'),
-        'text_light': colors.HexColor('#718096')
-    }
+    'sage': {**SAGE_DESIGN,   'primary': colors.HexColor('#4A6741'), 'accent': colors.HexColor('#3D5835')},
+    'purple': {**SAGE_DESIGN, 'primary': colors.HexColor('#6B46C1'), 'accent': colors.HexColor('#553C9A')},
+    'blue':   {**SAGE_DESIGN, 'primary': colors.HexColor('#2563EB'), 'accent': colors.HexColor('#1D4ED8')},
+    'green':  {**SAGE_DESIGN, 'primary': colors.HexColor('#059669'), 'accent': colors.HexColor('#047857')},
+    'orange': {**SAGE_DESIGN, 'primary': colors.HexColor('#D97706'), 'accent': colors.HexColor('#B45309')},
+    'red':    {**SAGE_DESIGN, 'primary': colors.HexColor('#DC2626'), 'accent': colors.HexColor('#B91C1C')},
 }
 
-logger = get_logger("generate_pdf")
 
+def get_color_palette(is_pro: bool, color_preference: str = None) -> Dict[str, Any]:
+    if not is_pro:
+        return FREE_PALETTE
+    key = color_preference if color_preference in PRO_PALETTES else 'sage'
+    return PRO_PALETTES[key]
+
+
+# =============================================================================
+# PDF GENERATOR
+# =============================================================================
 
 class PDFGenerator:
-    """PDF invoice generator using ReportLab with tier-based styling"""
+    """Premium invoice PDF generator — A4, sage design system, ReportLab."""
 
-    def __init__(self, color_palette: Dict[str, Any], is_free_tier: bool = False, user_info: Dict[str, Any] = None):
-        """
-        Initialize PDF generator with color palette and user info
+    # A4 margins: 20 mm each side
+    MARGIN = 20 * mm
 
-        Args:
-            color_palette: Dictionary of colors for the invoice
-            is_free_tier: Whether this is a free tier user (for watermark)
-            user_info: Dictionary containing user contact information
-        """
-        self.color_palette = color_palette
+    def __init__(
+        self,
+        color_palette: Dict[str, Any],
+        is_free_tier: bool = False,
+        user_info: Dict[str, Any] = None,
+    ):
+        self.p = color_palette          # palette shorthand
         self.is_free_tier = is_free_tier
         self.user_info = user_info or {}
         self.styles = getSampleStyleSheet()
-        self.setup_custom_styles()
+        self._page_width = A4[0] - 2 * self.MARGIN   # usable width in points
 
-    def setup_custom_styles(self):
-        """Create custom paragraph styles"""
-        self.styles.add(ParagraphStyle(
-            name='RightAlign',
-            parent=self.styles['Normal'],
-            alignment=TA_RIGHT
-        ))
-        self.styles.add(ParagraphStyle(
-            name='CenterAlign',
-            parent=self.styles['Normal'],
-            alignment=TA_CENTER
-        ))
-        self.styles.add(ParagraphStyle(
-            name='LeftAlign',
-            parent=self.styles['Normal'],
-            alignment=TA_LEFT
-        ))
-        self.styles.add(ParagraphStyle(
-            name='CompanyName',
-            parent=self.styles['Title'],
-            fontSize=24,
-            textColor=self.color_palette['primary'],
-            spaceAfter=6,
-            alignment=TA_LEFT
-        ))
-        self.styles.add(ParagraphStyle(
-            name='SectionHeading',
-            parent=self.styles['Normal'],
-            fontSize=11,
-            fontName='Helvetica-Bold',
-            textColor=self.color_palette['text'],
-            spaceAfter=6
-        ))
-        self.styles.add(ParagraphStyle(
-            name='SmallText',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            textColor=self.color_palette['text_light']
-        ))
-        self.styles.add(ParagraphStyle(
-            name='PaymentHeading',
-            parent=self.styles['Heading2'],
-            fontSize=14,
-            fontName='Helvetica-Bold',
-            textColor=self.color_palette['primary'],
-            alignment=TA_CENTER,
-            spaceAfter=12
-        ))
-        self.styles.add(ParagraphStyle(
-            name='PaymentLink',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            textColor=self.color_palette['accent'],
-            alignment=TA_CENTER,
-            spaceBefore=8
-        ))
-
-    def generate_qr_code(self, url: str, size_inches: float = 2.0) -> Image:
-        """
-        Generate a QR code image for the given URL
-
-        Args:
-            url: The URL to encode in the QR code
-            size_inches: Size of the QR code in inches (default 2.0)
-
-        Returns:
-            ReportLab Image object ready to be added to the PDF
-        """
-        # Create QR code with high error correction for better scanning
+    # ------------------------------------------------------------------
+    # QR CODE
+    # ------------------------------------------------------------------
+    def _qr_image(self, url: str, size_mm: float = 25.0) -> Image:
+        """Return a ReportLab Image containing a QR code."""
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -193,643 +111,784 @@ class PDFGenerator:
         )
         qr.add_data(url)
         qr.make(fit=True)
+        img = qr.make_image(fill_color='black', back_color='white')
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        size_pt = size_mm * mm
+        return Image(buf, width=size_pt, height=size_pt)
 
-        # Create PIL image
-        qr_image = qr.make_image(fill_color="black", back_color="white")
+    # ------------------------------------------------------------------
+    # HELPERS
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _fmt_date(raw) -> str:
+        if isinstance(raw, str) and len(raw) >= 10:
+            try:
+                return datetime.strptime(raw[:10], '%Y-%m-%d').strftime('%B %d, %Y')
+            except Exception:
+                pass
+        return raw or '—'
 
-        # Convert to bytes for ReportLab
-        img_buffer = io.BytesIO()
-        qr_image.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
+    @staticmethod
+    def _fmt_currency(amount) -> str:
+        try:
+            return f'${float(amount):,.2f}'
+        except (TypeError, ValueError):
+            return '$0.00'
 
-        # Create ReportLab Image with specified size
-        size_points = size_inches * inch
-        return Image(img_buffer, width=size_points, height=size_points)
+    def _para(self, text: str, **kwargs) -> Paragraph:
+        """Shorthand: make a Paragraph with inline style overrides."""
+        style = ParagraphStyle('_inline', parent=self.styles['Normal'], **kwargs)
+        return Paragraph(text, style)
 
+    def _spacer(self, height_mm: float) -> Spacer:
+        return Spacer(1, height_mm * mm)
+
+    def _hr(self, color=None, thickness: float = 0.5) -> HRFlowable:
+        return HRFlowable(
+            width='100%',
+            thickness=thickness,
+            color=color or self.p['border'],
+            spaceAfter=0,
+            spaceBefore=0,
+        )
+
+    # ------------------------------------------------------------------
+    # OVERDUE CHECK
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _is_overdue(invoice_data: Dict[str, Any], status: str) -> bool:
+        if status in ('paid', 'cancelled'):
+            return False
+        due = invoice_data.get('due_date')
+        if not due:
+            return False
+        try:
+            return datetime.strptime(due[:10], '%Y-%m-%d').date() < datetime.utcnow().date()
+        except Exception:
+            return False
+
+    # ------------------------------------------------------------------
+    # MAIN GENERATE
+    # ------------------------------------------------------------------
     def generate(
         self,
         invoice_data: Dict[str, Any],
         invoice_id: str = None,
-        payment_link_url: Optional[str] = None
+        invoice_status: str = 'draft',
+        payment_url: Optional[str] = None,
     ) -> bytes:
         """
-        Generate PDF from invoice data — clean premium design with generous whitespace.
+        Build the PDF and return raw bytes.
 
         Args:
-            invoice_data: Invoice data dictionary
-            invoice_id: Invoice ID for generating invoice number if needed
-            payment_link_url: Optional Stripe payment link URL for QR code
-
-        Returns:
-            PDF bytes
+            invoice_data: Flat dict from invoice.data.to_dynamodb()
+            invoice_id:   Invoice UUID (used to derive display number if absent)
+            invoice_status: Invoice status string ('draft', 'paid', 'overdue', …)
+            payment_url:  URL for the QR code / payment link (None → omit)
         """
-        buffer = io.BytesIO()
+        buf = io.BytesIO()
+        W = self._page_width
+        p = self.p  # colour palette
+
+        # ── Derived values ────────────────────────────────────────────
+        invoice_num = invoice_data.get('invoice_number') or ''
+        if not invoice_num or invoice_num == 'None':
+            invoice_num = (invoice_id[-8:].upper() if invoice_id else 'N/A')
+
+        invoice_date_str = self._fmt_date(
+            invoice_data.get('invoice_date', datetime.now().strftime('%Y-%m-%d'))
+        )
+        due_date_raw = invoice_data.get('due_date', '')
+        due_date_str = self._fmt_date(due_date_raw) if due_date_raw else '—'
+
+        overdue = self._is_overdue(invoice_data, invoice_status)
+
+        subtotal    = float(invoice_data.get('subtotal', 0) or 0)
+        discount    = float(invoice_data.get('discount', 0) or 0)
+        tax_rate    = float(invoice_data.get('tax_rate', 0) or 0)
+        tax_amount  = float(invoice_data.get('tax_amount', 0) or 0)
+        total       = float(invoice_data.get('total', 0) or 0)
+        tax_pct     = tax_rate * 100
+
+        business_name    = self.user_info.get('business_name', '')
+        sender_email     = self.user_info.get('email', '')
+        sender_name      = self.user_info.get('name', '')
+        typical_services = self.user_info.get('typical_services', '')
+
+        # ── Footer callback (drawn on every page) ─────────────────────
+        def _footer(canvas, doc):
+            canvas.saveState()
+            y = self.MARGIN - 6 * mm
+            left = self.MARGIN
+            right = A4[0] - self.MARGIN
+
+            # Left: Business name · email
+            left_parts = [x for x in [business_name, sender_email] if x]
+            left_text = ' · '.join(left_parts) if left_parts else ''
+            canvas.setFont('Helvetica', 7)
+            canvas.setFillColor(p['text_secondary'])
+            if left_text:
+                canvas.drawString(left, y, left_text)
+
+            # Right: Powered by ScatterPilot
+            canvas.setFillColor(colors.HexColor('#A0ADB9'))
+            label = 'Powered by ScatterPilot'
+            canvas.drawRightString(right, y, label)
+
+            # Thin rule above footer
+            canvas.setStrokeColor(p['border'])
+            canvas.setLineWidth(0.5)
+            canvas.line(left, y + 3 * mm, right, y + 3 * mm)
+            canvas.restoreState()
+
         doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=0.9 * inch,
-            leftMargin=0.9 * inch,
-            topMargin=0.85 * inch,
-            bottomMargin=0.85 * inch
+            buf,
+            pagesize=A4,
+            leftMargin=self.MARGIN,
+            rightMargin=self.MARGIN,
+            topMargin=self.MARGIN,
+            bottomMargin=self.MARGIN + 8 * mm,  # extra space for footer
         )
 
         story = []
 
-        # ------------------------------------------------------------------
-        # Resolve invoice number
-        # ------------------------------------------------------------------
-        invoice_num = invoice_data.get("invoice_number")
-        if not invoice_num or invoice_num == "None":
-            invoice_num = invoice_id[-8:].upper() if invoice_id else "N/A"
+        # ==============================================================
+        # OVERDUE BANNER
+        # ==============================================================
+        if overdue:
+            due_label = self._fmt_date(due_date_raw)
+            banner_data = [[
+                self._para(
+                    f'<b>OVERDUE</b> — Payment was due {due_label}',
+                    fontSize=9,
+                    fontName='Helvetica-Bold',
+                    textColor=colors.HexColor('#922412'),
+                    alignment=TA_CENTER,
+                )
+            ]]
+            banner = Table(banner_data, colWidths=[W])
+            banner.setStyle(TableStyle([
+                ('BACKGROUND',     (0, 0), (-1, -1), p['danger_light']),
+                ('TOPPADDING',     (0, 0), (-1, -1), 7),
+                ('BOTTOMPADDING',  (0, 0), (-1, -1), 7),
+                ('LEFTPADDING',    (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING',   (0, 0), (-1, -1), 10),
+                ('BOX',            (0, 0), (-1, -1), 1, p['danger']),
+                ('ROUNDEDCORNERS', [3]),
+            ]))
+            story.append(banner)
+            story.append(self._spacer(5))
 
-        # ------------------------------------------------------------------
-        # Format dates
-        # ------------------------------------------------------------------
-        def fmt_date(raw):
-            if isinstance(raw, str) and len(raw) == 10:
-                try:
-                    return datetime.strptime(raw, '%Y-%m-%d').strftime('%B %d, %Y')
-                except Exception:
-                    pass
-            return raw or ''
-
-        invoice_date = fmt_date(invoice_data.get('invoice_date', datetime.now().strftime('%Y-%m-%d')))
-        due_date = fmt_date(invoice_data.get('due_date', ''))
-
-        # ------------------------------------------------------------------
-        # PAGE WIDTH (usable)
-        # ------------------------------------------------------------------
-        page_width = letter[0] - 1.8 * inch  # left + right margins
-
-        # ------------------------------------------------------------------
-        # HEADER: large INVOICE heading + invoice number
-        # ------------------------------------------------------------------
-        business_name = self.user_info.get('business_name', '')
-
-        invoice_label_style = ParagraphStyle(
-            'InvoiceLabel',
-            parent=self.styles['Normal'],
-            fontSize=36,
-            fontName='Helvetica-Bold',
-            textColor=self.color_palette['primary'],
-            leading=40,
-        )
-        invoice_num_style = ParagraphStyle(
-            'InvoiceNum',
-            parent=self.styles['Normal'],
-            fontSize=10,
-            fontName='Helvetica',
-            textColor=self.color_palette['text_light'],
-            alignment=TA_RIGHT,
-            leading=14,
-        )
-
+        # ==============================================================
+        # HEADER — Business name LEFT, INVOICE + details RIGHT
+        # ==============================================================
+        # Left cell
+        left_lines = []
         if business_name:
-            biz_style = ParagraphStyle(
-                'BizName',
-                parent=self.styles['Normal'],
-                fontSize=13,
+            left_lines.append(self._para(
+                business_name,
+                fontSize=22,
                 fontName='Helvetica-Bold',
-                textColor=self.color_palette['text'],
-                leading=16,
-            )
-            top_left = [
-                Paragraph('INVOICE', invoice_label_style),
-                Paragraph(business_name, biz_style),
-            ]
-        else:
-            top_left = [Paragraph('INVOICE', invoice_label_style)]
+                textColor=p['text'],
+                leading=26,
+            ))
+        if typical_services and not self.is_free_tier:
+            left_lines.append(self._para(
+                typical_services[:80],
+                fontSize=9,
+                fontName='Helvetica-Oblique',
+                textColor=p['text_secondary'],
+                leading=13,
+                spaceBefore=2,
+            ))
 
-        top_right_content = Paragraph(
-            f'<b>#{invoice_num}</b><br/>'
-            f'<font color="#718096">Date: {invoice_date}</font><br/>'
-            f'<font color="#718096">Due: {due_date}</font>',
-            invoice_num_style
+        if not left_lines:
+            # Fallback: sender name or nothing
+            left_lines.append(self._para(
+                sender_name or 'Invoice',
+                fontSize=22,
+                fontName='Helvetica-Bold',
+                textColor=p['text'],
+                leading=26,
+            ))
+
+        # Right cell — "INVOICE" header + meta
+        right_lines = [
+            self._para(
+                'I N V O I C E',
+                fontSize=14,
+                fontName='Helvetica-Bold',
+                textColor=p['primary'],
+                alignment=TA_RIGHT,
+                leading=18,
+            ),
+            self._para(
+                f'<font color="#5F6B5A">#{invoice_num}</font>',
+                fontSize=10,
+                fontName='Helvetica',
+                alignment=TA_RIGHT,
+                leading=15,
+                spaceBefore=6,
+            ),
+            self._para(
+                f'<font color="#5F6B5A">Date:&nbsp;&nbsp;&nbsp;{invoice_date_str}</font>',
+                fontSize=9,
+                fontName='Helvetica',
+                alignment=TA_RIGHT,
+                leading=13,
+            ),
+            self._para(
+                f'<font color="#5F6B5A">Due:&nbsp;&nbsp;&nbsp;&nbsp;{due_date_str}</font>',
+                fontSize=9,
+                fontName='Helvetica',
+                alignment=TA_RIGHT,
+                leading=13,
+            ),
+        ]
+
+        header_tbl = Table(
+            [[left_lines, right_lines]],
+            colWidths=[W * 0.55, W * 0.45],
         )
-
-        header_table = Table(
-            [[top_left, top_right_content]],
-            colWidths=[page_width * 0.55, page_width * 0.45]
-        )
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        header_tbl.setStyle(TableStyle([
+            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN',         (0, 0), (0, 0),   'LEFT'),
+            ('ALIGN',         (1, 0), (1, 0),   'RIGHT'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
         ]))
-        story.append(header_table)
+        story.append(header_tbl)
+        story.append(self._spacer(4))
+        story.append(self._hr(thickness=1.5, color=p['primary']))
+        story.append(self._spacer(8))
 
-        # Thick accent rule below header
-        rule_table = Table([[''] * 1], colWidths=[page_width])
-        rule_table.setStyle(TableStyle([
-            ('LINEBELOW', (0, 0), (-1, 0), 3, self.color_palette['primary']),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        story.append(rule_table)
-        story.append(Spacer(1, 0.4 * inch))
-
-        # ------------------------------------------------------------------
-        # FROM / BILL TO  — two-column info block
-        # ------------------------------------------------------------------
-        label_style = ParagraphStyle(
-            'InfoLabel',
-            parent=self.styles['Normal'],
+        # ==============================================================
+        # BILL TO  (+ FROM on the right)
+        # ==============================================================
+        label_style = dict(
             fontSize=8,
             fontName='Helvetica-Bold',
-            textColor=self.color_palette['text_light'],
+            textColor=p['primary'],
+            leading=11,
             spaceAfter=3,
-            leading=10,
         )
-        info_style = ParagraphStyle(
-            'InfoText',
-            parent=self.styles['Normal'],
+        info_style = dict(
             fontSize=10,
             fontName='Helvetica',
-            textColor=self.color_palette['text'],
+            textColor=p['text'],
             leading=14,
         )
 
-        # FROM column (user / sender)
-        from_parts = []
-        if self.user_info.get('name'):
-            from_parts.append(str(self.user_info['name']))
-        if self.user_info.get('phone'):
-            from_parts.append(str(self.user_info['phone']))
-        if self.user_info.get('email'):
-            from_parts.append(str(self.user_info['email']))
-        if self.user_info.get('address'):
-            from_parts.append(str(self.user_info['address']))
-
-        from_col = [Paragraph('FROM', label_style)]
-        if from_parts:
-            from_col.append(Paragraph('<br/>'.join(from_parts), info_style))
-        else:
-            from_col.append(Paragraph('—', info_style))
-
-        # BILL TO column (customer)
-        bill_parts = [f'<b>{invoice_data["customer_name"]}</b>']
+        # Bill To
+        bill_parts = [f'<b>{invoice_data.get("customer_name", "")}</b>']
         if invoice_data.get('customer_email'):
             bill_parts.append(invoice_data['customer_email'])
-        if invoice_data.get('customer_phone'):
-            bill_parts.append(invoice_data['customer_phone'])
         if invoice_data.get('customer_address'):
             bill_parts.append(invoice_data['customer_address'])
-
         bill_col = [
-            Paragraph('BILL TO', label_style),
-            Paragraph('<br/>'.join(bill_parts), info_style),
+            self._para('BILL TO', **label_style),
+            self._para('<br/>'.join(bill_parts), **info_style),
         ]
 
-        info_table = Table(
-            [[from_col, bill_col]],
-            colWidths=[page_width * 0.48, page_width * 0.52]
+        # From (sender info — right side)
+        from_parts = []
+        if sender_name:
+            from_parts.append(f'<b>{sender_name}</b>')
+        if self.user_info.get('phone'):
+            from_parts.append(self.user_info['phone'])
+        if sender_email:
+            from_parts.append(sender_email)
+        if self.user_info.get('address'):
+            from_parts.append(self.user_info['address'])
+
+        from_col = [self._para('FROM', **label_style)]
+        if from_parts:
+            from_col.append(self._para('<br/>'.join(from_parts), **{**info_style, 'fontSize': 9}))
+
+        from_right_style = {**info_style, 'alignment': TA_RIGHT, 'fontSize': 9}
+        from_col_right = [
+            self._para('FROM', **{**label_style, 'alignment': TA_RIGHT}),
+        ]
+        if from_parts:
+            from_col_right.append(
+                self._para('<br/>'.join(from_parts), **{**info_style, 'fontSize': 9, 'alignment': TA_RIGHT})
+            )
+
+        bill_table = Table(
+            [[bill_col, from_col_right]],
+            colWidths=[W * 0.55, W * 0.45],
         )
-        info_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
+        bill_table.setStyle(TableStyle([
+            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
         ]))
-        story.append(info_table)
-        story.append(Spacer(1, 0.45 * inch))
+        story.append(bill_table)
+        story.append(self._spacer(9))
 
-        # ------------------------------------------------------------------
+        # ==============================================================
         # LINE ITEMS TABLE
-        # ------------------------------------------------------------------
-        line_items_data = [['QTY', 'DESCRIPTION', 'UNIT PRICE', 'AMOUNT']]
+        # ==============================================================
+        line_items = invoice_data.get('line_items', [])
 
-        for item in invoice_data['line_items']:
-            line_items_data.append([
-                str(item['quantity']),
-                item['description'],
-                f"${float(item['unit_price']):,.2f}",
-                f"${float(item['total']):,.2f}"
+        # Column widths: desc wide, qty narrow, rate medium, amount medium
+        cw_desc   = W * 0.46
+        cw_qty    = W * 0.10
+        cw_rate   = W * 0.22
+        cw_amount = W * 0.22
+        col_widths = [cw_desc, cw_qty, cw_rate, cw_amount]
+
+        hdr_para = lambda t: self._para(
+            t,
+            fontSize=8,
+            fontName='Helvetica-Bold',
+            textColor=p['text_secondary'],
+            leading=11,
+        )
+        rows = [
+            [hdr_para('DESCRIPTION'), hdr_para('QTY'), hdr_para('RATE'), hdr_para('AMOUNT')]
+        ]
+
+        if line_items:
+            for item in line_items:
+                desc = item.get('description', '')
+                qty  = str(item.get('quantity', ''))
+                rate = self._fmt_currency(item.get('unit_price', 0))
+                amt  = self._fmt_currency(item.get('total', 0))
+
+                desc_para = self._para(desc, fontSize=10, fontName='Helvetica', textColor=p['text'], leading=14)
+                rows.append([desc_para, qty, rate, amt])
+        else:
+            rows.append([
+                self._para('—', fontSize=10, textColor=p['text_secondary']),
+                '', '', '',
             ])
 
-        col_widths = [0.55 * inch, page_width - 0.55 * inch - 1.25 * inch - 1.2 * inch, 1.25 * inch, 1.2 * inch]
-        line_items_table = Table(line_items_data, colWidths=col_widths)
+        items_tbl = Table(rows, colWidths=col_widths)
 
-        table_style_commands = [
+        ts_cmds = [
             # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), self.color_palette['table_header']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 9),
-            ('TOPPADDING', (0, 0), (-1, 0), 9),
-            ('LEFTPADDING', (0, 0), (-1, 0), 8),
-            ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND',    (0, 0), (-1, 0), p['table_header_bg']),
+            ('TOPPADDING',    (0, 0), (-1, 0), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 7),
+            ('LEFTPADDING',   (0, 0), (-1, 0), 8),
+            ('RIGHTPADDING',  (0, 0), (-1, 0), 8),
 
             # Body rows
-            ('ALIGN', (0, 1), (0, -1), 'CENTER'),   # QTY center
-            ('ALIGN', (1, 1), (1, -1), 'LEFT'),     # Description left
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),   # Prices right
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
-            ('LEFTPADDING', (0, 1), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 1), (-1, -1), 8),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # Subtle row separator only
-            ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+            ('FONTNAME',      (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',      (0, 1), (-1, -1), 10),
+            ('TEXTCOLOR',     (0, 1), (-1, -1), p['text']),
+            ('TOPPADDING',    (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 9),
+            ('LEFTPADDING',   (0, 1), (-1, -1), 8),
+            ('RIGHTPADDING',  (0, 1), (-1, -1), 8),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+
+            # Alignments
+            ('ALIGN',         (0, 0), (0, -1), 'LEFT'),    # Description
+            ('ALIGN',         (1, 0), (1, -1), 'CENTER'),  # Qty
+            ('ALIGN',         (2, 0), (3, -1), 'RIGHT'),   # Rate, Amount
+
+            # Row separators
+            ('LINEBELOW',     (0, 0), (-1, -2), 0.5, p['border']),
+
+            # Outer box
+            ('BOX',           (0, 0), (-1, -1), 0.5, p['border']),
         ]
 
-        # Alternating row tint
-        for i in range(1, len(line_items_data)):
-            if i % 2 == 0:
-                table_style_commands.append(
-                    ('BACKGROUND', (0, i), (-1, i), self.color_palette['table_alt_row'])
-                )
+        # Alternating row tint on body rows
+        for i in range(2, len(rows), 2):
+            ts_cmds.append(('BACKGROUND', (0, i), (-1, i), p['table_alt_row']))
 
-        line_items_table.setStyle(TableStyle(table_style_commands))
-        story.append(line_items_table)
-        story.append(Spacer(1, 0.35 * inch))
+        items_tbl.setStyle(TableStyle(ts_cmds))
+        story.append(items_tbl)
+        story.append(self._spacer(6))
 
-        # ------------------------------------------------------------------
-        # TOTALS — right-aligned stacked rows, then highlighted TOTAL box
-        # ------------------------------------------------------------------
-        subtotal = float(invoice_data['subtotal'])
-        discount = float(invoice_data.get('discount', 0))
-        tax_rate_percent = float(invoice_data['tax_rate']) * 100
-        tax_amount = float(invoice_data['tax_amount'])
-        total = float(invoice_data['total'])
+        # ==============================================================
+        # TOTALS — right-aligned subtable
+        # ==============================================================
+        tot_col_label = W * 0.22
+        tot_col_value = W * 0.22
+        tot_col_widths = [tot_col_label, tot_col_value]
 
-        totals_rows = []
-        totals_rows.append(['Subtotal', f"${subtotal:,.2f}"])
+        def _tot_row(label, value, bold=False, top_rule=False):
+            fn = 'Helvetica-Bold' if bold else 'Helvetica'
+            fs = 11 if bold else 9
+            lc = p['text'] if bold else p['text_secondary']
+            return [
+                self._para(label, fontSize=fs, fontName=fn, textColor=lc, alignment=TA_RIGHT),
+                self._para(value, fontSize=fs, fontName=fn, textColor=lc, alignment=TA_RIGHT),
+            ]
+
+        tot_rows = [_tot_row('Subtotal', self._fmt_currency(subtotal))]
         if discount > 0:
-            totals_rows.append(['Discount', f"-${discount:,.2f}"])
-        totals_rows.append([f'Tax ({tax_rate_percent:.2f}%)', f"${tax_amount:,.2f}"])
+            tot_rows.append(_tot_row('Discount', f'−{self._fmt_currency(discount)}'))
+        tot_rows.append(_tot_row(f'Tax ({tax_pct:.1f}%)', self._fmt_currency(tax_amount)))
 
-        sub_totals_table = Table(totals_rows, colWidths=[1.6 * inch, 1.4 * inch], hAlign='RIGHT')
-        sub_totals_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (-1, -1), self.color_palette['text_light']),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        tot_tbl = Table(tot_rows, colWidths=tot_col_widths, hAlign='RIGHT')
+        tot_tbl.setStyle(TableStyle([
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
         ]))
-        story.append(sub_totals_table)
-        story.append(Spacer(1, 0.12 * inch))
+        story.append(tot_tbl)
 
-        # Highlighted total box
-        total_box_data = [[f'TOTAL DUE', f"${total:,.2f}"]]
-        total_box_table = Table(total_box_data, colWidths=[1.6 * inch, 1.55 * inch], hAlign='RIGHT')
-        total_box_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), self.color_palette['primary']),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (0, 0), 9),
-            ('FONTSIZE', (1, 0), (1, 0), 14),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        # Thin rule above total
+        rule_tbl = Table([['', '']], colWidths=[W - tot_col_label - tot_col_value, tot_col_label + tot_col_value])
+        rule_tbl.setStyle(TableStyle([
+            ('LINEBELOW',     (1, 0), (1, 0), 1, p['primary']),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+        ]))
+        story.append(rule_tbl)
+
+        # TOTAL row — bold, larger
+        total_row_tbl = Table(
+            [[
+                self._para('TOTAL', fontSize=12, fontName='Helvetica-Bold', textColor=p['text'], alignment=TA_RIGHT),
+                self._para(self._fmt_currency(total), fontSize=12, fontName='Helvetica-Bold', textColor=p['text'], alignment=TA_RIGHT),
+            ]],
+            colWidths=tot_col_widths,
+            hAlign='RIGHT',
+        )
+        total_row_tbl.setStyle(TableStyle([
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+        ]))
+        story.append(total_row_tbl)
+        story.append(self._spacer(8))
+
+        # ==============================================================
+        # AMOUNT DUE — prominent right-aligned box
+        # ==============================================================
+        box_w = W * 0.48
+        amount_due_tbl = Table(
+            [[
+                self._para('AMOUNT DUE', fontSize=8, fontName='Helvetica-Bold',
+                           textColor=p['text_secondary'], alignment=TA_RIGHT, leading=12),
+                '',
+            ],
+            [
+                self._para(self._fmt_currency(total), fontSize=20, fontName='Helvetica-Bold',
+                           textColor=p['text'], alignment=TA_RIGHT, leading=24),
+                '',
+            ]],
+            colWidths=[box_w - 16, 8],
+            hAlign='RIGHT',
+        )
+        amount_due_tbl.setStyle(TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, -1), p['amount_due_bg']),
+            ('TOPPADDING',    (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 2),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 12),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 14),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+            ('LINEAFTER',     (-1, 0), (-1, -1), 3, p['primary']),
+            ('BOX',           (0, 0), (-1, -1), 0.5, p['border']),
             ('ROUNDEDCORNERS', [4]),
         ]))
-        story.append(total_box_table)
+        story.append(amount_due_tbl)
 
-        # ------------------------------------------------------------------
+        # ==============================================================
         # NOTES
-        # ------------------------------------------------------------------
+        # ==============================================================
         if invoice_data.get('notes'):
-            story.append(Spacer(1, 0.45 * inch))
-            story.append(Paragraph('NOTES', label_style))
-            story.append(Spacer(1, 0.06 * inch))
-            story.append(Paragraph(invoice_data['notes'], info_style))
+            story.append(self._spacer(9))
+            story.append(self._hr())
+            story.append(self._spacer(6))
+            story.append(self._para(
+                'NOTES', fontSize=8, fontName='Helvetica-Bold',
+                textColor=p['primary'], leading=11,
+            ))
+            story.append(self._spacer(2))
+            story.append(self._para(
+                invoice_data['notes'],
+                fontSize=9, fontName='Helvetica', textColor=p['text_secondary'], leading=13,
+            ))
 
-        # ------------------------------------------------------------------
-        # PAYMENT SECTION — QR code only when Stripe payment link provided
-        # ------------------------------------------------------------------
-        if payment_link_url:
-            story.append(Spacer(1, 0.5 * inch))
+        # ==============================================================
+        # PAYMENT SECTION — text LEFT, QR code RIGHT
+        # ==============================================================
+        if payment_url:
+            story.append(self._spacer(10))
+            story.append(self._hr())
+            story.append(self._spacer(6))
 
-            # Thin separator
-            sep = Table([['']], colWidths=[page_width])
-            sep.setStyle(TableStyle([
-                ('LINEABOVE', (0, 0), (-1, 0), 0.75, colors.HexColor('#e2e8f0')),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(sep)
-            story.append(Spacer(1, 0.3 * inch))
-
-            pay_heading = Paragraph(
-                '<b>Pay This Invoice</b>',
-                self.styles['PaymentHeading']
+            pay_label_style = dict(
+                fontSize=8, fontName='Helvetica-Bold',
+                textColor=p['primary'], leading=11,
             )
-            story.append(pay_heading)
+            pay_text_style = dict(
+                fontSize=9, fontName='Helvetica',
+                textColor=p['text_secondary'], leading=13,
+            )
+            pay_url_style = dict(
+                fontSize=8, fontName='Helvetica',
+                textColor=p['accent'], leading=12,
+            )
+
+            # Truncate long URLs for display
+            display_url = payment_url if len(payment_url) <= 70 else payment_url[:67] + '...'
+
+            left_pay = [
+                self._para('PAYMENT', **pay_label_style),
+                self._spacer(3),
+                self._para('Pay online:', **pay_text_style),
+                self._para(
+                    f'<link href="{payment_url}">{display_url}</link>',
+                    **pay_url_style,
+                ),
+                self._spacer(6),
+                self._para(
+                    'Payment is due within 30 days of invoice date.',
+                    **pay_text_style,
+                ),
+                self._para(
+                    'Scan the QR code to pay securely via Stripe.',
+                    **pay_text_style,
+                ),
+            ]
 
             try:
-                qr_image = self.generate_qr_code(payment_link_url, size_inches=1.8)
-                qr_table = Table([[qr_image]], colWidths=[page_width])
-                qr_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                    ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-                ]))
-                story.append(qr_table)
-            except Exception as qr_error:
-                logger.warning("Failed to generate QR code", error=str(qr_error))
+                qr = self._qr_image(payment_url, size_mm=28)
+                right_pay = [[qr]]
+            except Exception as qr_err:
+                logger.warning("Failed to generate QR code", error=str(qr_err))
+                right_pay = [['']]
 
-            story.append(Spacer(1, 0.12 * inch))
-            story.append(Paragraph(
-                '<font size="9" color="#718096">Scan to pay securely via Stripe</font>',
-                self.styles['CenterAlign']
-            ))
+            qr_tbl = Table(right_pay, colWidths=[30 * mm])
+            qr_tbl.setStyle(TableStyle([
+                ('ALIGN',        (0, 0), (-1, -1), 'RIGHT'),
+                ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING',   (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING',(0, 0), (-1, -1), 0),
+                ('LEFTPADDING',  (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
 
-            display_url = payment_link_url if len(payment_link_url) <= 60 else payment_link_url[:57] + '...'
-            story.append(Spacer(1, 0.08 * inch))
-            story.append(Paragraph(
-                f'<link href="{payment_link_url}"><font size="9" color="{self.color_palette["accent"]}">{display_url}</font></link>',
-                self.styles['CenterAlign']
-            ))
+            pay_section = Table(
+                [[left_pay, qr_tbl]],
+                colWidths=[W - 35 * mm, 35 * mm],
+            )
+            pay_section.setStyle(TableStyle([
+                ('VALIGN',       (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING',   (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING',(0, 0), (-1, -1), 0),
+                ('LEFTPADDING',  (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            story.append(pay_section)
 
-        # ------------------------------------------------------------------
-        # FOOTER — "Powered by ScatterPilot" (always visible, small & muted)
-        # ------------------------------------------------------------------
-        story.append(Spacer(1, 0.5 * inch))
-        story.append(Paragraph(
-            '<font size="7" color="#a0aec0">Powered by ScatterPilot</font>',
-            self.styles['CenterAlign']
-        ))
-
-        # Build PDF
-        doc.build(story)
-        pdf_bytes = buffer.getvalue()
-        buffer.close()
-
+        # ==============================================================
+        # BUILD
+        # ==============================================================
+        doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+        pdf_bytes = buf.getvalue()
+        buf.close()
         return pdf_bytes
 
 
+# =============================================================================
+# USER INFO HELPER
+# =============================================================================
+
 def get_user_info_from_cognito(event: Dict[str, Any], user_id: str = None, is_pro: bool = False) -> Dict[str, Any]:
     """
-    Extract user information from Cognito claims and DynamoDB profile
+    Extract user information from Cognito claims and DynamoDB profile.
 
-    Tier-based logic:
-    - Free tier: Contact info (name, phone, email, address) - NO business name
-    - Pro tier: Contact info + optional business name
-
-    Args:
-        event: API Gateway event with authorizer context
-        user_id: User identifier for fetching profile data
-        is_pro: Whether user has Pro subscription
-
-    Returns:
-        Dictionary with user contact information
+    Tier rule: business_name is shown for Pro users only.
+    Contact details (name, phone, email, address) shown for all tiers.
     """
     user_info = {}
 
     try:
-        # Get claims from authorizer context
         authorizer = event.get('requestContext', {}).get('authorizer', {})
         claims = authorizer.get('claims', {})
-
-        # Extract email from claims (available for all users)
         user_info['email'] = claims.get('email', '')
 
-        # Fetch additional profile data from DynamoDB if user_id provided
         if user_id:
             try:
-                db_helper = DynamoDBHelper()
-                profile = db_helper.get_user_profile(user_id)
-
+                db = DynamoDBHelper()
+                profile = db.get_user_profile(user_id)
                 if profile:
-                    # Business name for header (PRO ONLY - this is the key differentiator)
                     if is_pro and profile.get('business_name'):
                         user_info['business_name'] = profile['business_name']
 
-                    # Contact information (available for ALL users - Free and Pro)
                     if profile.get('contact_name'):
                         user_info['name'] = profile['contact_name']
-
                     if profile.get('phone'):
                         user_info['phone'] = profile['phone']
-
-                    # Build address if any parts exist
-                    address_parts = []
-                    if profile.get('address_line1'):
-                        address_parts.append(profile['address_line1'])
-                    if profile.get('address_line2'):
-                        address_parts.append(profile['address_line2'])
-
-                    city_state_zip = []
-                    if profile.get('city'):
-                        city_state_zip.append(profile['city'])
-                    if profile.get('state'):
-                        city_state_zip.append(profile['state'])
-                    if profile.get('zip_code'):
-                        city_state_zip.append(profile['zip_code'])
-
-                    if city_state_zip:
-                        address_parts.append(', '.join(city_state_zip))
-
-                    if profile.get('country') and profile['country'] != 'USA':
-                        address_parts.append(profile['country'])
-
-                    if address_parts:
-                        user_info['address'] = '<br/>'.join(address_parts)
-
-                    # Use profile email if available
                     if profile.get('email'):
                         user_info['email'] = profile['email']
+                    if profile.get('typical_services') and is_pro:
+                        user_info['typical_services'] = profile['typical_services']
 
-            except Exception as profile_error:
-                logger.warning("Failed to fetch user profile from DynamoDB", error=str(profile_error))
+                    # Build address string
+                    addr = []
+                    if profile.get('address_line1'):
+                        addr.append(profile['address_line1'])
+                    if profile.get('address_line2'):
+                        addr.append(profile['address_line2'])
+                    csz = ', '.join(
+                        x for x in [profile.get('city'), profile.get('state'), profile.get('zip_code')] if x
+                    )
+                    if csz:
+                        addr.append(csz)
+                    if profile.get('country') and profile['country'] != 'USA':
+                        addr.append(profile['country'])
+                    if addr:
+                        user_info['address'] = '<br/>'.join(addr)
 
-    except Exception as e:
-        logger.warning("Failed to extract user info from Cognito", error=str(e))
+            except Exception as err:
+                logger.warning("Failed to fetch user profile", error=str(err))
+
+    except Exception as err:
+        logger.warning("Failed to extract user info from Cognito", error=str(err))
 
     return user_info
 
 
-def get_color_palette(is_pro: bool, color_preference: str = None) -> Dict[str, Any]:
-    """
-    Get the appropriate color palette based on subscription tier and preference
-
-    Args:
-        is_pro: Whether user has Pro subscription
-        color_preference: User's color preference (purple, blue, green, orange, red)
-
-    Returns:
-        Color palette dictionary
-    """
-    if not is_pro:
-        return FREE_PALETTE
-
-    # Pro tier - use color preference or default to purple
-    color_key = color_preference if color_preference in PRO_PALETTES else 'purple'
-    return PRO_PALETTES[color_key]
-
+# =============================================================================
+# LAMBDA HANDLER
+# =============================================================================
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Lambda handler for PDF generation with tier-based styling
+    Lambda handler for PDF generation.
 
     Path parameters:
-    - invoice_id: Invoice identifier
+        invoice_id — Invoice UUID
 
-    Returns:
-        API Gateway response with S3 URL to PDF
+    Returns API Gateway response with S3 download URL.
     """
     logger.log_lambda_invocation(event, context)
-    request_id = context.aws_request_id if context else "local"
+    request_id = context.aws_request_id if context else 'local'
     logger.set_correlation_id(request_id)
 
     try:
-        # Extract user ID
         user_id = extract_user_id_from_event(event)
         logger.set_user_id(user_id)
 
-        # Get invoice ID from path parameters
         path_params = event.get('pathParameters') or {}
         invoice_id = path_params.get('invoice_id')
-
         if not invoice_id:
-            return create_error_response(400, "Invoice ID is required", "ValidationError")
+            return create_error_response(400, 'Invoice ID is required', 'ValidationError')
 
-        # Validate UUID format
         try:
-            invoice_id = validate_uuid(invoice_id, "Invoice ID")
+            invoice_id = validate_uuid(invoice_id, 'Invoice ID')
         except InputValidationError as e:
-            return create_error_response(400, str(e), "ValidationError")
+            return create_error_response(400, str(e), 'ValidationError')
 
-        # Retrieve invoice from database
         db_helper = DynamoDBHelper()
         invoice = db_helper.get_invoice(invoice_id)
-
         if not invoice:
-            return create_error_response(404, "Invoice not found", "NotFound")
-
-        # Verify ownership
+            return create_error_response(404, 'Invoice not found', 'NotFound')
         if invoice.user_id != user_id:
-            return create_error_response(403, "Not authorized", "Forbidden")
+            return create_error_response(403, 'Not authorized', 'Forbidden')
 
-        # Get user subscription to determine tier and color preference
-        # Use try-except to handle subscription lookup failures gracefully
-        subscription = None
+        # ── Subscription / tier ──────────────────────────────────────
         is_pro = False
         color_preference = None
-
+        subscription = None
         try:
             subscription = db_helper.get_user_subscription(user_id)
-            is_pro = subscription and subscription.get('subscription_status') == 'pro'
+            is_pro = bool(subscription and subscription.get('subscription_status') == 'pro')
             color_preference = subscription.get('invoice_color') if subscription else None
-        except Exception as sub_error:
-            logger.warning(
-                "Failed to get subscription, defaulting to free tier",
-                error=str(sub_error)
-            )
-            # Default to free tier if subscription lookup fails
-            is_pro = False
-            color_preference = None
+        except Exception as sub_err:
+            logger.warning('Subscription lookup failed, defaulting to free tier', error=str(sub_err))
 
-        # Get payment link URL if it exists (Pro users with Stripe connected)
-        # This is stored directly in DynamoDB, not in the Invoice model
-        payment_link_url = None
-        if is_pro:
-            try:
-                invoices_table = os.environ.get('INVOICES_TABLE', 'ScatterPilot-Invoices-dev')
-                dynamodb = boto3.resource('dynamodb')
-                table = dynamodb.Table(invoices_table)
-                raw_invoice = table.get_item(
-                    Key={'invoice_id': invoice_id},
-                    ProjectionExpression='payment_link_url'
-                )
-                payment_link_url = raw_invoice.get('Item', {}).get('payment_link_url')
-                if payment_link_url:
-                    logger.info("Payment link found for invoice", invoice_id=invoice_id)
-            except Exception as pl_error:
-                logger.warning(
-                    "Failed to fetch payment link URL",
-                    error=str(pl_error),
-                    invoice_id=invoice_id
-                )
+        # ── Payment URL for QR code ──────────────────────────────────
+        # Prefer the stable public invoice page (/pay/{id}) when user has
+        # a Standard connected account — that always creates a fresh session.
+        # Fall back to any stored payment_link_url from the old flow.
+        payment_url = None
+        frontend_url = os.environ.get('FRONTEND_URL', '')
+        try:
+            dynamodb = boto3.resource('dynamodb')
+            raw_tbl = dynamodb.Table(os.environ.get('INVOICES_TABLE', 'ScatterPilot-Invoices-dev'))
+            raw_inv = raw_tbl.get_item(
+                Key={'invoice_id': invoice_id},
+                ProjectionExpression='payment_link_url',
+            ).get('Item', {})
+
+            connected_account = subscription.get('stripe_connected_account_id') if subscription else None
+
+            if connected_account and frontend_url:
+                # Use the permanent public page — clients always get a fresh checkout
+                payment_url = f'{frontend_url}/pay/{invoice_id}'
+            elif raw_inv.get('payment_link_url'):
+                payment_url = raw_inv['payment_link_url']
+
+        except Exception as pl_err:
+            logger.warning('Failed to resolve payment URL', error=str(pl_err))
+
+        invoice_status = str(getattr(invoice, 'status', 'draft') or 'draft')
 
         logger.info(
-            "Generating PDF with tier-based styling",
-            invoice_id=invoice_id,
-            is_pro=is_pro,
-            color_preference=color_preference,
-            has_payment_link=bool(payment_link_url)
+            'Generating PDF',
+            invoice_id=invoice_id, is_pro=is_pro,
+            color=color_preference, has_payment_url=bool(payment_url),
+            status=invoice_status,
         )
 
-        # Get user info from Cognito and DynamoDB profile (safe - returns empty dict on failure)
-        # Tier-based: Free users don't get profile data, Pro users get optional customization
         user_info = get_user_info_from_cognito(event, user_id, is_pro=is_pro)
-
-        # Get appropriate color palette
         color_palette = get_color_palette(is_pro, color_preference)
 
-        # Generate PDF with tier-based styling
-        pdf_generator = PDFGenerator(
-            color_palette=color_palette,
-            is_free_tier=not is_pro,
-            user_info=user_info
-        )
-        pdf_bytes = pdf_generator.generate(
-            invoice.data.to_dynamodb(),
+        pdf_gen = PDFGenerator(color_palette=color_palette, is_free_tier=not is_pro, user_info=user_info)
+        pdf_bytes = pdf_gen.generate(
+            invoice_data=invoice.data.to_dynamodb(),
             invoice_id=invoice_id,
-            payment_link_url=payment_link_url
+            invoice_status=invoice_status,
+            payment_url=payment_url,
         )
 
-        # Upload to S3
+        # ── Upload to S3 ─────────────────────────────────────────────
         s3_bucket = os.environ.get('INVOICE_BUCKET', 'scatterpilot-invoices')
-        s3_key = f"invoices/{user_id}/{invoice_id}.pdf"
+        s3_key = f'invoices/{user_id}/{invoice_id}.pdf'
 
-        s3_client = boto3.client('s3')
-        s3_client.put_object(
+        boto3.client('s3').put_object(
             Bucket=s3_bucket,
             Key=s3_key,
             Body=pdf_bytes,
             ContentType='application/pdf',
-            ServerSideEncryption='AES256'
-            # NOTE: Public access controlled by bucket policy, not object ACLs
+            ServerSideEncryption='AES256',
         )
 
-        logger.info("PDF uploaded to S3", s3_bucket=s3_bucket, s3_key=s3_key)
+        logger.info('PDF uploaded', bucket=s3_bucket, key=s3_key)
 
-        # Update invoice record with PDF location
         db_helper.update_invoice_status(
             invoice_id=invoice_id,
             status=InvoiceStatus.PENDING,
-            pdf_s3_key=s3_key
+            pdf_s3_key=s3_key,
         )
 
-        # Generate direct S3 URL (rollback to working version)
-        # NOTE: Exposes AWS account ID but ensures functionality
-        # Secure download endpoint can be re-implemented later after proper testing
-        download_url = f"https://{s3_bucket}.s3.amazonaws.com/{s3_key}"
+        download_url = f'https://{s3_bucket}.s3.amazonaws.com/{s3_key}'
 
-        logger.info(f"PDF URL generated: {download_url}")
-
-        response_data = {
-            "invoice_id": invoice_id,
-            "pdf_generated": True,
-            "download_url": download_url,
-            "status": "completed",
-            "s3_location": {
-                "bucket": s3_bucket,
-                "key": s3_key
-            }
-        }
-
-        logger.info("PDF generation completed", invoice_id=invoice_id)
-
-        return create_success_response(response_data)
+        return create_success_response({
+            'invoice_id':   invoice_id,
+            'pdf_generated': True,
+            'download_url':  download_url,
+            'status':        'completed',
+            's3_location':   {'bucket': s3_bucket, 'key': s3_key},
+        })
 
     except InputValidationError as e:
-        logger.warning("Input validation error", error=e)
-        return create_error_response(400, str(e), "ValidationError")
-
+        logger.warning('Input validation error', error=e)
+        return create_error_response(400, str(e), 'ValidationError')
     except DynamoDBException as e:
-        logger.error("Database error", error=e)
-        return create_error_response(500, "Database error occurred", "DatabaseError")
-
+        logger.error('Database error', error=e)
+        return create_error_response(500, 'Database error occurred', 'DatabaseError')
     except Exception as e:
-        logger.error("Unexpected error in PDF generation", error=e)
-        return create_error_response(500, "Failed to generate PDF", "InternalError")
+        logger.error('Unexpected error in PDF generation', error=e)
+        return create_error_response(500, 'Failed to generate PDF', 'InternalError')

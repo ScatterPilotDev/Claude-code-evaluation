@@ -24,6 +24,11 @@ Globals:
         INVOICE_BUCKET: !Ref InvoiceBucket
         RATE_LIMIT_MAX_REQUESTS: 100
         RATE_LIMIT_WINDOW_SECONDS: 3600
+        # Stripe — available to all Lambda functions; Stripe-specific functions
+        # use these directly, others can safely ignore them.
+        STRIPE_SECRET_KEY: !Ref StripeSecretKey
+        STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
+        FRONTEND_URL: !Ref FrontendUrl
 
 # =============================================================================
 # PARAMETERS
@@ -78,8 +83,8 @@ Parameters:
 
   FrontendUrl:
     Type: String
-    Default: 'http://localhost:5173'
-    Description: Frontend URL for redirects
+    Default: 'https://scatterpilot.com'
+    Description: Frontend URL for redirects and Stripe success/cancel URLs
 
 # =============================================================================
 # RESOURCES

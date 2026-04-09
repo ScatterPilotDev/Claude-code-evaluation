@@ -9,6 +9,9 @@ import ClientDetailPage from './ClientDetailPage';
 import OnboardingFlow from './OnboardingFlow';
 import ReportsPage from './ReportsPage';
 import SettingsPage from './SettingsPage';
+import PricingPage from './PricingPage';
+import TrialExpiredModal from './TrialExpiredModal';
+import ConversionToasts from './ConversionToasts';
 import Login from './Login';
 import Signup from './Signup';
 import VerifyEmail from './VerifyEmail';
@@ -50,9 +53,11 @@ export default function AppWithSidebar() {
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
   const [subscription, setSubscription] = useState(null);
+  const [billingStatus, setBillingStatus] = useState(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [allInvoices, setAllInvoices] = useState([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
 
   // Invoice creation panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -68,12 +73,22 @@ export default function AppWithSidebar() {
   const isClientDetail = pathname.startsWith('/app/clients/');
   const isReports      = pathname.startsWith('/app/reports');
   const isSettings     = pathname.startsWith('/app/settings');
+  const isPricing      = pathname === '/app/pricing';
+
+  // Access helpers derived from billing state
+  const isTrialExpired = billingStatus?.access?.reason === 'trial_expired' ||
+    billingStatus?.subscription_status === 'expired';
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   const openPanel = (clientName = null) => {
+    // Gate invoice creation when trial has expired
+    if (isTrialExpired) {
+      setShowExpiredModal(true);
+      return;
+    }
     setPanelClientContext(clientName || null);
     setIsPanelOpen(true);
   };
@@ -130,6 +145,13 @@ export default function AppWithSidebar() {
           setSubscription(sub);
         } catch {
           setSubscription({ subscription_status: 'free', invoices_limit: 5, invoices_this_month: 0, invoices_remaining: 5 });
+        }
+
+        try {
+          const billing = await api.getBillingStatus();
+          setBillingStatus(billing);
+        } catch {
+          setBillingStatus(null);
         }
       }
     } catch {
@@ -309,6 +331,10 @@ export default function AppWithSidebar() {
       return <SettingsPage />;
     }
 
+    if (isPricing) {
+      return <PricingPage currentStatus={billingStatus} />;
+    }
+
     // /app/invoices — filterable invoice list
     if (isInvoicesList) {
       return (
@@ -348,7 +374,7 @@ export default function AppWithSidebar() {
   }
 
   return (
-    <Layout onNewInvoice={handleNewInvoice}>
+    <Layout onNewInvoice={handleNewInvoice} billingStatus={billingStatus}>
       {/* Invoice creation slide-over panel */}
       <InvoiceCreationPanel
         isOpen={isPanelOpen}
@@ -356,6 +382,19 @@ export default function AppWithSidebar() {
         onClose={closePanel}
         onInvoiceCreated={handleInvoiceGenerated}
         subscription={subscription}
+      />
+
+      {/* Trial expired gate modal */}
+      <TrialExpiredModal
+        open={showExpiredModal}
+        onClose={() => setShowExpiredModal(false)}
+      />
+
+      {/* Achievement-based upgrade prompts */}
+      <ConversionToasts
+        billingStatus={billingStatus}
+        invoiceCount={allInvoices.length}
+        hasReceivedPayment={!!billingStatus?.first_payment_received_at}
       />
 
       {renderContent()}

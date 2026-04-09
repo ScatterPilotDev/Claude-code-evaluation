@@ -621,6 +621,60 @@ class ApiService {
     }
   }
 
+  // ── Billing (ScatterPilot platform subscriptions) ──────────────────────────
+
+  async getBillingStatus() {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/billing/status`, { headers });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] getBillingStatus failed:', error);
+      throw error;
+    }
+  }
+
+  async createBillingCheckout(plan, period) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/billing/checkout`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ plan, period }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] createBillingCheckout failed:', error);
+      throw error;
+    }
+  }
+
+  async createBillingPortal() {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/billing/portal`, {
+        method: 'POST',
+        headers,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.handleApiError(response, errorText);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] createBillingPortal failed:', error);
+      throw error;
+    }
+  }
+
   // No auth — creates Checkout Session for invoice recipient (public pay page)
   async createPublicCheckout(invoiceId) {
     try {

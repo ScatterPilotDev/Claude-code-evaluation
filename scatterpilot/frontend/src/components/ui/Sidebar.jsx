@@ -74,7 +74,7 @@ const NAV_ITEMS = [
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '' }) {
+export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '', billingStatus = null }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -87,6 +87,10 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
     if (href === '/app') return location.pathname === '/app';
     return location.pathname.startsWith(href);
   };
+
+  const isTrialing = billingStatus?.subscription_status === 'trialing';
+  const isExpired = billingStatus?.access?.reason === 'trial_expired' ||
+    billingStatus?.subscription_status === 'expired';
 
   return (
     <div className="fixed inset-y-0 left-0 flex flex-col w-[220px] bg-surface-card border-r border-surface-border py-5 px-3">
@@ -132,6 +136,20 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
 
       {/* ── Bottom section ── */}
       <div className="mt-auto border-t border-surface-border pt-3 flex flex-col gap-0.5">
+        {/* Upgrade link when trial is expired */}
+        {isExpired && (
+          <Link
+            to="/app/pricing"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150 text-amber-600 hover:bg-amber-50 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-inset"
+          >
+            <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+              <polyline points="17 6 23 6 23 12" />
+            </svg>
+            Upgrade
+          </Link>
+        )}
+
         <Link
           to="/app/settings"
           className={[
@@ -146,7 +164,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
           Settings
         </Link>
 
-        {/* User info */}
+        {/* User info + trial badge */}
         {userEmail && (
           <div className="flex items-center gap-2.5 px-3 py-2 mt-1">
             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
@@ -154,9 +172,16 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
                 {userInitials || userEmail[0].toUpperCase()}
               </span>
             </div>
-            <span className="text-body-sm text-ink-tertiary truncate">
-              {userEmail}
-            </span>
+            <div className="flex-1 min-w-0">
+              <span className="text-body-sm text-ink-tertiary truncate block">
+                {userEmail}
+              </span>
+              {isTrialing && !isExpired && (
+                <span className="text-label-sm font-semibold text-sage-600 bg-sage-50 px-1.5 py-0.5 rounded">
+                  PRO TRIAL
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>

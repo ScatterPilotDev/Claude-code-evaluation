@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -215,6 +215,118 @@ function Connected({ status }) {
   );
 }
 
+// ── Subscription section ──────────────────────────────────────────────────────
+
+function SubscriptionSection({ billing, billingLoading, onPortal, portalLoading }) {
+  const navigate = useNavigate();
+
+  if (billingLoading) {
+    return (
+      <div className="animate-pulse space-y-2">
+        <div className="h-4 w-48 bg-surface-muted rounded" />
+        <div className="h-4 w-32 bg-surface-muted rounded" />
+        <div className="h-9 w-36 bg-surface-muted rounded mt-4" />
+      </div>
+    );
+  }
+
+  const status = billing?.subscription_status;
+  const plan = billing?.subscription_plan;
+  const period = billing?.subscription_period;
+  const trialEnd = billing?.trial_end_date;
+  const isActive = status === 'active';
+  const isTrialing = status === 'trialing';
+  const isExpired = billing?.access?.reason === 'trial_expired';
+  const isPastDue = status === 'past_due';
+
+  const planLabel = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : null;
+  const periodLabel = period === 'annual' ? 'Annual' : 'Monthly';
+
+  const formatDate = (iso) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  if (isTrialing) {
+    return (
+      <div>
+        <dl className="space-y-1.5 mb-5">
+          <div className="flex gap-4">
+            <dt className="text-body-sm text-ink-tertiary w-36 flex-shrink-0">Current plan</dt>
+            <dd className="text-body-sm text-ink-primary font-medium">Pro (Trial)</dd>
+          </div>
+          <div className="flex gap-4">
+            <dt className="text-body-sm text-ink-tertiary w-36 flex-shrink-0">Trial ends</dt>
+            <dd className="text-body-sm text-ink-primary">{formatDate(trialEnd)}</dd>
+          </div>
+          {billing?.trial_days_remaining != null && (
+            <div className="flex gap-4">
+              <dt className="text-body-sm text-ink-tertiary w-36 flex-shrink-0">Days remaining</dt>
+              <dd className="text-body-sm text-ink-primary">{billing.trial_days_remaining}</dd>
+            </div>
+          )}
+        </dl>
+        <button
+          onClick={() => navigate('/app/pricing')}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button font-medium text-body-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+        >
+          Choose a plan
+        </button>
+      </div>
+    );
+  }
+
+  if (isActive) {
+    return (
+      <div>
+        <dl className="space-y-1.5 mb-5">
+          <div className="flex gap-4">
+            <dt className="text-body-sm text-ink-tertiary w-36 flex-shrink-0">Current plan</dt>
+            <dd className="text-body-sm text-ink-primary font-medium">
+              {planLabel || 'Pro'} ({periodLabel})
+              {isPastDue && (
+                <span className="ml-2 text-label text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Payment due</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={onPortal}
+            disabled={portalLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-surface-border text-ink-secondary hover:text-ink-primary hover:bg-surface-hover rounded-button text-body-sm transition-colors duration-150 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-1"
+          >
+            {portalLoading ? (
+              <><span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current/30 border-t-current animate-spin" />Opening…</>
+            ) : 'Manage subscription'}
+          </button>
+          <button
+            onClick={() => navigate('/app/pricing')}
+            className="text-body-sm text-ink-secondary underline underline-offset-2 hover:text-ink-primary transition-colors focus-visible:outline-none"
+          >
+            Change plan
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Expired / canceled / none
+  return (
+    <div>
+      <p className="text-body-sm text-ink-secondary mb-4">
+        {isExpired ? 'Your free trial has ended.' : 'No active subscription.'}
+      </p>
+      <button
+        onClick={() => navigate('/app/pricing')}
+        className="inline-flex items-center gap-2 px-5 py-2.5 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button font-semibold text-body transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+      >
+        Choose a plan
+      </button>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -224,9 +336,26 @@ export default function SettingsPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [toast, setToast] = useState(null);  // { message, type }
 
+  // Billing state
+  const [billing, setBilling] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
+
   useEffect(() => {
     document.title = 'Settings — ScatterPilot';
+    api.getBillingStatus().then(setBilling).catch(() => {}).finally(() => setBillingLoading(false));
   }, []);
+
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { url } = await api.createBillingPortal();
+      window.location.href = url;
+    } catch {
+      setToast({ message: 'Could not open billing portal. Please try again.', type: 'error' });
+      setPortalLoading(false);
+    }
+  };
 
   const dismissToast = useCallback(() => setToast(null), []);
 
@@ -303,6 +432,17 @@ export default function SettingsPage() {
       )}
 
       <h1 className="text-title text-ink-primary mb-6">Settings</h1>
+
+      {/* Subscription card */}
+      <section className="bg-surface-card border border-surface-border rounded-card p-6 mb-5">
+        <p className="text-label uppercase tracking-widest text-ink-tertiary font-medium mb-4">Subscription</p>
+        <SubscriptionSection
+          billing={billing}
+          billingLoading={billingLoading}
+          onPortal={handlePortal}
+          portalLoading={portalLoading}
+        />
+      </section>
 
       {/* Payments card */}
       <section className="bg-surface-card border border-surface-border rounded-card p-6">

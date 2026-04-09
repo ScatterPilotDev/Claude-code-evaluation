@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import TrialBanner from '../TrialBanner';
 import authService from '../../services/auth';
 import api from '../../services/api';
 
-export default function Layout({ children, onNewInvoice }) {
+export default function Layout({ children, onNewInvoice, billingStatus = null }) {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState('');
   const [userInitials, setUserInitials] = useState('');
@@ -54,9 +55,11 @@ export default function Layout({ children, onNewInvoice }) {
         onNewInvoice={handleNewInvoice}
         userEmail={userEmail}
         userInitials={userInitials}
+        billingStatus={billingStatus}
       />
       <main className="ml-[220px] min-h-screen">
         <div className="max-w-[1200px] mx-auto px-8 py-8">
+          <TrialBanner billingStatus={billingStatus} />
           {children}
         </div>
       </main>

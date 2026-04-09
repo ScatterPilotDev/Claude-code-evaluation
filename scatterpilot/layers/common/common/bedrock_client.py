@@ -309,7 +309,9 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
         self,
         conversation: Conversation,
         user_message: str,
-        typical_services: Optional[str] = None
+        typical_services: Optional[str] = None,
+        default_rate: Optional[str] = None,
+        rate_type: Optional[str] = None,
     ) -> tuple[str, Optional[Dict[str, Any]]]:
         """
         Process a single turn of conversation with invoice extraction
@@ -318,6 +320,8 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
             conversation: Current conversation state
             user_message: New message from user
             typical_services: Optional description of typical services the user offers
+            default_rate: User's default billing rate (numeric string)
+            rate_type: Rate period — "hour", "project", or "day"
 
         Returns:
             Tuple of (assistant_response, extracted_data_if_complete)
@@ -336,6 +340,11 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
             # Inject typical_services context if available
             if typical_services and typical_services.strip():
                 enhanced_system_prompt += f"\n\nUSER'S TYPICAL SERVICES:\nThis user typically invoices for: {typical_services.strip()}\nWhen the user mentions a service that matches or resembles one of these, use the familiar terminology and suggest typical pricing if not specified."
+
+            # Inject default rate context if available
+            if default_rate and str(default_rate).strip():
+                rate_label = {'hour': 'per hour', 'project': 'per project', 'day': 'per day'}.get(rate_type or 'hour', 'per hour')
+                enhanced_system_prompt += f"\n\nUSER'S DEFAULT RATE:\nThis user's typical billing rate is ${default_rate} {rate_label}. If the user doesn't specify an amount or rate for a line item, use this as the default and confirm it with them."
 
             logger.debug("Using enhanced system prompt with current date context")
 

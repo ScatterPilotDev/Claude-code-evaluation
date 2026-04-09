@@ -742,7 +742,10 @@ class DynamoDBHelper:
                 'subscription_end_date': subscription.get('subscription_end_date'),
                 'invoices_this_month': int(subscription.get('invoices_this_month', 0)),  # Convert Decimal to int
                 'invoice_color': subscription.get('invoice_color', 'purple'),
-                'typical_services': subscription.get('typical_services', '')
+                'typical_services': subscription.get('typical_services', ''),
+                'default_rate': subscription.get('default_rate'),
+                'rate_type': subscription.get('rate_type'),
+                'onboarding_completed': subscription.get('onboarding_completed', False),
             }
 
             return profile
@@ -764,7 +767,10 @@ class DynamoDBHelper:
         state: Optional[str] = None,
         zip_code: Optional[str] = None,
         country: Optional[str] = None,
-        typical_services: Optional[str] = None
+        typical_services: Optional[str] = None,
+        default_rate: Optional[str] = None,
+        rate_type: Optional[str] = None,
+        onboarding_completed: Optional[bool] = None
     ) -> None:
         """
         Update user profile information
@@ -782,6 +788,9 @@ class DynamoDBHelper:
             zip_code: Postal/ZIP code
             country: Country
             typical_services: Description of typical services offered
+            default_rate: User's typical billing rate (numeric string, e.g. "250")
+            rate_type: Rate period — "hour", "project", or "day"
+            onboarding_completed: True once the onboarding flow is finished
 
         Raises:
             DynamoDBException: If update fails
@@ -834,6 +843,18 @@ class DynamoDBHelper:
             if typical_services is not None:
                 update_parts.append('typical_services = :typical_services')
                 expr_values[':typical_services'] = typical_services
+
+            if default_rate is not None:
+                update_parts.append('default_rate = :default_rate')
+                expr_values[':default_rate'] = default_rate
+
+            if rate_type is not None:
+                update_parts.append('rate_type = :rate_type')
+                expr_values[':rate_type'] = rate_type
+
+            if onboarding_completed is not None:
+                update_parts.append('onboarding_completed = :onboarding_completed')
+                expr_values[':onboarding_completed'] = onboarding_completed
 
             # Build expression attribute names for reserved words
             expr_names = {}

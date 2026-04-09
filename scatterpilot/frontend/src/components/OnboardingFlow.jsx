@@ -94,12 +94,14 @@ export default function OnboardingFlow({ onComplete }) {
     }
   };
 
-  const saveRate = () => {
-    // TODO: Backend doesn't have rate endpoints yet — saving to localStorage only.
-    // When backend adds support, replace with:
-    //   await api.updateProfile({ default_rate: rateAmount.trim(), rate_period: ratePeriod });
+  const saveRate = async () => {
     saveLS('rate_amount', rateAmount.trim());
     saveLS('rate_period', ratePeriod);
+    // Persist to backend so the AI uses this rate as default when creating invoices
+    await api.updateProfile({
+      default_rate: rateAmount.trim() || null,
+      rate_type: ratePeriod,
+    });
   };
 
   // ── Completion (step 3) ────────────────────────────────────────────────────
@@ -122,9 +124,12 @@ export default function OnboardingFlow({ onComplete }) {
       console.error('[Onboarding] Client creation error (continuing):', err);
     }
 
-    // Mark onboarding complete in localStorage.
-    // TODO: Persist via backend when hasCompletedOnboarding flag is added to profile:
-    //   await api.updateProfile({ has_completed_onboarding: true });
+    // Mark onboarding complete — backend is source of truth, localStorage is fallback.
+    try {
+      await api.updateProfile({ onboarding_completed: true });
+    } catch (err) {
+      console.error('[Onboarding] Failed to persist completion flag (continuing):', err);
+    }
     localStorage.setItem('sp_onboarding_completed', 'true');
     saveLS('step', 0);
 

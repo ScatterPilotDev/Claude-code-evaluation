@@ -110,8 +110,14 @@ export default function AppWithSidebar() {
         try {
           const profile = await api.getProfile();
           setUserName(profile?.contact_name || '');
-          // Show onboarding if business name is missing and not already completed
-          const completedFlag = localStorage.getItem('sp_onboarding_completed') === 'true';
+          // Backend onboarding_completed is source of truth; localStorage is fallback
+          const backendCompleted = profile?.onboarding_completed === true;
+          const localCompleted = localStorage.getItem('sp_onboarding_completed') === 'true';
+          const completedFlag = backendCompleted || localCompleted;
+          // Sync backend → localStorage when backend is the confirming source
+          if (backendCompleted && !localCompleted) {
+            localStorage.setItem('sp_onboarding_completed', 'true');
+          }
           if (!completedFlag && !profile?.business_name) {
             setShowOnboarding(true);
           }

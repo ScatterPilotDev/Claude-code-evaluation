@@ -165,19 +165,26 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             region_name=os.environ.get('AWS_REGION', 'us-east-1')
         )
 
-        # Fetch typical_services from user profile for context
+        # Fetch user profile fields for AI context
         typical_services = None
+        default_rate = None
+        rate_type = None
         try:
             profile = db_helper.get_user_profile(user_id)
-            typical_services = profile.get('typical_services') if profile else None
+            if profile:
+                typical_services = profile.get('typical_services')
+                default_rate = profile.get('default_rate')
+                rate_type = profile.get('rate_type')
         except Exception as profile_err:
-            logger.warning("Failed to load user profile for typical_services", error=str(profile_err))
+            logger.warning("Failed to load user profile for AI context", error=str(profile_err))
 
         try:
             assistant_response, extracted_data = bedrock_client.process_conversation_turn(
                 conversation=conversation,
                 user_message=user_message,
-                typical_services=typical_services
+                typical_services=typical_services,
+                default_rate=default_rate,
+                rate_type=rate_type,
             )
 
             # Update conversation state based on extracted data

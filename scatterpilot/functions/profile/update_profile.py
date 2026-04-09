@@ -74,6 +74,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         zip_code = body.get('zip_code')
         country = body.get('country')
         typical_services = body.get('typical_services')
+        default_rate = body.get('default_rate')
+        rate_type = body.get('rate_type')
+        onboarding_completed = body.get('onboarding_completed')
 
         logger.info("Profile fields extracted",
                    has_business_name=business_name is not None,
@@ -125,7 +128,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             state=state,
             zip_code=zip_code,
             country=country,
-            typical_services=typical_services
+            typical_services=typical_services,
+            default_rate=str(default_rate) if default_rate is not None else None,
+            rate_type=rate_type,
+            onboarding_completed=bool(onboarding_completed) if onboarding_completed is not None else None,
         )
         logger.info("Database update completed successfully")
 

@@ -38,6 +38,16 @@ Parameters:
       - prod
     Description: Deployment environment
 
+  # TODO (manual deployment steps):
+  #   1. StripeSecretKey     — set to sk_test_... (test) or sk_live_... (prod) via SSM or sam deploy --parameter-overrides
+  #   2. StripeClientId      — set to your Stripe Connect Client ID (ca_...) from dashboard.stripe.com/settings/connect
+  #   3. StripeWebhookSecret — after deploying, register the /stripe/webhook URL in Stripe dashboard,
+  #                            then set the whsec_... signing secret here
+  #   4. StripePaymentWebhookSecret — register the /stripe/payment-webhook URL for Connect events
+  #                                   (event types: checkout.session.completed, payment_intent.succeeded,
+  #                                    account.updated), then set the whsec_... signing secret here
+  #   5. StripeProPriceId    — create a recurring price in Stripe and paste the price_... ID here
+  #   6. FrontendUrl         — must match the exact origin used in CORS and Stripe redirect URLs
   StripeSecretKey:
     Type: String
     Default: ''
@@ -1048,6 +1058,37 @@ Resources:
             Method: GET
             # No Cognito auth — public endpoint for invoice recipients
 
+  # Public Checkout Session (no auth — called by invoice recipient from /pay/:id)
+  PublicCheckoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-PublicCheckout-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: public_checkout.handler
+      Description: Creates a Stripe Checkout Session for the public invoice payment page
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          STRIPE_SECRET_KEY: !Ref StripeSecretKey
+          FRONTEND_URL: !Ref FrontendUrl
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        PublicCheckout:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /invoices/{invoice_id}/public-checkout
+            Method: POST
+            # No Cognito auth — public endpoint for invoice recipients
+
   # Payment Webhook Handler (Stripe Connect)
   PaymentWebhookFunction:
     Type: AWS::Serverless::Function
@@ -1393,6 +1434,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-GetPublicInvoice-${Environment}
+      RetentionInDays: 30
+
+  PublicCheckoutLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-PublicCheckout-${Environment}
       RetentionInDays: 30
 
   CreatePaymentLinkLogGroup:

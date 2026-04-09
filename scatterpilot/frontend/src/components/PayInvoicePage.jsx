@@ -1,21 +1,10 @@
 /**
  * Public invoice payment page — /pay/:invoiceId
  *
- * No auth required. Fetches invoice data from GET /invoices/:invoiceId/public.
- * When the client clicks "Pay", creates a Stripe Checkout Session and redirects.
- *
- * Note: this page calls POST /invoices/:invoiceId/payment-link WITHOUT auth
- * headers because the Cognito auth requirement is on the freelancer's side.
- * The public payment endpoint should be created separately. For now, this page
- * calls the API without auth; the backend should allow unauthenticated access
- * to the payment-link endpoint for the public flow OR we use a separate public
- * endpoint. See get_public.py for reference.
- *
- * Implementation: We redirect the client to Stripe Checkout via the
- * GET /invoices/:invoiceId/public endpoint which returns whether payment is
- * ready. The "Pay" button calls POST /invoices/:invoiceId/payment-link
- * (this needs to be accessible without auth for the client — the backend
- * validates the invoice exists and is payable, but no user auth needed).
+ * No auth required.
+ * - Loads invoice data via GET /invoices/:invoiceId/public (no auth)
+ * - "Pay" button calls POST /invoices/:invoiceId/public-checkout (no auth),
+ *   which creates a Stripe Checkout Session and returns the redirect URL.
  */
 
 import { useState, useEffect } from 'react';
@@ -103,16 +92,7 @@ export default function PayInvoicePage() {
     setPaying(true);
     setPayError(null);
     try {
-      // Call the checkout session endpoint (public — no auth needed for the client)
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || api.baseUrl}/invoices/${invoiceId}/payment-link`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
-      );
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to start payment');
-      }
-      const { paymentUrl } = await response.json();
+      const { paymentUrl } = await api.createPublicCheckout(invoiceId);
       window.location.href = paymentUrl;
     } catch (err) {
       setPayError(err.message || 'Could not start payment. Please try again.');

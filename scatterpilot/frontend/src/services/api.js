@@ -621,6 +621,24 @@ class ApiService {
     }
   }
 
+  // No auth — creates Checkout Session for invoice recipient (public pay page)
+  async createPublicCheckout(invoiceId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/invoices/${invoiceId}/public-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to start payment');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] createPublicCheckout failed:', error);
+      throw error;
+    }
+  }
+
   // Clear conversation for new invoice
   clearConversation() {
     this.conversationId = null;

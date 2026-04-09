@@ -29,6 +29,15 @@ Globals:
         STRIPE_SECRET_KEY: !Ref StripeSecretKey
         STRIPE_WEBHOOK_SECRET: !Ref StripeWebhookSecret
         FRONTEND_URL: !Ref FrontendUrl
+        # Stripe Billing price IDs (Solo / Pro / Agency, monthly + annual)
+        # TODO: Replace placeholder values with real Stripe Price IDs after
+        #       creating products/prices in the Stripe Dashboard.
+        STRIPE_PRICE_SOLO_MONTHLY: !Ref StripePriceSoloMonthly
+        STRIPE_PRICE_SOLO_ANNUAL: !Ref StripePriceSoloAnnual
+        STRIPE_PRICE_PRO_MONTHLY: !Ref StripePriceProMonthly
+        STRIPE_PRICE_PRO_ANNUAL: !Ref StripePriceProAnnual
+        STRIPE_PRICE_AGENCY_MONTHLY: !Ref StripePriceAgencyMonthly
+        STRIPE_PRICE_AGENCY_ANNUAL: !Ref StripePriceAgencyAnnual
 
 # =============================================================================
 # PARAMETERS
@@ -79,7 +88,40 @@ Parameters:
   StripeProPriceId:
     Type: String
     Default: ''
-    Description: Stripe Price ID for Pro subscription
+    Description: Stripe Price ID for legacy Pro subscription (single-tier)
+
+  # TODO: Create products and prices in the Stripe Dashboard, then replace these
+  #       placeholder values with the real price_... IDs before deploying to prod.
+  #       Pricing: Solo $29/mo $290/yr | Pro $49/mo $490/yr | Agency $99/mo $990/yr
+  StripePriceSoloMonthly:
+    Type: String
+    Default: 'price_solo_monthly_TODO'
+    Description: Stripe Price ID — Solo plan, monthly ($29/mo)
+
+  StripePriceSoloAnnual:
+    Type: String
+    Default: 'price_solo_annual_TODO'
+    Description: Stripe Price ID — Solo plan, annual ($290/yr)
+
+  StripePriceProMonthly:
+    Type: String
+    Default: 'price_pro_monthly_TODO'
+    Description: Stripe Price ID — Pro plan, monthly ($49/mo)
+
+  StripePriceProAnnual:
+    Type: String
+    Default: 'price_pro_annual_TODO'
+    Description: Stripe Price ID — Pro plan, annual ($490/yr)
+
+  StripePriceAgencyMonthly:
+    Type: String
+    Default: 'price_agency_monthly_TODO'
+    Description: Stripe Price ID — Agency plan, monthly ($99/mo)
+
+  StripePriceAgencyAnnual:
+    Type: String
+    Default: 'price_agency_annual_TODO'
+    Description: Stripe Price ID — Agency plan, annual ($990/yr)
 
   FrontendUrl:
     Type: String
@@ -1213,6 +1255,83 @@ Resources:
               Authorizer: CognitoAuthorizer
 
   # ---------------------------------------------------------------------------
+  # Billing — ScatterPilot Platform Subscriptions (Solo / Pro / Agency)
+  # Separate from Stripe Connect (invoice→client payment flow)
+  # ---------------------------------------------------------------------------
+
+  # POST /billing/checkout — create a Stripe Checkout Session for a plan
+  BillingCheckoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-BillingCheckout-${Environment}
+      CodeUri: ../functions/billing/
+      Handler: checkout.handler
+      Description: Creates Stripe Checkout Session for Solo/Pro/Agency subscription
+      Timeout: 60
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        BillingCheckout:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /billing/checkout
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # GET /billing/status — return subscription/trial status for the current user
+  BillingStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-BillingStatus-${Environment}
+      CodeUri: ../functions/billing/
+      Handler: status.handler
+      Description: Returns subscription and trial status for the authenticated user
+      Timeout: 15
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        BillingStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /billing/status
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # POST /billing/portal — create a Stripe Customer Portal session
+  BillingPortalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-BillingPortal-${Environment}
+      CodeUri: ../functions/billing/
+      Handler: portal.handler
+      Description: Creates Stripe Customer Portal session for subscription management
+      Timeout: 30
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        BillingPortal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /billing/portal
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # ---------------------------------------------------------------------------
   # Feedback System
   # ---------------------------------------------------------------------------
 
@@ -1403,6 +1522,24 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-UpdateInvoiceColor-${Environment}
+      RetentionInDays: 30
+
+  BillingCheckoutLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-BillingCheckout-${Environment}
+      RetentionInDays: 30
+
+  BillingStatusLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-BillingStatus-${Environment}
+      RetentionInDays: 30
+
+  BillingPortalLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-BillingPortal-${Environment}
       RetentionInDays: 30
 
   SubmitFeedbackLogGroup:

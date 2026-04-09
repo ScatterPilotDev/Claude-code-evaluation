@@ -1,15 +1,21 @@
 """
 Lambda function: Stripe Webhook Handler
-Handles subscription lifecycle events from Stripe
+Handles ScatterPilot platform subscription lifecycle events.
+
+Registered endpoint: POST /webhook/stripe
+Signing secret env var: STRIPE_WEBHOOK_SECRET
+
+NOTE: This is ScatterPilot's own billing webhook (Solo/Pro/Agency plans).
+      Invoice payment webhooks (Stripe Connect) are handled separately
+      in functions/stripe/payment_webhook.py.
 """
 
 import json
 import os
 import sys
-from typing import Any, Dict
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-# Add layer to path
 sys.path.insert(0, '/opt/python')
 
 import stripe
@@ -19,82 +25,95 @@ from common.logger import get_logger
 
 logger = get_logger("stripe_webhook")
 
-# Initialize Stripe
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
 WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 
 
+# ---------------------------------------------------------------------------
+# Stripe status → ScatterPilot status mapping
+# ---------------------------------------------------------------------------
+
+def _stripe_status_to_sp(stripe_status: str) -> str:
+    """Map a Stripe subscription status to a ScatterPilot subscription_status value."""
+    return {
+        'trialing': 'trialing',
+        'active': 'active',
+        'past_due': 'past_due',
+        'unpaid': 'past_due',
+        'canceled': 'canceled',
+        'incomplete': 'past_due',
+        'incomplete_expired': 'canceled',
+        'paused': 'past_due',
+    }.get(stripe_status, 'canceled')
+
+
+def _extract_plan_period(metadata: Dict[str, Any]):
+    """Extract plan/period strings from Stripe metadata; returns (plan, period) or (None, None)."""
+    plan = metadata.get('plan')
+    period = metadata.get('period')
+    if plan in ('solo', 'pro', 'agency') and period in ('monthly', 'annual'):
+        return plan, period
+    return None, None
+
+
+# ---------------------------------------------------------------------------
+# Main handler
+# ---------------------------------------------------------------------------
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    Lambda handler for Stripe webhooks
+    Lambda handler for Stripe webhook events (subscription lifecycle).
 
-    Handles events:
-    - checkout.session.completed: User completed checkout
-    - customer.subscription.updated: Subscription status changed
-    - customer.subscription.deleted: Subscription cancelled
-    - invoice.payment_succeeded: Monthly payment succeeded
-    - invoice.payment_failed: Payment failed
-
-    Returns:
-        API Gateway response
+    Handles:
+    - checkout.session.completed        — user subscribed after checkout
+    - customer.subscription.updated     — plan/status change
+    - customer.subscription.deleted     — cancellation
+    - invoice.payment_succeeded         — successful renewal
+    - invoice.payment_failed            — payment failure → past_due
     """
-    request_id = context.aws_request_id if context else "local"
+    request_id = getattr(context, 'aws_request_id', 'local')
     logger.set_correlation_id(request_id)
 
+    # ── Verify Stripe signature ──────────────────────────────────────────────
+    body = event.get('body', '')
+    sig_header = (
+        event.get('headers', {}).get('Stripe-Signature')
+        or event.get('headers', {}).get('stripe-signature', '')
+    )
+
     try:
-        # Get raw body and signature
-        body = event.get('body', '')
-        sig_header = event.get('headers', {}).get('Stripe-Signature') or \
-                     event.get('headers', {}).get('stripe-signature', '')
+        webhook_event = stripe.Webhook.construct_event(body, sig_header, WEBHOOK_SECRET)
+    except ValueError as e:
+        logger.error("Invalid payload", error=str(e))
+        return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid payload'})}
+    except stripe.error.SignatureVerificationError as e:
+        logger.error("Invalid signature", error=str(e))
+        return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid signature'})}
 
-        # Verify webhook signature
-        try:
-            webhook_event = stripe.Webhook.construct_event(
-                body, sig_header, WEBHOOK_SECRET
-            )
-        except ValueError as e:
-            logger.error("Invalid payload", error=str(e))
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': 'Invalid payload'})
-            }
-        except stripe.error.SignatureVerificationError as e:
-            logger.error("Invalid signature", error=str(e))
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': 'Invalid signature'})
-            }
+    event_type = webhook_event['type']
+    event_data = webhook_event['data']['object']
+    logger.info(f"Received webhook event: {event_type}", event_id=webhook_event['id'])
 
-        event_type = webhook_event['type']
-        event_data = webhook_event['data']['object']
+    db_helper = DynamoDBHelper()
 
-        logger.info(f"Received webhook event: {event_type}", event_id=webhook_event['id'])
-
-        db_helper = DynamoDBHelper()
-
-        # Handle different event types
+    try:
         if event_type == 'checkout.session.completed':
-            handle_checkout_completed(event_data, db_helper)
+            _handle_checkout_completed(event_data, db_helper)
 
         elif event_type == 'customer.subscription.updated':
-            handle_subscription_updated(event_data, db_helper)
+            _handle_subscription_updated(event_data, db_helper)
 
         elif event_type == 'customer.subscription.deleted':
-            handle_subscription_deleted(event_data, db_helper)
+            _handle_subscription_deleted(event_data, db_helper)
 
         elif event_type == 'invoice.payment_succeeded':
-            handle_payment_succeeded(event_data, db_helper)
+            _handle_payment_succeeded(event_data, db_helper)
 
         elif event_type == 'invoice.payment_failed':
-            handle_payment_failed(event_data, db_helper)
+            _handle_payment_failed(event_data, db_helper)
 
         else:
             logger.info(f"Unhandled event type: {event_type}")
-
-        return {
-            'statusCode': 200,
-            'body': json.dumps({'received': True})
-        }
 
     except Exception as e:
         import traceback
@@ -102,202 +121,184 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "Webhook processing error",
             error=str(e),
             error_type=type(e).__name__,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': 'Internal server error'})
-        }
+        # Return 200 so Stripe doesn't retry indefinitely for non-transient errors.
+        # Log the failure for manual investigation.
+
+    return {'statusCode': 200, 'body': json.dumps({'received': True})}
 
 
-def handle_checkout_completed(session: Dict[str, Any], db_helper: DynamoDBHelper):
-    """Handle successful checkout - upgrade user to Pro"""
+# ---------------------------------------------------------------------------
+# Event handlers
+# ---------------------------------------------------------------------------
 
-    user_id = session.get('metadata', {}).get('user_id')
+def _resolve_user_id(obj: Dict[str, Any], db_helper: DynamoDBHelper) -> Optional[str]:
+    """
+    Try to find a ScatterPilot user_id from a Stripe object.
+    Checks metadata first, then falls back to a GSI lookup by stripe_customer_id.
+    """
+    # 1. Direct metadata
+    user_id = obj.get('metadata', {}).get('scatterpilot_user_id')
+    if user_id:
+        return user_id
+
+    # 2. GSI lookup by customer ID
+    customer_id = obj.get('customer')
+    if customer_id:
+        record = db_helper.get_user_by_stripe_customer(customer_id)
+        if record:
+            return record.get('user_id')
+
+    logger.error("Could not resolve user_id from Stripe object", stripe_id=obj.get('id'))
+    return None
+
+
+def _handle_checkout_completed(session: Dict[str, Any], db_helper: DynamoDBHelper):
+    """
+    checkout.session.completed — user finished the Stripe Checkout flow.
+    Only acts on subscription-mode sessions (not one-off Connect payments).
+    """
+    if session.get('mode') != 'subscription':
+        logger.info("Skipping non-subscription checkout.session.completed")
+        return
+
+    user_id = _resolve_user_id(session, db_helper)
+    if not user_id:
+        return
+
     customer_id = session.get('customer')
     subscription_id = session.get('subscription')
 
-    if not user_id:
-        logger.error("No user_id in checkout session metadata")
-        return
+    # Retrieve full subscription to get plan metadata and status
+    plan, period = _extract_plan_period(session.get('metadata', {}))
+    sp_status = 'active'
 
-    logger.info(
-        "Checkout completed",
+    if subscription_id:
+        try:
+            sub = stripe.Subscription.retrieve(subscription_id)
+            stripe_status = sub.get('status') if isinstance(sub, dict) else getattr(sub, 'status', 'active')
+            sp_status = _stripe_status_to_sp(stripe_status)
+            # If metadata wasn't on the session, try subscription metadata
+            if not plan:
+                sub_meta = sub.get('metadata', {}) if isinstance(sub, dict) else dict(getattr(sub, 'metadata', {}))
+                plan, period = _extract_plan_period(sub_meta)
+        except Exception as e:
+            logger.warning(f"Could not retrieve subscription details: {e}")
+
+    db_helper.update_billing_subscription(
         user_id=user_id,
-        subscription_id=subscription_id
-    )
-
-    # Get subscription details for period end
-    try:
-        subscription = stripe.Subscription.retrieve(subscription_id)
-        # Handle both dict and object access patterns
-        if isinstance(subscription, dict):
-            current_period_end = subscription.get('current_period_end')
-        else:
-            current_period_end = getattr(subscription, 'current_period_end', None)
-
-        logger.info(f"Subscription retrieved, period_end: {current_period_end}")
-    except Exception as e:
-        logger.error(f"Failed to retrieve subscription: {str(e)}, type: {type(e).__name__}")
-        # Still update the subscription without period_end
-        current_period_end = None
-
-    # Update user subscription status
-    db_helper.create_or_update_user_subscription(
-        user_id=user_id,
+        subscription_status=sp_status,
+        subscription_plan=plan,
+        subscription_period=period,
         stripe_customer_id=customer_id,
-        subscription_id=subscription_id,
-        subscription_status='pro',
-        current_period_end=current_period_end
+        stripe_subscription_id=subscription_id,
+        trial_expired=False,
     )
 
-    # Reset invoice count for the new billing period
+    # Reset monthly invoice count for the new billing period
     db_helper.reset_monthly_invoice_count(user_id)
 
-    logger.info(f"User {user_id} upgraded to Pro")
+    logger.info(
+        "Checkout completed — subscription activated",
+        user_id=user_id,
+        plan=plan,
+        period=period,
+        status=sp_status,
+    )
 
 
-def handle_subscription_updated(subscription: Dict[str, Any], db_helper: DynamoDBHelper):
-    """Handle subscription updates (status changes, renewals)"""
-
-    user_id = subscription.get('metadata', {}).get('user_id')
-    subscription_id = subscription.get('id')
-    status = subscription.get('status')
-    current_period_end = subscription.get('current_period_end')
-
+def _handle_subscription_updated(subscription: Dict[str, Any], db_helper: DynamoDBHelper):
+    """
+    customer.subscription.updated — plan change, renewal, status change, etc.
+    """
+    user_id = _resolve_user_id(subscription, db_helper)
     if not user_id:
-        # Try to find user by customer ID
-        customer_id = subscription.get('customer')
-        user_subscription = db_helper.get_user_by_stripe_customer(customer_id)
-        if user_subscription:
-            user_id = user_subscription['user_id']
-        else:
-            logger.error("Could not find user for subscription update")
-            return
+        return
+
+    subscription_id = subscription.get('id')
+    stripe_status = subscription.get('status', '')
+    sp_status = _stripe_status_to_sp(stripe_status)
+
+    metadata = subscription.get('metadata', {})
+    plan, period = _extract_plan_period(metadata)
+
+    db_helper.update_billing_subscription(
+        user_id=user_id,
+        subscription_status=sp_status,
+        subscription_plan=plan,
+        subscription_period=period,
+        stripe_subscription_id=subscription_id,
+        trial_expired=(sp_status not in ('trialing', 'active')),
+    )
 
     logger.info(
         "Subscription updated",
         user_id=user_id,
         subscription_id=subscription_id,
-        status=status
-    )
-
-    # Map Stripe status to our status
-    if status in ['active', 'trialing']:
-        subscription_status = 'pro'
-    elif status in ['past_due', 'unpaid']:
-        subscription_status = 'pro'  # Keep pro but flag as past due
-    elif status in ['canceled', 'incomplete_expired']:
-        subscription_status = 'cancelled'
-    else:
-        subscription_status = 'free'
-
-    # Update subscription
-    db_helper.create_or_update_user_subscription(
-        user_id=user_id,
-        subscription_status=subscription_status,
-        subscription_id=subscription_id,
-        current_period_end=current_period_end
+        stripe_status=stripe_status,
+        sp_status=sp_status,
     )
 
 
-def handle_subscription_deleted(subscription: Dict[str, Any], db_helper: DynamoDBHelper):
-    """Handle subscription cancellation - downgrade to Free"""
+def _handle_subscription_deleted(subscription: Dict[str, Any], db_helper: DynamoDBHelper):
+    """
+    customer.subscription.deleted — user canceled or subscription expired.
+    """
+    user_id = _resolve_user_id(subscription, db_helper)
+    if not user_id:
+        return
 
-    user_id = subscription.get('metadata', {}).get('user_id')
     subscription_id = subscription.get('id')
 
+    db_helper.update_billing_subscription(
+        user_id=user_id,
+        subscription_status='canceled',
+        stripe_subscription_id=subscription_id,
+        trial_expired=True,
+    )
+
+    logger.info("Subscription deleted — status set to canceled", user_id=user_id)
+
+
+def _handle_payment_succeeded(invoice: Dict[str, Any], db_helper: DynamoDBHelper):
+    """
+    invoice.payment_succeeded — successful renewal payment.
+    Reset monthly invoice count and ensure status is 'active'.
+    """
+    subscription_id = invoice.get('subscription')
+    if not subscription_id:
+        return  # one-off invoice, not a subscription renewal
+
+    user_id = _resolve_user_id(invoice, db_helper)
     if not user_id:
-        # Try to find user by customer ID
-        customer_id = subscription.get('customer')
-        user_subscription = db_helper.get_user_by_stripe_customer(customer_id)
-        if user_subscription:
-            user_id = user_subscription['user_id']
-        else:
-            logger.error("Could not find user for subscription deletion")
-            return
-
-    logger.info(
-        "Subscription deleted",
-        user_id=user_id,
-        subscription_id=subscription_id
-    )
-
-    # Downgrade to free
-    db_helper.create_or_update_user_subscription(
-        user_id=user_id,
-        subscription_status='free',
-        subscription_id=None,
-        current_period_end=None
-    )
-
-    # Reset invoice count (will now be limited to 5/month)
-    db_helper.reset_monthly_invoice_count(user_id)
-
-    logger.info(f"User {user_id} downgraded to Free")
-
-
-def handle_payment_succeeded(invoice: Dict[str, Any], db_helper: DynamoDBHelper):
-    """Handle successful payment - reset monthly invoice count"""
-
-    customer_id = invoice.get('customer')
-    subscription_id = invoice.get('subscription')
-
-    if not subscription_id:
-        # Not a subscription invoice
         return
 
-    # Find user by customer ID
-    user_subscription = db_helper.get_user_by_stripe_customer(customer_id)
-    if not user_subscription:
-        logger.warning(f"No user found for customer {customer_id}")
-        return
-
-    user_id = user_subscription['user_id']
-
-    logger.info(
-        "Payment succeeded",
+    db_helper.update_billing_subscription(
         user_id=user_id,
-        invoice_id=invoice.get('id')
+        subscription_status='active',
+        trial_expired=False,
     )
-
-    # Get subscription for updated period
-    subscription = stripe.Subscription.retrieve(subscription_id)
-
-    # Update period end and reset invoice count for new billing period
-    db_helper.create_or_update_user_subscription(
-        user_id=user_id,
-        current_period_end=subscription.current_period_end
-    )
-
-    # Reset monthly invoice count
     db_helper.reset_monthly_invoice_count(user_id)
 
-    logger.info(f"Monthly invoice count reset for user {user_id}")
+    logger.info("Payment succeeded — monthly count reset", user_id=user_id)
 
 
-def handle_payment_failed(invoice: Dict[str, Any], db_helper: DynamoDBHelper):
-    """Handle failed payment"""
-
-    customer_id = invoice.get('customer')
+def _handle_payment_failed(invoice: Dict[str, Any], db_helper: DynamoDBHelper):
+    """
+    invoice.payment_failed — payment failed; mark subscription as past_due.
+    """
     subscription_id = invoice.get('subscription')
-
     if not subscription_id:
         return
 
-    # Find user by customer ID
-    user_subscription = db_helper.get_user_by_stripe_customer(customer_id)
-    if not user_subscription:
-        logger.warning(f"No user found for customer {customer_id}")
+    user_id = _resolve_user_id(invoice, db_helper)
+    if not user_id:
         return
 
-    user_id = user_subscription['user_id']
-
-    logger.warning(
-        "Payment failed",
+    db_helper.update_billing_subscription(
         user_id=user_id,
-        invoice_id=invoice.get('id')
+        subscription_status='past_due',
     )
 
-    # Could add logic here to send email notification, etc.
-    # For now just log the failure
+    logger.warning("Payment failed — subscription marked past_due", user_id=user_id)

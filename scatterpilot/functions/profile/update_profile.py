@@ -135,6 +135,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
         logger.info("Database update completed successfully")
 
+        # When onboarding completes, start the 14-day free trial if not already started.
+        if onboarding_completed:
+            user_email_claim = (
+                event.get('requestContext', {})
+                .get('authorizer', {})
+                .get('claims', {})
+                .get('email')
+            )
+            try:
+                db_helper.initialize_trial(user_id=user_id, user_email=user_email_claim)
+                logger.info("Trial initialized on onboarding completion", user_id=user_id)
+            except Exception as trial_err:
+                # Non-fatal — trial can be initialized on next GET /billing/status
+                logger.warning("Failed to initialize trial during onboarding", error=str(trial_err))
+
         # Get updated profile
         logger.debug("Fetching updated profile from database")
         updated_profile = db_helper.get_user_profile(user_id)

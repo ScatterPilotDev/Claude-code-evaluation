@@ -725,7 +725,7 @@ class DynamoDBHelper:
             if not subscription:
                 return None
 
-            # Extract profile fields AND subscription fields
+            # Extract profile fields AND subscription fields (including billing)
             profile = {
                 'business_name': subscription.get('business_name'),
                 'contact_name': subscription.get('contact_name'),
@@ -737,15 +737,30 @@ class DynamoDBHelper:
                 'state': subscription.get('state'),
                 'zip_code': subscription.get('zip_code'),
                 'country': subscription.get('country', 'USA'),
-                # CRITICAL FIX: Include subscription fields
+                # Legacy subscription fields
                 'subscription_status': subscription.get('subscription_status', 'free'),
                 'subscription_end_date': subscription.get('subscription_end_date'),
-                'invoices_this_month': int(subscription.get('invoices_this_month', 0)),  # Convert Decimal to int
+                'invoices_this_month': int(subscription.get('invoices_this_month', 0)),
                 'invoice_color': subscription.get('invoice_color', 'purple'),
                 'typical_services': subscription.get('typical_services', ''),
                 'default_rate': subscription.get('default_rate'),
                 'rate_type': subscription.get('rate_type'),
                 'onboarding_completed': subscription.get('onboarding_completed', False),
+                # Billing fields (Stripe Billing / multi-tier subscriptions)
+                'subscription_plan': subscription.get('subscription_plan'),
+                'subscription_period': subscription.get('subscription_period'),
+                'stripe_customer_id': subscription.get('stripe_customer_id'),
+                'stripe_subscription_id': subscription.get('stripe_subscription_id'),
+                # Trial tracking
+                'trial_start_date': subscription.get('trial_start_date'),
+                'trial_end_date': subscription.get('trial_end_date'),
+                'trial_expired': subscription.get('trial_expired', False),
+                # Conversion metrics
+                'first_invoice_created_at': subscription.get('first_invoice_created_at'),
+                'first_payment_received_at': subscription.get('first_payment_received_at'),
+                'total_invoiced_amount': int(subscription.get('total_invoiced_amount', 0)),
+                'total_clients_count': int(subscription.get('total_clients_count', 0)),
+                'conversion_milestones': subscription.get('conversion_milestones', []),
             }
 
             return profile
@@ -877,6 +892,174 @@ class DynamoDBHelper:
         except ClientError as e:
             logger.error("Failed to update user profile", error=e, user_id=user_id)
             raise DynamoDBException(f"Failed to update user profile: {str(e)}")
+
+    # ============================
+    # Billing / Trial Operations
+    # ============================
+
+    def initialize_trial(self, user_id: str, user_email: Optional[str] = None) -> None:
+        """
+        Start a 14-day free trial for a new user.
+
+        Only writes fields if the record doesn't already have a subscription_status
+        set to something meaningful (idempotent — safe to call on every sign-up).
+
+        Args:
+            user_id:    Cognito user ID (sub).
+            user_email: User email address, stored for Stripe Customer creation later.
+        """
+        from datetime import timedelta
+        try:
+            existing = self.get_user_subscription(user_id)
+            already_has_status = (
+                existing
+                and existing.get('subscription_status') not in (None, '', 'free')
+            )
+            if already_has_status:
+                logger.info("Trial init skipped — user already has a subscription", user_id=user_id)
+                return
+
+            now = datetime.utcnow()
+            trial_start = now.isoformat() + 'Z'
+            trial_end = (now + timedelta(days=14)).isoformat() + 'Z'
+
+            update_parts = [
+                'subscription_status = :status',
+                'subscription_plan = :plan',
+                'trial_start_date = :trial_start',
+                'trial_end_date = :trial_end',
+                'trial_expired = :trial_expired',
+                'total_invoiced_amount = if_not_exists(total_invoiced_amount, :zero)',
+                'total_clients_count = if_not_exists(total_clients_count, :zero)',
+                'conversion_milestones = if_not_exists(conversion_milestones, :empty_list)',
+                'created_at = if_not_exists(created_at, :now)',
+                'updated_at = :now',
+            ]
+            expr_values: Dict[str, Any] = {
+                ':status': 'trialing',
+                ':plan': 'pro',          # trial gives full Pro access
+                ':trial_start': trial_start,
+                ':trial_end': trial_end,
+                ':trial_expired': False,
+                ':zero': 0,
+                ':empty_list': [],
+                ':now': now.isoformat(),
+            }
+            if user_email:
+                update_parts.append('email = if_not_exists(email, :email)')
+                expr_values[':email'] = user_email
+
+            self.subscriptions_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression='SET ' + ', '.join(update_parts),
+                ExpressionAttributeValues=expr_values,
+            )
+            logger.info("Trial initialized", user_id=user_id, trial_end=trial_end)
+
+        except ClientError as e:
+            logger.error("Failed to initialize trial", error=e, user_id=user_id)
+            raise DynamoDBException(f"Failed to initialize trial: {str(e)}")
+
+    def update_billing_subscription(
+        self,
+        user_id: str,
+        subscription_status: Optional[str] = None,
+        subscription_plan: Optional[str] = None,
+        subscription_period: Optional[str] = None,
+        stripe_customer_id: Optional[str] = None,
+        stripe_subscription_id: Optional[str] = None,
+        trial_expired: Optional[bool] = None,
+    ) -> None:
+        """
+        Update Stripe Billing fields on the user's subscription record.
+
+        Mirrors the new billing schema (trialing/active/past_due/canceled/expired)
+        alongside the existing legacy fields (free/pro/cancelled) so both the old
+        and new code paths stay consistent.
+
+        Args:
+            user_id:               Cognito user ID.
+            subscription_status:   'trialing'|'active'|'past_due'|'canceled'|'expired'.
+            subscription_plan:     'solo'|'pro'|'agency'.
+            subscription_period:   'monthly'|'annual'.
+            stripe_customer_id:    Stripe cus_... ID.
+            stripe_subscription_id: Stripe sub_... ID.
+            trial_expired:         True when the trial window has passed.
+        """
+        try:
+            update_parts = ['updated_at = :updated_at']
+            expr_values: Dict[str, Any] = {':updated_at': datetime.utcnow().isoformat()}
+
+            if subscription_status is not None:
+                update_parts.append('subscription_status = :status')
+                expr_values[':status'] = subscription_status
+
+            if subscription_plan is not None:
+                update_parts.append('subscription_plan = :plan')
+                expr_values[':plan'] = subscription_plan
+
+            if subscription_period is not None:
+                update_parts.append('subscription_period = :period')
+                expr_values[':period'] = subscription_period
+
+            if stripe_customer_id is not None:
+                update_parts.append('stripe_customer_id = :customer_id')
+                expr_values[':customer_id'] = stripe_customer_id
+
+            if stripe_subscription_id is not None:
+                update_parts.append('stripe_subscription_id = :sub_id')
+                expr_values[':sub_id'] = stripe_subscription_id
+
+            if trial_expired is not None:
+                update_parts.append('trial_expired = :trial_expired')
+                expr_values[':trial_expired'] = trial_expired
+
+            self.subscriptions_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression='SET ' + ', '.join(update_parts),
+                ExpressionAttributeValues=expr_values,
+            )
+            logger.info(
+                "Billing subscription updated",
+                user_id=user_id,
+                status=subscription_status,
+                plan=subscription_plan,
+            )
+
+        except ClientError as e:
+            logger.error("Failed to update billing subscription", error=e, user_id=user_id)
+            raise DynamoDBException(f"Failed to update billing subscription: {str(e)}")
+
+    def get_billing_status(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Return billing/trial status fields for a user.
+
+        Returns None if no subscription record exists yet.
+        """
+        try:
+            record = self.get_user_subscription(user_id)
+            if not record:
+                return None
+
+            from .access_control import trial_days_remaining, is_trial_expired
+            return {
+                'subscription_status': record.get('subscription_status', 'free'),
+                'subscription_plan': record.get('subscription_plan'),
+                'subscription_period': record.get('subscription_period'),
+                'stripe_customer_id': record.get('stripe_customer_id'),
+                'stripe_subscription_id': record.get('stripe_subscription_id'),
+                'trial_start_date': record.get('trial_start_date'),
+                'trial_end_date': record.get('trial_end_date'),
+                'trial_days_remaining': trial_days_remaining(record),
+                'trial_expired': is_trial_expired(record),
+                'total_invoiced_amount': int(record.get('total_invoiced_amount', 0)),
+                'total_clients_count': int(record.get('total_clients_count', 0)),
+                'conversion_milestones': record.get('conversion_milestones', []),
+            }
+
+        except ClientError as e:
+            logger.error("Failed to get billing status", error=e, user_id=user_id)
+            raise DynamoDBException(f"Failed to get billing status: {str(e)}")
 
     # =================
     # Helper Methods

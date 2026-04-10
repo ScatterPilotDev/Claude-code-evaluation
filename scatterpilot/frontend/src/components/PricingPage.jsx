@@ -20,11 +20,12 @@ const PLANS = [
     annualPrice: 290,
     description: 'Everything you need to invoice independently.',
     features: [
-      'Unlimited invoices',
-      'Unlimited clients',
-      'AI invoice creation',
-      'Stripe payments',
-      'Invoice PDF',
+      { text: 'Unlimited invoices' },
+      { text: 'Unlimited clients' },
+      { text: 'AI invoice creation' },
+      { text: 'Stripe payments' },
+      { text: 'Professional PDF invoices' },
+      { text: 'Client management' },
     ],
     featured: false,
     cta: 'Choose Solo',
@@ -37,11 +38,11 @@ const PLANS = [
     annualPrice: 490,
     description: 'Power tools for growing freelancers.',
     features: [
-      'Everything in Solo, plus:',
-      'Remove ScatterPilot branding',
-      'Priority AI',
-      'Reports & analytics',
-      'Invoice templates',
+      { text: 'Everything in Solo, plus:', header: true },
+      { text: 'Clean invoices — no ScatterPilot branding' },
+      { text: 'Reports & analytics dashboard' },
+      { text: 'Priority support' },
+      { text: 'Invoice templates', soon: true },
     ],
     featured: true,
     cta: 'Choose Pro',
@@ -54,13 +55,13 @@ const PLANS = [
     annualPrice: 990,
     description: 'For agencies and teams invoicing at scale.',
     features: [
-      'Everything in Pro, plus:',
-      'Team seats',
-      'Client portal',
-      'API access',
-      'Custom integrations',
-      'Dedicated support',
+      { text: 'Everything in Pro, plus:', header: true },
+      { text: 'Team seats', soon: true, badge: 'Q3 2026' },
+      { text: 'Client portal', soon: true, badge: 'Q3 2026' },
+      { text: 'API access', soon: true, badge: 'Q3 2026' },
+      { text: 'Dedicated support' },
     ],
+    earlyAdopterNote: 'Early adopter pricing. Lock in $99/mo before features launch and prices increase.',
     featured: false,
     cta: 'Choose Agency',
   },
@@ -68,12 +69,16 @@ const PLANS = [
 
 const FAQS = [
   {
-    q: 'Can I change plans?',
-    a: 'Yes. You can upgrade or downgrade at any time from Settings → Subscription. Changes take effect at the start of your next billing period.',
+    q: 'What happens when my trial ends?',
+    a: "Your 14-day Pro trial gives you full access to all Pro features. After it ends, you can choose any plan or continue viewing your existing data. You won't lose anything.",
   },
   {
-    q: 'What happens when my trial ends?',
-    a: 'After 14 days your account switches to read-only mode — all your data is safe. Choose a plan to resume creating invoices and receiving payments.',
+    q: 'Can I change plans?',
+    a: 'Yes, you can upgrade, downgrade, or cancel anytime from your Settings page. Changes take effect immediately.',
+  },
+  {
+    q: 'When are Agency features launching?',
+    a: 'Team seats, client portal, and API access are in active development and launching Q3 2026. Subscribe to Agency now to lock in the current pricing.',
   },
   {
     q: 'Is my data safe?',
@@ -217,16 +222,26 @@ export default function PricingPage({ currentStatus = null }) {
               </div>
 
               {/* Features */}
-              <ul className="flex-1 space-y-2 mb-6">
+              <ul className="flex-1 space-y-2 mb-4">
                 {plan.features.map((feature, i) => (
                   <li key={i} className={`flex items-start gap-2 text-body-sm ${
-                    feature.endsWith(':') ? 'text-ink-secondary font-medium mt-2' : 'text-ink-primary'
+                    feature.header ? 'text-ink-secondary font-medium mt-2' : 'text-ink-primary'
                   }`}>
-                    {!feature.endsWith(':') && <CheckIcon />}
-                    <span className={feature.endsWith(':') ? 'ml-6' : ''}>{feature}</span>
+                    {!feature.header && <CheckIcon />}
+                    <span className={`${feature.header ? 'ml-6' : ''} flex-1`}>{feature.text}</span>
+                    {feature.soon && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-[10px] font-medium shrink-0">
+                        {feature.badge || 'Soon'}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
+
+              {/* Early adopter note (Agency) */}
+              {plan.earlyAdopterNote && (
+                <p className="mb-4 text-body-sm text-ink-tertiary italic leading-snug">{plan.earlyAdopterNote}</p>
+              )}
 
               {/* CTA button */}
               <button

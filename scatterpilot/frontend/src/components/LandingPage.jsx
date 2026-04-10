@@ -331,7 +331,14 @@ const PLANS = [
     monthlyPrice: 29,
     annualMonthlyPrice: 24,
     description: 'Everything you need to invoice independently.',
-    features: ['Unlimited invoices', 'Unlimited clients', 'AI invoice creation', 'Stripe payments', 'Invoice PDF'],
+    features: [
+      { text: 'Unlimited invoices' },
+      { text: 'Unlimited clients' },
+      { text: 'AI invoice creation' },
+      { text: 'Stripe payments' },
+      { text: 'Professional PDF invoices' },
+      { text: 'Client management' },
+    ],
     featured: false,
   },
   {
@@ -340,7 +347,13 @@ const PLANS = [
     monthlyPrice: 49,
     annualMonthlyPrice: 41,
     description: 'Power tools for growing freelancers.',
-    features: ['Everything in Solo', 'Remove ScatterPilot branding', 'Priority AI', 'Reports & analytics', 'Invoice templates'],
+    features: [
+      { text: 'Everything in Solo, plus:', header: true },
+      { text: 'Clean invoices — no ScatterPilot branding' },
+      { text: 'Reports & analytics dashboard' },
+      { text: 'Priority support' },
+      { text: 'Invoice templates', soon: true },
+    ],
     featured: true,
   },
   {
@@ -349,7 +362,14 @@ const PLANS = [
     monthlyPrice: 99,
     annualMonthlyPrice: 83,
     description: 'For agencies and teams invoicing at scale.',
-    features: ['Everything in Pro', 'Team seats', 'Client portal', 'API access', 'Dedicated support'],
+    features: [
+      { text: 'Everything in Pro, plus:', header: true },
+      { text: 'Team seats', soon: true, badge: 'Q3 2026' },
+      { text: 'Client portal', soon: true, badge: 'Q3 2026' },
+      { text: 'API access', soon: true, badge: 'Q3 2026' },
+      { text: 'Dedicated support' },
+    ],
+    earlyAdopterNote: 'Early adopter pricing. Lock in $99/mo before features launch and prices increase.',
     featured: false,
   },
 ];
@@ -737,14 +757,22 @@ export default function LandingPage() {
                         <div className="text-label text-ink-tertiary mt-0.5">Billed annually</div>
                       )}
                     </div>
-                    <ul className="space-y-2.5 mb-6">
-                      {plan.features.map(feat => (
-                        <li key={feat} className="flex items-start gap-2.5">
-                          <span className="text-sage-500 mt-0.5 flex-shrink-0"><IconCheck /></span>
-                          <span className="text-body-sm text-ink-secondary">{feat}</span>
+                    <ul className="space-y-2.5 mb-4">
+                      {plan.features.map((feat, j) => (
+                        <li key={j} className={`flex items-start gap-2.5 ${feat.header ? 'mt-1' : ''}`}>
+                          {!feat.header && <span className="text-sage-500 mt-0.5 flex-shrink-0"><IconCheck /></span>}
+                          <span className={`text-body-sm text-ink-secondary ${feat.header ? 'ml-7 font-medium' : 'flex-1'}`}>{feat.text}</span>
+                          {feat.soon && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-[10px] font-medium shrink-0">
+                              {feat.badge || 'Soon'}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
+                    {plan.earlyAdopterNote && (
+                      <p className="mb-4 text-body-sm text-ink-tertiary italic leading-snug">{plan.earlyAdopterNote}</p>
+                    )}
                   </div>
                   <div className="p-6 pt-0">
                     <Link

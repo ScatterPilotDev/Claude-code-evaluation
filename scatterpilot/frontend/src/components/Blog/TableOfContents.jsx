@@ -15,7 +15,6 @@ export default function TableOfContents({ headings }) {
       { rootMargin: '-100px 0px -80% 0px' }
     );
 
-    // Observe all headings
     headings.forEach((heading) => {
       const element = document.getElementById(heading.id);
       if (element) {
@@ -31,20 +30,22 @@ export default function TableOfContents({ headings }) {
   }
 
   return (
-    <nav className="sticky top-24 bg-slate-900 border border-slate-700 rounded-xl p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
-      <h3 className="text-lg font-bold text-slate-100 mb-4">Table of Contents</h3>
-      <ul className="space-y-2">
+    <nav className="sticky top-24 bg-surface-card border border-surface-border rounded-card p-5 max-h-[calc(100vh-8rem)] overflow-y-auto shadow-card">
+      <h3 className="text-body-sm font-semibold text-ink-primary mb-3 uppercase tracking-wider">
+        Table of Contents
+      </h3>
+      <ul className="space-y-1.5">
         {headings.map((heading) => (
           <li
             key={heading.id}
-            className={`${heading.level === 3 ? 'ml-4' : ''}`}
+            className={heading.level === 3 ? 'ml-3' : ''}
           >
             <a
               href={`#${heading.id}`}
-              className={`block text-sm transition-colors ${
+              className={`block text-body-sm transition-colors duration-150 ${
                 activeId === heading.id
-                  ? 'text-purple-400 font-medium'
-                  : 'text-slate-400 hover:text-slate-300'
+                  ? 'text-sage-500 font-medium'
+                  : 'text-ink-tertiary hover:text-ink-secondary'
               }`}
             >
               {heading.text}

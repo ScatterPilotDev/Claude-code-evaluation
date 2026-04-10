@@ -79,9 +79,9 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-bg flex items-center justify-center">
         <div className="text-center">
-          <svg className="animate-spin h-12 w-12 mx-auto text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-12 w-12 mx-auto text-sage-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -92,7 +92,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-surface-bg">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
@@ -134,7 +134,7 @@ export default function Settings() {
 
           {!stripeConnected ? (
             <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="bg-sage-50 border border-sage-100 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Why connect Stripe?</h3>
                 <ul className="space-y-2 text-gray-700">
                   <li className="flex items-start">
@@ -158,7 +158,7 @@ export default function Settings() {
 
               <button
                 onClick={connectStripe}
-                className="w-full sm:w-auto flex items-center justify-center space-x-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="w-full sm:w-auto flex items-center justify-center space-x-3 bg-sage-500 hover:bg-sage-600 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200"
               >
                 <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
                   <rect width="28" height="28" rx="6" fill="#FFFFFF"/>
@@ -193,7 +193,7 @@ export default function Settings() {
                   href="https://dashboard.stripe.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center px-6 py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 transition-colors"
+                  className="flex items-center justify-center px-6 py-3 bg-white border-2 border-sage-500 text-sage-600 font-semibold rounded-lg hover:bg-sage-50 transition-colors"
                 >
                   Open Stripe Dashboard
                 </a>

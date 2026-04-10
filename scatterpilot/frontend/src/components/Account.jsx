@@ -265,8 +265,8 @@ export default function Account() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-surface-bg flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-2 border-sage-200 border-t-sage-500 animate-spin"></div>
       </div>
     );
   }
@@ -286,7 +286,7 @@ export default function Account() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-surface-bg py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -333,7 +333,7 @@ export default function Account() {
             {!profileEditing && (
               <button
                 onClick={() => setProfileEditing(true)}
-                className="px-4 py-2 bg-gradient-brand hover:bg-gradient-brand-hover text-gray-900 rounded-lg transition-all duration-200 shadow-lg hover:shadow-glow-purple"
+                className="px-4 py-2 bg-sage-500 hover:bg-sage-600 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-card"
               >
                 {isPro ? 'Edit Profile' : 'Edit Contact Info'}
               </button>
@@ -394,9 +394,9 @@ export default function Account() {
 
               {/* Show helpful message if no contact info for Free users */}
               {!isPro && !profile.contact_name && !profile.phone && !profile.address_line1 && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-blue-800 font-medium">Add your contact information</p>
-                  <p className="text-blue-800 text-sm mt-1">
+                <div className="p-4 bg-sage-50 border border-sage-100 rounded-lg">
+                  <p className="text-ink-secondary font-medium">Add your contact information</p>
+                  <p className="text-ink-secondary text-sm mt-1">
                     Make your invoices more professional by adding your name, phone, and address. This information will appear on all your invoices.
                   </p>
                 </div>
@@ -405,14 +405,14 @@ export default function Account() {
           ) : (
             <form onSubmit={handleProfileUpdate} className="space-y-4">
               {isPro ? (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-                  <p className="text-blue-800 text-sm">
+                <div className="p-3 bg-sage-50 border border-sage-100 rounded-lg mb-4">
+                  <p className="text-ink-secondary text-sm">
                     All fields are optional. Leave business name blank to use generic &quot;INVOICE&quot; header.
                   </p>
                 </div>
               ) : (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-                  <p className="text-blue-800 text-sm">
+                <div className="p-3 bg-sage-50 border border-sage-100 rounded-lg mb-4">
+                  <p className="text-ink-secondary text-sm">
                     Add your contact information to make invoices more professional. All fields are optional.
                   </p>
                 </div>
@@ -431,7 +431,7 @@ export default function Account() {
                     placeholder="e.g., MAYROD, Rodriguez Consulting"
                     minLength={2}
                     maxLength={100}
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                   />
                 </div>
               )}
@@ -440,7 +440,7 @@ export default function Account() {
               {!isPro && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Name <span className="text-xs text-purple-600 font-normal">(Pro Feature)</span>
+                    Business Name <span className="text-xs text-sage-500 font-normal">(Pro Feature)</span>
                   </label>
                   <div className="relative">
                     <input
@@ -453,7 +453,7 @@ export default function Account() {
                     <button
                       type="button"
                       onClick={() => navigate('/pricing')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-gradient-brand text-gray-900 text-xs rounded hover:bg-gradient-brand-hover transition"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-sage-500 text-white text-xs rounded hover:bg-sage-600 transition"
                     >
                       Upgrade
                     </button>
@@ -471,7 +471,7 @@ export default function Account() {
                     value={profile.contact_name}
                     onChange={(e) => handleProfileChange('contact_name', e.target.value)}
                     placeholder="John Doe"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                   />
                 </div>
 
@@ -484,7 +484,7 @@ export default function Account() {
                     value={profile.phone}
                     onChange={(e) => handleProfileChange('phone', e.target.value)}
                     placeholder="+1-555-0100"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -498,7 +498,7 @@ export default function Account() {
                   value={profile.address_line1}
                   onChange={(e) => handleProfileChange('address_line1', e.target.value)}
                   placeholder="123 Main St"
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                 />
               </div>
 
@@ -511,7 +511,7 @@ export default function Account() {
                   value={profile.address_line2}
                   onChange={(e) => handleProfileChange('address_line2', e.target.value)}
                   placeholder="Suite 100"
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                 />
               </div>
 
@@ -525,7 +525,7 @@ export default function Account() {
                     value={profile.city}
                     onChange={(e) => handleProfileChange('city', e.target.value)}
                     placeholder="New York"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                   />
                 </div>
 
@@ -538,7 +538,7 @@ export default function Account() {
                     value={profile.state}
                     onChange={(e) => handleProfileChange('state', e.target.value)}
                     placeholder="NY"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                   />
                 </div>
 
@@ -551,7 +551,7 @@ export default function Account() {
                     value={profile.zip_code}
                     onChange={(e) => handleProfileChange('zip_code', e.target.value)}
                     placeholder="10001"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -565,7 +565,7 @@ export default function Account() {
                   value={profile.country}
                   onChange={(e) => handleProfileChange('country', e.target.value)}
                   placeholder="USA"
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
                 />
               </div>
 
@@ -573,7 +573,7 @@ export default function Account() {
                 <button
                   type="submit"
                   disabled={profileSaving}
-                  className="px-6 py-2 bg-gradient-brand text-gray-900 rounded-lg hover:bg-gradient-brand-hover disabled:bg-gray-400 transition"
+                  className="px-6 py-2 bg-sage-500 text-white rounded-lg hover:bg-sage-600 disabled:bg-gray-400 transition"
                 >
                   {profileSaving ? 'Saving...' : 'Save Profile'}
                 </button>
@@ -601,7 +601,7 @@ export default function Account() {
           {/* NEW Badge */}
           {showPaymentBadge && !stripeConnected && (
             <div className="absolute -top-2 -right-2 z-10">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg animate-pulse">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-sage-500 text-white shadow-lg animate-pulse">
                 NEW
               </span>
             </div>
@@ -611,7 +611,7 @@ export default function Account() {
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-gray-900">💳 Payment Processing</h2>
               {showPaymentBadge && !stripeConnected && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sage-50 text-sage-600">
                   Just Added
                 </span>
               )}
@@ -645,7 +645,7 @@ export default function Account() {
 
               <button
                 onClick={connectStripe}
-                className="w-full flex items-center justify-center space-x-3 bg-indigo-600 hover:bg-indigo-700 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="w-full flex items-center justify-center space-x-3 bg-sage-500 hover:bg-sage-600 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200"
               >
                 <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
                   <rect width="28" height="28" rx="6" fill="#FFFFFF"/>
@@ -704,7 +704,7 @@ export default function Account() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                isPro ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-100'
+                isPro ? 'bg-sage-100 text-sage-700' : 'bg-surface-bg text-ink-tertiary'
               }`}>
                 {isPro ? 'Pro Plan' : 'Free Plan'}
               </span>
@@ -730,7 +730,7 @@ export default function Account() {
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${
-                    subscription?.invoices_remaining <= 1 ? 'bg-red-500' : 'bg-gradient-brand'
+                    subscription?.invoices_remaining <= 1 ? 'bg-danger-400' : 'bg-sage-500'
                   }`}
                   style={{
                     width: `${Math.min(
@@ -766,7 +766,7 @@ export default function Account() {
             ) : (
               <button
                 onClick={() => navigate('/pricing')}
-                className="w-full py-2 px-4 bg-gradient-brand text-gray-900 rounded-lg font-medium hover:bg-gradient-brand-hover transition-colors"
+                className="w-full py-2 px-4 bg-sage-500 text-white rounded-lg font-medium hover:bg-sage-600 transition-colors"
               >
                 Upgrade to Pro
               </button>
@@ -881,7 +881,7 @@ export default function Account() {
               <span className="text-sm font-medium text-gray-700">Secured by AWS</span>
             </div>
             <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="w-5 h-5 text-sage-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
               </svg>
               <span className="text-sm font-medium text-gray-700">Payments by Stripe</span>
@@ -899,7 +899,7 @@ export default function Account() {
         <div className="flex justify-between">
           <button
             onClick={() => navigate('/app')}
-            className="text-purple-600 hover:text-purple-700 font-medium"
+            className="text-sage-500 hover:text-sage-600 font-medium"
           >
             &larr; Back to App
           </button>

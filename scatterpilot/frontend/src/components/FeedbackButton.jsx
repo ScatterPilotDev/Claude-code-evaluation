@@ -110,6 +110,8 @@ export default function FeedbackButton() {
     setError('');
   };
 
+  const inputClass = 'w-full px-3 py-2 bg-white text-ink-primary border border-surface-border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-ink-disabled text-body-sm';
+
   return (
     <>
       {/* Modal */}
@@ -117,42 +119,42 @@ export default function FeedbackButton() {
         <div className="fixed inset-0 z-[10000] overflow-y-auto">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity"
             onClick={handleClose}
           />
 
           {/* Modal Content */}
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg transform transition-all">
+            <div className="relative bg-surface-card border border-surface-border rounded-card shadow-modal w-full max-w-lg">
               {/* Close Button */}
               <button
                 onClick={handleClose}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors"
+                className="absolute top-4 right-4 text-ink-tertiary hover:text-ink-primary transition-colors"
                 aria-label="Close"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
 
               {/* Header */}
               <div className="p-6 pb-4">
-                <h2 className="text-2xl font-bold text-slate-100">
+                <h2 className="text-heading font-semibold text-ink-primary">
                   Send Feedback or Report an Issue
                 </h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-body-sm text-ink-tertiary">
                   We'll respond within 24 hours
                 </p>
               </div>
 
               {/* Success Message */}
               {success && (
-                <div className="mx-6 mb-4 rounded-lg bg-green-900/30 border border-green-700/50 p-4">
+                <div className="mx-6 mb-4 rounded-lg bg-success-50 border border-success-200 p-4">
                   <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-success-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    <p className="text-sm font-medium text-green-300">
+                    <p className="text-body-sm font-medium text-success-700">
                       Feedback sent! We'll respond within 24 hours.
                     </p>
                   </div>
@@ -161,8 +163,8 @@ export default function FeedbackButton() {
 
               {/* Error Message */}
               {error && (
-                <div className="mx-6 mb-4 rounded-lg bg-red-900/30 border border-red-700/50 p-4">
-                  <p className="text-sm font-medium text-red-300">{error}</p>
+                <div className="mx-6 mb-4 rounded-lg bg-danger-50 border border-danger-200 p-4">
+                  <p className="text-body-sm font-medium text-danger-700">{error}</p>
                 </div>
               )}
 
@@ -170,14 +172,14 @@ export default function FeedbackButton() {
               <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-4">
                 {/* Type Dropdown */}
                 <div>
-                  <label htmlFor="feedback-type" className="block text-sm font-medium text-slate-300 mb-1">
+                  <label htmlFor="feedback-type" className="block text-body-sm font-medium text-ink-secondary mb-1">
                     Type
                   </label>
                   <select
                     id="feedback-type"
                     value={type}
                     onChange={(e) => setType(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className={inputClass}
                     disabled={loading || success}
                   >
                     <option value="bug">Bug Report</option>
@@ -189,8 +191,8 @@ export default function FeedbackButton() {
 
                 {/* Subject */}
                 <div>
-                  <label htmlFor="feedback-subject" className="block text-sm font-medium text-slate-300 mb-1">
-                    Subject <span className="text-red-400">*</span>
+                  <label htmlFor="feedback-subject" className="block text-body-sm font-medium text-ink-secondary mb-1">
+                    Subject <span className="text-danger-500">*</span>
                   </label>
                   <input
                     id="feedback-subject"
@@ -200,15 +202,15 @@ export default function FeedbackButton() {
                     placeholder="Brief description of your feedback"
                     maxLength={200}
                     required
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-slate-500"
+                    className={inputClass}
                     disabled={loading || success}
                   />
                 </div>
 
                 {/* Message */}
                 <div>
-                  <label htmlFor="feedback-message" className="block text-sm font-medium text-slate-300 mb-1">
-                    Message <span className="text-red-400">*</span>
+                  <label htmlFor="feedback-message" className="block text-body-sm font-medium text-ink-secondary mb-1">
+                    Message <span className="text-danger-500">*</span>
                   </label>
                   <textarea
                     id="feedback-message"
@@ -218,18 +220,18 @@ export default function FeedbackButton() {
                     rows={5}
                     maxLength={5000}
                     required
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none placeholder-slate-500"
+                    className={`${inputClass} resize-none`}
                     disabled={loading || success}
                   />
-                  <p className="mt-1 text-xs text-slate-400 text-right">
+                  <p className="mt-1 text-label text-ink-tertiary text-right">
                     {message.length} / 5000 characters
                   </p>
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label htmlFor="feedback-email" className="block text-sm font-medium text-slate-300 mb-1">
-                    Email <span className="text-red-400">*</span>
+                  <label htmlFor="feedback-email" className="block text-body-sm font-medium text-ink-secondary mb-1">
+                    Email <span className="text-danger-500">*</span>
                   </label>
                   <input
                     id="feedback-email"
@@ -238,7 +240,7 @@ export default function FeedbackButton() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
                     required
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-slate-500"
+                    className={inputClass}
                     disabled={loading || success}
                   />
                 </div>
@@ -248,14 +250,14 @@ export default function FeedbackButton() {
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="flex-1 px-4 py-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors font-medium"
+                    className="flex-1 px-4 py-2 border border-surface-border-strong text-ink-secondary rounded-button hover:bg-surface-bg transition-colors font-medium text-body-sm"
                     disabled={loading || success}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-gradient-brand hover:bg-gradient-brand-hover text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-sage-500 hover:bg-sage-600 text-white rounded-button transition-colors font-medium text-body-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     disabled={loading || success}
                   >
                     {loading ? (
@@ -264,7 +266,7 @@ export default function FeedbackButton() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Sending...
+                        Sending…
                       </>
                     ) : (
                       'Send Feedback'

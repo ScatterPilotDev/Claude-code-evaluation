@@ -1,16 +1,60 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { SparklesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { getPostBySlug, getRelatedPosts, formatDate } from '../utils/blogUtils';
 import TableOfContents from '../components/Blog/TableOfContents';
 import ShareButtons from '../components/Blog/ShareButtons';
 import BlogCard from '../components/Blog/BlogCard';
 import analytics from '../utils/analytics';
 
+// ── Shared blog nav (same as Blog.jsx) ───────────────────────────────────────
+
+function BlogNav() {
+  return (
+    <header className="sticky top-0 z-50 h-16 flex items-center bg-white/90 backdrop-blur-md border-b border-surface-border">
+      <div className="max-w-6xl mx-auto w-full px-6 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-sage-500 rounded-lg flex items-center justify-center">
+            <span className="text-ink-inverse font-bold text-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>S</span>
+          </div>
+          <span className="font-semibold text-ink-primary" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>ScatterPilot</span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/blog" className="text-body-sm text-ink-secondary hover:text-ink-primary transition-colors">
+            Blog
+          </Link>
+          <Link
+            to="/app"
+            className="px-4 py-2 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button text-body-sm font-medium transition-colors duration-150"
+          >
+            Start Free Trial
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function BlogFooter() {
+  return (
+    <footer className="bg-ink-primary py-10 px-6">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 bg-sage-500 rounded flex items-center justify-center">
+            <span className="text-ink-inverse font-bold text-xs">S</span>
+          </div>
+          <span className="font-semibold text-white text-body-sm">ScatterPilot</span>
+        </div>
+        <p className="text-label text-sage-400">© 2026 ScatterPilot. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function BlogPost() {
   const { slug } = useParams();
-  const navigate = useNavigate();
   const [post, setPost] = useState(null);
   const [relatedPosts, setRelatedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,14 +69,11 @@ export default function BlogPost() {
         const postData = await getPostBySlug(slug);
         setPost(postData);
 
-        // Track blog post view
         analytics.event('Blog', 'View', `Blog_Post_${slug}`);
 
-        // Load related posts
         const related = await getRelatedPosts(slug, postData.tags);
         setRelatedPosts(related);
 
-        // Add IDs to headings in the DOM for table of contents linking
         setTimeout(() => {
           if (postData.headings) {
             postData.headings.forEach(heading => {
@@ -59,10 +100,11 @@ export default function BlogPost() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
-          <p className="mt-4 text-slate-400">Loading post...</p>
+      <div className="min-h-screen bg-surface-bg flex flex-col">
+        <BlogNav />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="w-8 h-8 rounded-full border-2 border-sage-200 border-t-sage-500 animate-spin" />
+          <p className="text-body-sm text-ink-tertiary">Loading post…</p>
         </div>
       </div>
     );
@@ -70,16 +112,16 @@ export default function BlogPost() {
 
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-slate-100 mb-4">Post Not Found</h1>
-          <p className="text-slate-400 mb-8">The blog post you're looking for doesn't exist.</p>
+      <div className="min-h-screen bg-surface-bg flex flex-col">
+        <BlogNav />
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-4">
+          <h1 className="text-heading-lg text-ink-primary">Post Not Found</h1>
+          <p className="text-body text-ink-secondary">The blog post you're looking for doesn't exist.</p>
           <Link
             to="/blog"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-brand text-white rounded-lg font-semibold hover:bg-gradient-brand-hover transition-all"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button font-medium text-body transition-colors"
           >
-            <ArrowLeftIcon className="w-5 h-5" />
-            Back to Blog
+            ← Back to Blog
           </Link>
         </div>
       </div>
@@ -94,8 +136,6 @@ export default function BlogPost() {
         <title>{post.title} | ScatterPilot Blog</title>
         <meta name="description" content={post.description} />
         <meta name="author" content={post.author} />
-
-        {/* Open Graph / Facebook */}
         <meta property="og:type" content="article" />
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={post.description} />
@@ -106,123 +146,84 @@ export default function BlogPost() {
         {post.tags && post.tags.map(tag => (
           <meta key={tag} property="article:tag" content={tag} />
         ))}
-
-        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={post.title} />
         <meta name="twitter:description" content={post.description} />
         {post.image && <meta name="twitter:image" content={`https://scatterpilot.com${post.image}`} />}
-
         <link rel="canonical" href={postUrl} />
       </Helmet>
 
-      <div className="min-h-screen bg-slate-950">
-        {/* Navigation */}
-        <nav className="border-b border-slate-700 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <Link to="/" className="flex items-center">
-                <SparklesIcon className="h-8 w-8 text-purple-400" />
-                <span className="ml-2 text-xl font-bold bg-gradient-brand bg-clip-text text-transparent">
-                  ScatterPilot
-                </span>
-              </Link>
-              <div className="flex items-center space-x-4">
-                <Link
-                  to="/blog"
-                  className="font-medium text-slate-400 hover:text-slate-100 transition-colors"
-                >
-                  Blog
-                </Link>
-                <Link
-                  to="/app"
-                  className="px-6 py-2.5 bg-gradient-brand text-white rounded-lg font-semibold hover:bg-gradient-brand-hover transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  Get Started Free
-                </Link>
-              </div>
-            </div>
-          </div>
-        </nav>
+      <div className="min-h-screen bg-surface-bg flex flex-col">
+        <BlogNav />
 
-        {/* Article */}
-        <article className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Back Button */}
+        <article className="flex-1 max-w-6xl mx-auto w-full px-6 py-10">
+          {/* Back */}
           <Link
             to="/blog"
-            className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 mb-8 transition-colors"
+            className="inline-flex items-center gap-1.5 text-body-sm text-sage-500 hover:text-sage-600 mb-8 transition-colors"
           >
-            <ArrowLeftIcon className="w-5 h-5" />
-            Back to Blog
+            ← Back to Blog
           </Link>
 
-          {/* Post Header */}
-          <header className="mb-12">
+          {/* Post header */}
+          <header className="mb-10">
             {post.image && (
               <img
                 src={post.image}
                 alt={post.imageAlt || post.title}
-                className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl mb-8"
+                className="w-full max-w-4xl mx-auto rounded-card shadow-modal mb-8"
               />
             )}
-
             <div className="max-w-4xl mx-auto">
-              <div className="flex items-center gap-3 text-sm text-slate-400 mb-4">
+              <div className="flex items-center gap-3 text-body-sm text-ink-tertiary mb-4">
                 <time dateTime={post.date}>{formatDate(post.date)}</time>
-                <span>•</span>
+                <span>·</span>
                 <span>{post.readingTime}</span>
-                <span>•</span>
+                <span>·</span>
                 <span>{post.author}</span>
               </div>
-
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+              <h1 className="text-display font-bold text-ink-primary mb-5 leading-tight">
                 {post.title}
               </h1>
-
-              <p className="text-xl text-slate-400 leading-relaxed mb-8">
+              <p className="text-body-lg text-ink-secondary leading-relaxed mb-6">
                 {post.description}
               </p>
-
               <ShareButtons title={post.title} url={postUrl} />
             </div>
           </header>
 
-          {/* Post Content with Sidebar */}
-          <div className="grid lg:grid-cols-[1fr_300px] gap-12 max-w-7xl mx-auto">
-            {/* Main Content */}
+          {/* Content + TOC */}
+          <div className="grid lg:grid-cols-[1fr_280px] gap-12 max-w-6xl mx-auto">
             <div
-              className="prose prose-invert prose-purple max-w-none
-                prose-headings:text-slate-100 prose-headings:font-bold
-                prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-4
-                prose-h3:text-2xl prose-h3:mt-8 prose-h3:mb-3
-                prose-p:text-slate-300 prose-p:leading-relaxed prose-p:mb-4
-                prose-a:text-purple-400 prose-a:no-underline hover:prose-a:text-purple-300
-                prose-strong:text-slate-100 prose-strong:font-semibold
-                prose-ul:my-6 prose-li:text-slate-300 prose-li:my-2
-                prose-code:text-purple-400 prose-code:bg-slate-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700
-                prose-blockquote:border-l-purple-500 prose-blockquote:text-slate-300
-                prose-img:rounded-xl prose-img:shadow-xl"
+              className="prose prose-slate max-w-none
+                prose-headings:text-ink-primary prose-headings:font-semibold
+                prose-h2:text-heading-lg prose-h2:mt-10 prose-h2:mb-4
+                prose-h3:text-heading prose-h3:mt-7 prose-h3:mb-3
+                prose-p:text-ink-secondary prose-p:leading-relaxed prose-p:mb-4
+                prose-a:text-sage-500 prose-a:no-underline hover:prose-a:text-sage-600
+                prose-strong:text-ink-primary prose-strong:font-semibold
+                prose-ul:my-5 prose-li:text-ink-secondary prose-li:my-1.5
+                prose-code:text-sage-600 prose-code:bg-sage-50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-body-sm
+                prose-pre:bg-sage-900 prose-pre:border prose-pre:border-sage-800
+                prose-blockquote:border-l-sage-400 prose-blockquote:text-ink-secondary
+                prose-img:rounded-card prose-img:shadow-card"
               dangerouslySetInnerHTML={{ __html: post.contentHtml }}
             />
-
-            {/* Sidebar - Table of Contents */}
             <aside className="hidden lg:block">
               <TableOfContents headings={post.headings || []} />
             </aside>
           </div>
 
-          {/* Post Footer */}
-          <footer className="max-w-4xl mx-auto mt-16 pt-8 border-t border-slate-800">
-            {/* Tags */}
+          {/* Post footer */}
+          <footer className="max-w-4xl mx-auto mt-14 pt-8 border-t border-surface-border">
             {post.tags && post.tags.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-sm font-semibold text-slate-400 mb-3">Tags:</h3>
+              <div className="mb-7">
+                <h3 className="text-body-sm font-medium text-ink-tertiary mb-3">Tags:</h3>
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map(tag => (
                     <span
                       key={tag}
-                      className="px-4 py-2 bg-slate-900 text-purple-400 rounded-full border border-slate-700 text-sm"
+                      className="px-3 py-1 bg-sage-50 text-sage-600 rounded-badge border border-sage-200 text-body-sm"
                     >
                       {tag}
                     </span>
@@ -231,35 +232,36 @@ export default function BlogPost() {
               </div>
             )}
 
-            {/* Share Again */}
-            <div className="mb-12">
+            <div className="mb-10">
               <ShareButtons title={post.title} url={postUrl} />
             </div>
 
-            {/* CTA Box */}
-            <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-8 text-center text-white">
-              <h3 className="text-2xl font-bold mb-3">Ready to save hours on invoicing?</h3>
-              <p className="text-purple-100 mb-6">
+            {/* CTA box */}
+            <div className="bg-sage-900 rounded-card p-8 text-center">
+              <h3 className="text-heading font-semibold text-white mb-2">
+                Ready to save hours on invoicing?
+              </h3>
+              <p className="text-body text-sage-200 mb-6">
                 Create professional invoices in 30 seconds with ScatterPilot
               </p>
               <Link
                 to="/app"
                 onClick={() => analytics.event('CTA', 'Click', 'Blog_Post_CTA')}
-                className="inline-block px-8 py-4 bg-white text-purple-600 rounded-lg font-bold text-lg hover:bg-slate-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                className="inline-block px-7 py-3 bg-white hover:bg-surface-bg text-sage-900 rounded-button font-semibold text-body transition-colors duration-150"
               >
                 Try ScatterPilot Free →
               </Link>
-              <p className="text-purple-200 text-sm mt-4">No credit card required</p>
+              <p className="text-label text-sage-300 mt-3">No credit card required</p>
             </div>
           </footer>
         </article>
 
-        {/* Related Posts */}
+        {/* Related posts */}
         {relatedPosts.length > 0 && (
-          <section className="bg-slate-900/50 py-16 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <h2 className="text-3xl font-bold text-white mb-8">Related Articles</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <section className="border-t border-surface-border bg-white py-14 px-6">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-heading font-semibold text-ink-primary mb-6">Related Articles</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {relatedPosts.map(relatedPost => (
                   <BlogCard key={relatedPost.slug} post={relatedPost} />
                 ))}
@@ -268,16 +270,7 @@ export default function BlogPost() {
           </section>
         )}
 
-        {/* Footer */}
-        <footer className="py-12 px-4 sm:px-6 lg:px-8 bg-slate-900 text-slate-400 border-t border-slate-800">
-          <div className="max-w-7xl mx-auto text-center">
-            <div className="flex items-center justify-center mb-4">
-              <SparklesIcon className="h-8 w-8 text-purple-400" />
-              <span className="ml-2 text-xl font-bold text-white">ScatterPilot</span>
-            </div>
-            <p className="text-sm">&copy; 2025 ScatterPilot. All rights reserved.</p>
-          </div>
-        </footer>
+        <BlogFooter />
       </div>
     </>
   );

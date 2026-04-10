@@ -19,6 +19,7 @@ const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const PayInvoicePage = lazy(() => import('./components/PayInvoicePage'));
 const PayInvoiceSuccessPage = lazy(() => import('./components/PayInvoiceSuccessPage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading fallback component
 function LoadingFallback() {
@@ -60,7 +61,7 @@ export default function Router() {
               {/* Public invoice payment pages — no auth required */}
               <Route path="/pay/:invoiceId" element={<PayInvoicePage />} />
               <Route path="/pay/:invoiceId/success" element={<PayInvoiceSuccessPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
           <CookieNotice />

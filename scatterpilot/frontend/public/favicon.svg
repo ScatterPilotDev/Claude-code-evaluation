@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- ScatterPilot mark — 3-bar geometric S-form on sage-500 background -->
   <rect width="32" height="32" rx="7" fill="#4A6741"/>
-  <text x="16" y="23" font-size="17" font-weight="700" fill="white" text-anchor="middle" font-family="-apple-system, 'DM Sans', system-ui, sans-serif">S</text>
+  <!-- Top bar — right-aligned -->
+  <rect x="10" y="5.5" width="16" height="5" rx="2" fill="white"/>
+  <!-- Middle bar — left-aligned (creates S-curve) -->
+  <rect x="6" y="13.5" width="16" height="5" rx="2" fill="white"/>
+  <!-- Bottom bar — right-aligned -->
+  <rect x="10" y="21.5" width="16" height="5" rx="2" fill="white"/>
 </svg>

@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
+import Logo from '../components/brand/Logo';
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-surface-bg flex flex-col items-center justify-center px-6 py-16 text-center">
-      {/* Monogram */}
-      <div className="w-12 h-12 bg-sage-500 rounded-xl flex items-center justify-center mb-8">
-        <span className="text-ink-inverse font-bold text-lg" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>S</span>
+      {/* Logo mark */}
+      <div className="mb-8">
+        <Logo variant="mark" size="xl" />
       </div>
 
       {/* 404 */}

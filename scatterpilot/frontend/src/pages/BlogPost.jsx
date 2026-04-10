@@ -6,6 +6,7 @@ import TableOfContents from '../components/Blog/TableOfContents';
 import ShareButtons from '../components/Blog/ShareButtons';
 import BlogCard from '../components/Blog/BlogCard';
 import analytics from '../utils/analytics';
+import Logo from '../components/brand/Logo';
 
 // ── Shared blog nav (same as Blog.jsx) ───────────────────────────────────────
 
@@ -13,11 +14,8 @@ function BlogNav() {
   return (
     <header className="sticky top-0 z-50 h-16 flex items-center bg-white/90 backdrop-blur-md border-b border-surface-border">
       <div className="max-w-6xl mx-auto w-full px-6 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-sage-500 rounded-lg flex items-center justify-center">
-            <span className="text-ink-inverse font-bold text-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>S</span>
-          </div>
-          <span className="font-semibold text-ink-primary" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>ScatterPilot</span>
+        <Link to="/" className="flex items-center">
+          <Logo variant="wordmark" size="md" />
         </Link>
         <div className="flex items-center gap-4">
           <Link to="/blog" className="text-body-sm text-ink-secondary hover:text-ink-primary transition-colors">
@@ -39,11 +37,8 @@ function BlogFooter() {
   return (
     <footer className="bg-ink-primary py-10 px-6">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 bg-sage-500 rounded flex items-center justify-center">
-            <span className="text-ink-inverse font-bold text-xs">S</span>
-          </div>
-          <span className="font-semibold text-white text-body-sm">ScatterPilot</span>
+        <div className="flex items-center">
+          <Logo variant="wordmark" size="sm" color="white" />
         </div>
         <p className="text-label text-sage-400">© 2026 ScatterPilot. All rights reserved.</p>
       </div>

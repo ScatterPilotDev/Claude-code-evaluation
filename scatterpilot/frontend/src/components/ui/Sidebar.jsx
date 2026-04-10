@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import authService from '../../services/auth';
+import Logo from '../brand/Logo';
 
 // ── Inline SVG icons ────────────────────────────────────────────────────────
 
@@ -97,9 +98,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
 
       {/* ── Brand ── */}
       <div className="px-3 mb-4">
-        <span className="text-label uppercase tracking-widest text-ink-tertiary font-medium">
-          ScatterPilot
-        </span>
+        <Logo variant="wordmark" size="sm" />
       </div>
 
       {/* ── New Invoice CTA ── */}

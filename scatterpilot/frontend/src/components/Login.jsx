@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import authService from '../services/auth';
+import Logo from './brand/Logo';
 
 // ── Shared auth page shell ────────────────────────────────────────────────────
 
@@ -7,11 +8,8 @@ function AuthShell({ children }) {
   return (
     <div className="min-h-screen bg-surface-bg flex flex-col items-center justify-center px-4 py-12">
       {/* Wordmark */}
-      <div className="mb-8 flex items-center gap-2.5">
-        <div className="w-8 h-8 bg-sage-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-ink-inverse font-bold text-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>S</span>
-        </div>
-        <span className="font-semibold text-ink-primary text-heading-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>ScatterPilot</span>
+      <div className="mb-8">
+        <Logo variant="wordmark" size="lg" />
       </div>
 
       {/* Card */}

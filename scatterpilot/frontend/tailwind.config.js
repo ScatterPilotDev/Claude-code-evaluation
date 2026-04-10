@@ -72,6 +72,16 @@ export default {
             muted: '#A0A0A0',    // Muted grey (labels)
           },
         },
+        // ── Extended Brand Accents ────────────────────────────────────────
+        // Use sparingly for visual interest — not for UI primitives
+        brand: {
+          sage:     '#4A6741',  // Primary — buttons, active states, logo (alias)
+          forest:   '#2D4A2D',  // Darker sage — dark section backgrounds, CTA sections
+          moss:     '#8BA888',  // Light sage — decorative accents, illustrations, step numbers
+          sand:     '#C4B99A',  // Warm neutral — subtle accents, dividers, avatar bgs
+          cream:    '#F5F0E8',  // Warm off-white — alternate section backgrounds
+          charcoal: '#2C2C2C',  // Near-black — footer, premium text alternative
+        },
         // ── Design System v2 ──────────────────────────────────────────────
         // Primary — Dark Sage
         sage: {

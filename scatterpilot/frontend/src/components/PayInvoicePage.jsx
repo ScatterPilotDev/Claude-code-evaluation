@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
+import Logo from './brand/Logo';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,13 @@ export default function PayInvoicePage() {
 
   return (
     <div className="min-h-screen bg-surface-bg flex flex-col">
+      {/* Header */}
+      <header className="h-14 flex items-center px-6 border-b border-surface-border bg-surface-card">
+        <Link to="/" className="flex items-center">
+          <Logo variant="wordmark" size="md" />
+        </Link>
+      </header>
+
       <main className="flex-1 flex items-start justify-center py-12 px-4">
         <div className="w-full max-w-2xl">
 
@@ -260,12 +268,11 @@ export default function PayInvoicePage() {
           )}
 
           {/* Footer */}
-          <p className="mt-6 text-center text-label text-ink-tertiary">
-            Powered by{' '}
-            <Link to="/" className="hover:text-ink-secondary transition-colors duration-150">
-              ScatterPilot
+          <div className="mt-6 flex justify-center">
+            <Link to="/" className="flex items-center opacity-40 hover:opacity-70 transition-opacity duration-150">
+              <Logo variant="compact" size="sm" />
             </Link>
-          </p>
+          </div>
         </div>
       </main>
     </div>

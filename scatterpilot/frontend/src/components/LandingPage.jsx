@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import analytics from '../utils/analytics';
+import Logo from './brand/Logo';
 
 // ── Scroll-triggered fade-in hook ─────────────────────────────────────────────
 
@@ -389,11 +390,8 @@ function Nav({ mobileOpen, setMobileOpen }) {
       >
         <div className="max-w-6xl mx-auto w-full px-6 flex items-center gap-8">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-7 h-7 bg-sage-500 rounded-lg flex items-center justify-center">
-              <span className="text-ink-inverse font-bold text-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>S</span>
-            </div>
-            <span className="font-semibold text-ink-primary text-body" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>ScatterPilot</span>
+          <Link to="/" className="flex items-center flex-shrink-0">
+            <Logo variant="wordmark" size="md" />
           </Link>
 
           {/* Desktop nav links */}
@@ -587,7 +585,7 @@ export default function LandingPage() {
               <FadeIn key={num} delay={i * 100}>
                 <div className="relative bg-surface-card border border-surface-border rounded-card p-6 shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-200">
                   {/* Watermark number */}
-                  <div className="absolute -top-2 -right-1 text-[5rem] font-bold text-sage-100 leading-none select-none pointer-events-none">
+                  <div className="absolute -top-2 -right-1 text-[5rem] font-bold leading-none select-none pointer-events-none" style={{ color: '#8BA888', opacity: 0.35 }}>
                     {num}
                   </div>
                   <div className="relative">
@@ -605,7 +603,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────── */}
-      <section id="features" className="py-24 px-6 bg-white">
+      <section id="features" className="py-24 px-6" style={{ backgroundColor: '#F5F0E8' }}>
         <div className="max-w-5xl mx-auto">
           <FadeIn>
             <div className="text-center mb-16">
@@ -788,7 +786,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
-      <section id="about" className="py-24 px-6 bg-white">
+      <section id="about" className="py-24 px-6 bg-surface-bg">
         <div className="max-w-5xl mx-auto">
           <FadeIn>
             <div className="text-center mb-12">
@@ -822,8 +820,8 @@ export default function LandingPage() {
                     "{quote}"
                   </blockquote>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-label font-semibold text-sage-600">{initials}</span>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#C4B99A' }}>
+                      <span className="text-label font-semibold" style={{ color: '#2D4A2D' }}>{initials}</span>
                     </div>
                     <div>
                       <div className="text-body-sm font-semibold text-ink-primary">{name}</div>
@@ -838,7 +836,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FINAL CTA ────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 bg-sage-900">
+      <section className="py-24 px-6" style={{ backgroundColor: '#2D4A2D' }}>
         <FadeIn>
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-display-lg font-bold text-white mb-4">Ready to get paid faster?</h2>
@@ -856,16 +854,13 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer className="bg-ink-primary text-white px-6 pt-16 pb-8">
+      <footer className="text-white px-6 pt-16 pb-8" style={{ backgroundColor: '#2C2C2C' }}>
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
             <div className="md:col-span-1">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-7 h-7 bg-sage-500 rounded-lg flex items-center justify-center">
-                  <span className="text-ink-inverse font-bold text-sm">S</span>
-                </div>
-                <span className="font-semibold text-white">ScatterPilot</span>
+              <div className="mb-4">
+                <Logo variant="wordmark" size="sm" color="white" />
               </div>
               <p className="text-body-sm text-sage-300 leading-relaxed">
                 AI-powered invoicing for consultants and agencies who value their time.

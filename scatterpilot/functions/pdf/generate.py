@@ -23,6 +23,7 @@ from reportlab.lib.units import mm, inch
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, HRFlowable
 )
+from reportlab.graphics.shapes import Drawing, Rect as GRect
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 
 from common.dynamodb_helper import DynamoDBHelper, DynamoDBException
@@ -97,6 +98,46 @@ class PDFGenerator:
         self.user_info = user_info or {}
         self.styles = getSampleStyleSheet()
         self._page_width = A4[0] - 2 * self.MARGIN   # usable width in points
+
+    # ------------------------------------------------------------------
+    # LOGO MARK
+    # ------------------------------------------------------------------
+    def _logo_mark(self, size_pt: float = 18.0) -> Drawing:
+        """
+        Return a ReportLab Drawing of the geometric 3-bar S-form logo mark.
+        Matches the SVG favicon — sage-500 rounded square with white bars.
+        """
+        d = Drawing(size_pt, size_pt)
+        s = size_pt / 32  # scale factor: SVG uses 32-unit grid
+
+        # Background rounded square
+        corner_r = size_pt * 0.22
+        d.add(GRect(0, 0, size_pt, size_pt,
+                    rx=corner_r, ry=corner_r,
+                    fillColor=self.p['primary'],
+                    strokeColor=None, strokeWidth=0))
+
+        # Bar dimensions (scaled from 32-unit SVG)
+        bar_w = 16 * s
+        bar_h = 5 * s
+        bar_rx = 2 * s
+        white = colors.white
+
+        # ReportLab y is bottom-up; SVG y is top-down.
+        # SVG bar tops: 5.5, 13.5, 21.5  →  bottoms (in RL): size_pt - (top + bar_h) * s
+        # Top bar (SVG x=10, y=5.5–10.5):
+        d.add(GRect(10 * s, size_pt - 10.5 * s, bar_w, bar_h,
+                    rx=bar_rx, ry=bar_rx,
+                    fillColor=white, strokeColor=None, strokeWidth=0))
+        # Mid bar (SVG x=6, y=13.5–18.5):
+        d.add(GRect(6 * s, size_pt - 18.5 * s, bar_w, bar_h,
+                    rx=bar_rx, ry=bar_rx,
+                    fillColor=white, strokeColor=None, strokeWidth=0))
+        # Bot bar (SVG x=10, y=21.5–26.5):
+        d.add(GRect(10 * s, size_pt - 26.5 * s, bar_w, bar_h,
+                    rx=bar_rx, ry=bar_rx,
+                    fillColor=white, strokeColor=None, strokeWidth=0))
+        return d
 
     # ------------------------------------------------------------------
     # QR CODE
@@ -313,6 +354,10 @@ class PDFGenerator:
                 textColor=p['text'],
                 leading=26,
             ))
+
+        # Prepend logo mark above the business name / sender name
+        logo_mark = self._logo_mark(size_pt=22.0)
+        left_lines = [logo_mark, self._spacer(3)] + left_lines
 
         # Right cell — "INVOICE" header + meta
         right_lines = [

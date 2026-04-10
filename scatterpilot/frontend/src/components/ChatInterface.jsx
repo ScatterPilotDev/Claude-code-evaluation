@@ -5,6 +5,8 @@ import ReactMarkdown from 'react-markdown';
 import apiService from '../services/api';
 import analytics from '../utils/analytics';
 import { isMobileDevice } from '../utils/deviceDetection';
+import { useVoiceInput } from '../hooks/useVoiceInput';
+import { useVoiceOutput } from '../hooks/useVoiceOutput';
 
 const INITIAL_MESSAGE = {
   role: 'assistant',
@@ -23,6 +25,21 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
   const inputRef = useRef(null);
 
   const isMobile = useMemo(() => isMobileDevice(), []);
+
+  // Voice state
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [currentlySpeakingMessageId, setCurrentlySpeakingMessageId] = useState(null);
+
+  const { speak, stop: stopSpeaking, isSpeaking } = useVoiceOutput();
+
+  const { isListening, isSupported: voiceInputSupported, interimTranscript, toggleListening, startListening } = useVoiceInput({
+    onTranscript: (text) => {
+      setInput(prev => prev + (prev ? ' ' : '') + text);
+    },
+    onEnd: () => {
+      // When recognition ends due to voice mode, we'll auto-resume after AI speaks
+    },
+  });
 
   useImperativeHandle(ref, () => ({
     resetConversation: () => {
@@ -54,8 +71,39 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const handleSend = async () => {
+  // Voice output: speak latest AI message when in voice mode
+  const latestAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') return { text: messages[i].content, id: i };
+    }
+    return null;
+  }, [messages]);
+
+  const prevLatestAssistantIdRef = useRef(null);
+
+  useEffect(() => {
+    if (voiceMode && latestAssistantMessage && latestAssistantMessage.id !== prevLatestAssistantIdRef.current) {
+      prevLatestAssistantIdRef.current = latestAssistantMessage.id;
+      setCurrentlySpeakingMessageId(latestAssistantMessage.id);
+      speak(latestAssistantMessage.text);
+    }
+  }, [latestAssistantMessage, voiceMode]);
+
+  // Auto-resume listening after AI finishes speaking
+  useEffect(() => {
+    if (voiceMode && !isSpeaking && currentlySpeakingMessageId !== null && !isListening && !loading) {
+      startListening();
+    }
+  }, [isSpeaking, voiceMode]);
+
+  const handleSend = async (sentViaVoice = false) => {
     if (!input.trim() || loading) return;
+
+    // If user typed manually (not via voice), exit voice mode
+    if (!sentViaVoice && voiceMode) {
+      setVoiceMode(false);
+      stopSpeaking();
+    }
 
     const userMessage = input.trim();
     setInput('');
@@ -253,21 +301,31 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                       : 'bg-surface-card text-ink-primary border border-surface-border rounded-tl-sm'
                   }`}>
                     {msg.role === 'assistant' ? (
-                      <ReactMarkdown
-                        components={{
-                          p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-ink-primary" {...props} />,
-                          strong: ({node, ...props}) => <strong className="font-semibold text-ink-primary" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc ml-4 my-2 space-y-1" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />,
-                          li: ({node, ...props}) => <li className="my-0.5 text-ink-primary" {...props} />,
-                          code: ({node, inline, ...props}) =>
-                            inline
-                              ? <code className="bg-surface-muted px-1 py-0.5 rounded text-xs font-mono text-ink-secondary" {...props} />
-                              : <code className="block bg-surface-muted p-3 rounded-card my-2 text-xs font-mono overflow-x-auto text-ink-secondary" {...props} />,
-                        }}
-                      >
-                        {filtered}
-                      </ReactMarkdown>
+                      <>
+                        <ReactMarkdown
+                          components={{
+                            p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-ink-primary" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-semibold text-ink-primary" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc ml-4 my-2 space-y-1" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />,
+                            li: ({node, ...props}) => <li className="my-0.5 text-ink-primary" {...props} />,
+                            code: ({node, inline, ...props}) =>
+                              inline
+                                ? <code className="bg-surface-muted px-1 py-0.5 rounded text-xs font-mono text-ink-secondary" {...props} />
+                                : <code className="block bg-surface-muted p-3 rounded-card my-2 text-xs font-mono overflow-x-auto text-ink-secondary" {...props} />,
+                          }}
+                        >
+                          {filtered}
+                        </ReactMarkdown>
+                        {/* Speaking animation indicator */}
+                        {isSpeaking && idx === currentlySpeakingMessageId && (
+                          <span className="inline-flex items-center gap-1 ml-2 text-sage-500">
+                            <span className="w-1 h-3 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 h-4 bg-sage-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1 h-3 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </span>
+                        )}
+                      </>
                     ) : (
                       <p className="whitespace-pre-wrap">{filtered}</p>
                     )}
@@ -306,6 +364,22 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
         )}
       </div>
 
+      {/* Voice mode banner */}
+      {voiceMode && (
+        <div className="flex items-center justify-center gap-2 py-2 bg-sage-50 border-b border-surface-border text-body-sm text-sage-600 flex-shrink-0">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 0 1 0 7.072M12 9.5v5m-3.536-6.036a5 5 0 0 0 0 7.072M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+          </svg>
+          Voice mode active
+          <button
+            onClick={() => { setVoiceMode(false); stopSpeaking(); }}
+            className="text-ink-tertiary hover:text-ink-primary ml-2 text-body-sm"
+          >
+            Turn off
+          </button>
+        </div>
+      )}
+
       {/* Input area */}
       <div className="px-4 md:px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-surface-border bg-surface-card flex-shrink-0">
         {viewMode === 'viewing' ? (
@@ -313,19 +387,69 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
             Read-only — create a new invoice to chat
           </div>
         ) : (
-          <div className="flex gap-2.5 items-end">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              rows={2}
-              disabled={loading}
-              className="flex-1 px-4 py-3 bg-surface-bg border border-surface-border rounded-input text-body-sm text-ink-primary placeholder:text-ink-tertiary focus:outline-none focus:ring-1 focus:ring-sage-500/20 focus:border-sage-500 resize-none transition-all duration-150 min-h-[44px]"
-            />
+          <div className="relative flex gap-2.5 items-end">
+            {/* Listening indicator */}
+            {isListening && (
+              <div className="absolute -top-8 left-0 flex items-center gap-2 text-body-sm text-danger-400">
+                <span className="w-2 h-2 bg-danger-400 rounded-full animate-pulse" />
+                Listening...
+              </div>
+            )}
+            <div className="relative flex-1">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => {
+                  setInput(e.target.value);
+                  // Typing manually exits voice mode
+                  if (voiceMode) {
+                    setVoiceMode(false);
+                    stopSpeaking();
+                  }
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder={isListening ? 'Listening...' : placeholder}
+                rows={2}
+                disabled={loading}
+                className="w-full px-4 py-3 bg-surface-bg border border-surface-border rounded-input text-body-sm text-ink-primary placeholder:text-ink-tertiary focus:outline-none focus:ring-1 focus:ring-sage-500/20 focus:border-sage-500 resize-none transition-all duration-150 min-h-[44px]"
+              />
+              {/* Interim transcript ghost text overlay */}
+              {interimTranscript && (
+                <div className="absolute bottom-3 left-4 right-4 text-body-sm text-ink-tertiary italic pointer-events-none truncate">
+                  {input ? '' : interimTranscript}
+                </div>
+              )}
+            </div>
+            {/* Mic button */}
+            {voiceInputSupported && (
+              <button
+                onClick={() => {
+                  // If AI is speaking, stop it first
+                  if (isSpeaking) stopSpeaking();
+                  // Activate voice mode when mic is tapped
+                  if (!isListening) setVoiceMode(true);
+                  toggleListening();
+                }}
+                className={`
+                  flex items-center justify-center w-10 h-10 rounded-full transition-all duration-150 flex-shrink-0
+                  ${isListening
+                    ? 'bg-danger-400 text-white animate-pulse'
+                    : 'text-ink-tertiary hover:text-ink-secondary hover:bg-surface-hover'
+                  }
+                  ${isMobile ? 'min-w-[44px] min-h-[44px] w-11 h-11' : ''}
+                `}
+                title={isListening ? 'Stop recording' : 'Voice input'}
+                aria-label={isListening ? 'Stop voice recording' : 'Start voice input'}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="22"/>
+                </svg>
+              </button>
+            )}
             <button
-              onClick={handleSend}
+              onClick={() => handleSend(false)}
               disabled={!input.trim() || loading}
               className="px-5 py-3 min-h-[44px] bg-sage-500 hover:bg-sage-600 text-white rounded-button disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 font-medium text-body-sm flex-shrink-0"
             >

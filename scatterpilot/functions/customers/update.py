@@ -84,13 +84,35 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         table = dynamodb.Table(SUBSCRIPTIONS_TABLE)
         customer_key = customer_name.lower()
 
+        # Detect whether this is a new client before writing
+        is_new_client = False
+        try:
+            existing = table.get_item(
+                Key={'user_id': user_id},
+                ProjectionExpression='customer_profiles.#k',
+                ExpressionAttributeNames={'#k': customer_key},
+            )
+            is_new_client = 'customer_profiles' not in existing.get('Item', {}) or \
+                customer_key not in existing.get('Item', {}).get('customer_profiles', {})
+        except ClientError:
+            pass  # Conservative: treat as existing if lookup fails
+
         try:
             _upsert_profile(table, user_id, customer_key, profile)
         except ClientError as e:
             logger.error("DynamoDB error storing customer profile", error=e)
             return create_error_response(500, "Failed to update customer profile", "DatabaseError")
 
-        logger.info("Customer profile updated", customer_name=customer_name)
+        # Track client creation milestone (best-effort, only for genuinely new clients)
+        if is_new_client:
+            try:
+                from common.dynamodb_helper import DynamoDBHelper
+                db_helper = DynamoDBHelper()
+                db_helper.track_client_created(user_id)
+            except Exception:
+                pass
+
+        logger.info("Customer profile updated", customer_name=customer_name, is_new=is_new_client)
         return create_success_response({'customer_name': customer_name, 'profile': profile})
 
     except Exception as e:

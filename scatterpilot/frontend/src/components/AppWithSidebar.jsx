@@ -391,11 +391,7 @@ export default function AppWithSidebar() {
       />
 
       {/* Achievement-based upgrade prompts */}
-      <ConversionToasts
-        billingStatus={billingStatus}
-        invoiceCount={allInvoices.length}
-        hasReceivedPayment={!!billingStatus?.first_payment_received_at}
-      />
+      <ConversionToasts billingStatus={billingStatus} />
 
       {renderContent()}
     </Layout>

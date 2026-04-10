@@ -243,6 +243,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         # CRITICAL: Increment monthly invoice count
                         new_count = db_helper.increment_monthly_invoice_count(user_id)
 
+                        # Track conversion milestones (best-effort)
+                        try:
+                            amount_cents = int(float(invoice_data.total or 0) * 100)
+                            db_helper.track_invoice_created(user_id, amount_cents)
+                        except Exception:
+                            pass
+
                         logger.info(
                             "Invoice created automatically",
                             invoice_id=invoice.invoice_id,

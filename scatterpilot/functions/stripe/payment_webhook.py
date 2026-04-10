@@ -221,6 +221,15 @@ def handle_checkout_session_completed(session: Dict[str, Any], stripe_account_id
             amount_cents=amount_total,
             customer_email=session.get('customer_details', {}).get('email')
         )
+        # Track first_payment milestone (best-effort)
+        try:
+            from common.dynamodb_helper import DynamoDBHelper
+            owner_id = invoice.get('user_id')
+            if owner_id:
+                db_helper = DynamoDBHelper()
+                db_helper.track_payment_received(owner_id)
+        except Exception:
+            pass
 
     return success
 

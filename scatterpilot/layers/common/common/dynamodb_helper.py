@@ -1061,6 +1061,161 @@ class DynamoDBHelper:
             logger.error("Failed to get billing status", error=e, user_id=user_id)
             raise DynamoDBException(f"Failed to get billing status: {str(e)}")
 
+    # ============================
+    # Conversion Milestone Tracking
+    # ============================
+
+    def track_invoice_created(self, user_id: str, amount_cents: int) -> None:
+        """
+        Record an invoice creation for conversion milestone tracking.
+
+        - Increments total_invoiced_amount by amount_cents.
+        - Sets first_invoice_created_at on first call (if_not_exists).
+        - Appends 'first_invoice' to conversion_milestones when total count is 1.
+        - Appends 'invoiced_5k' to conversion_milestones when total >= 500,000 cents.
+        """
+        try:
+            # Step 1: atomic increment + set first-invoice timestamp
+            response = self.subscriptions_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression=(
+                    'SET total_invoiced_amount = if_not_exists(total_invoiced_amount, :zero) + :amount, '
+                    'first_invoice_created_at = if_not_exists(first_invoice_created_at, :now), '
+                    'conversion_milestones = if_not_exists(conversion_milestones, :empty_list), '
+                    'updated_at = :now'
+                ),
+                ExpressionAttributeValues={
+                    ':zero': 0,
+                    ':amount': amount_cents,
+                    ':now': datetime.utcnow().isoformat(),
+                    ':empty_list': [],
+                },
+                ReturnValues='ALL_NEW',
+            )
+            record = response.get('Attributes', {})
+            new_total = int(record.get('total_invoiced_amount', 0))
+            milestones = record.get('conversion_milestones', [])
+
+            # Step 2: append milestones not yet present
+            to_add = []
+            if 'first_invoice' not in milestones:
+                to_add.append('first_invoice')
+            if new_total >= 500_000 and 'invoiced_5k' not in milestones:
+                to_add.append('invoiced_5k')
+
+            for milestone in to_add:
+                try:
+                    self.subscriptions_table.update_item(
+                        Key={'user_id': user_id},
+                        UpdateExpression='SET conversion_milestones = list_append(conversion_milestones, :m)',
+                        ConditionExpression='not contains(conversion_milestones, :ms)',
+                        ExpressionAttributeValues={
+                            ':m': [milestone],
+                            ':ms': milestone,
+                        },
+                    )
+                except ClientError as ce:
+                    if ce.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                        raise
+
+            logger.info("Invoice tracked for milestones", user_id=user_id, amount_cents=amount_cents, new_total=new_total)
+
+        except ClientError as e:
+            logger.error("Failed to track invoice created", error=e, user_id=user_id)
+            # Non-fatal — do not raise; milestones are best-effort
+
+    def track_payment_received(self, user_id: str) -> None:
+        """
+        Record that a Stripe payment was received for this user's invoice.
+
+        - Sets first_payment_received_at if not already set.
+        - Appends 'first_payment' to conversion_milestones if not present.
+        """
+        try:
+            response = self.subscriptions_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression=(
+                    'SET first_payment_received_at = if_not_exists(first_payment_received_at, :now), '
+                    'conversion_milestones = if_not_exists(conversion_milestones, :empty_list), '
+                    'updated_at = :now'
+                ),
+                ExpressionAttributeValues={
+                    ':now': datetime.utcnow().isoformat(),
+                    ':empty_list': [],
+                },
+                ReturnValues='ALL_NEW',
+            )
+            milestones = response.get('Attributes', {}).get('conversion_milestones', [])
+
+            if 'first_payment' not in milestones:
+                try:
+                    self.subscriptions_table.update_item(
+                        Key={'user_id': user_id},
+                        UpdateExpression='SET conversion_milestones = list_append(conversion_milestones, :m)',
+                        ConditionExpression='not contains(conversion_milestones, :ms)',
+                        ExpressionAttributeValues={
+                            ':m': ['first_payment'],
+                            ':ms': 'first_payment',
+                        },
+                    )
+                except ClientError as ce:
+                    if ce.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                        raise
+
+            logger.info("Payment received tracked for milestones", user_id=user_id)
+
+        except ClientError as e:
+            logger.error("Failed to track payment received", error=e, user_id=user_id)
+            # Non-fatal
+
+    def track_client_created(self, user_id: str) -> None:
+        """
+        Record that a new client was created for this user.
+
+        - Increments total_clients_count.
+        - Appends 'three_clients' to conversion_milestones when count reaches 3.
+        """
+        try:
+            response = self.subscriptions_table.update_item(
+                Key={'user_id': user_id},
+                UpdateExpression=(
+                    'SET total_clients_count = if_not_exists(total_clients_count, :zero) + :one, '
+                    'conversion_milestones = if_not_exists(conversion_milestones, :empty_list), '
+                    'updated_at = :now'
+                ),
+                ExpressionAttributeValues={
+                    ':zero': 0,
+                    ':one': 1,
+                    ':now': datetime.utcnow().isoformat(),
+                    ':empty_list': [],
+                },
+                ReturnValues='ALL_NEW',
+            )
+            record = response.get('Attributes', {})
+            new_count = int(record.get('total_clients_count', 0))
+            milestones = record.get('conversion_milestones', [])
+
+            if new_count >= 3 and 'three_clients' not in milestones:
+                try:
+                    self.subscriptions_table.update_item(
+                        Key={'user_id': user_id},
+                        UpdateExpression='SET conversion_milestones = list_append(conversion_milestones, :m)',
+                        ConditionExpression='not contains(conversion_milestones, :ms)',
+                        ExpressionAttributeValues={
+                            ':m': ['three_clients'],
+                            ':ms': 'three_clients',
+                        },
+                    )
+                except ClientError as ce:
+                    if ce.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                        raise
+
+            logger.info("Client created tracked for milestones", user_id=user_id, new_count=new_count)
+
+        except ClientError as e:
+            logger.error("Failed to track client created", error=e, user_id=user_id)
+            # Non-fatal
+
     # =================
     # Helper Methods
     # =================

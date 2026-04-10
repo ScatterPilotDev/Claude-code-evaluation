@@ -1,6 +1,50 @@
 import { useState } from 'react';
 import authService from '../services/auth';
 
+// ── Shared auth page shell ────────────────────────────────────────────────────
+
+function AuthShell({ children }) {
+  return (
+    <div className="min-h-screen bg-surface-bg flex flex-col items-center justify-center px-4 py-12">
+      {/* Wordmark */}
+      <div className="mb-8 flex items-center gap-2.5">
+        <div className="w-8 h-8 bg-sage-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <span className="text-ink-inverse font-bold text-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>S</span>
+        </div>
+        <span className="font-semibold text-ink-primary text-heading-sm" style={{ fontFamily: '"DM Sans", system-ui, sans-serif' }}>ScatterPilot</span>
+      </div>
+
+      {/* Card */}
+      <div className="max-w-md w-full bg-surface-card rounded-card shadow-modal border border-surface-border p-8">
+        {children}
+      </div>
+
+      {/* Footer */}
+      <p className="mt-6 text-body-sm text-ink-tertiary">© 2026 ScatterPilot</p>
+    </div>
+  );
+}
+
+function ErrorAlert({ message }) {
+  if (!message) return null;
+  return (
+    <div className="rounded-input bg-danger-50 border border-danger-200 px-4 py-3 text-body-sm text-danger-400">
+      {message}
+    </div>
+  );
+}
+
+function SuccessAlert({ message }) {
+  if (!message) return null;
+  return (
+    <div className="rounded-input bg-success-50 border border-success-100 px-4 py-3 text-body-sm text-success-400">
+      {message}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function VerifyEmail({ email, onVerificationSuccess, onBackToSignup }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -13,7 +57,6 @@ export default function VerifyEmail({ email, onVerificationSuccess, onBackToSign
     setError('');
     setLoading(true);
 
-    // Validate code format
     if (!/^\d{6}$/.test(code)) {
       setError('Verification code must be 6 digits');
       setLoading(false);
@@ -26,7 +69,6 @@ export default function VerifyEmail({ email, onVerificationSuccess, onBackToSign
     } catch (err) {
       console.error('Verification error:', err);
 
-      // Handle different error types
       let errorMessage = 'Verification failed. Please try again.';
 
       if (err.code === 'CodeMismatchException') {
@@ -80,124 +122,88 @@ export default function VerifyEmail({ email, onVerificationSuccess, onBackToSign
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-xl border border-gray-200">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Verify your email
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            We sent a verification code to
-          </p>
-          <p className="mt-1 text-center text-sm font-medium text-gray-900">
-            {email}
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-950/30 border border-red-700/50 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-300">
-                    {error}
-                  </h3>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {resendSuccess && (
-            <div className="rounded-md bg-green-950/30 border border-green-700/50 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-300">
-                    Verification code sent! Check your email.
-                  </h3>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-              Verification Code
-            </label>
-            <input
-              id="code"
-              name="code"
-              type="text"
-              inputMode="numeric"
-              pattern="\d{6}"
-              required
-              value={code}
-              onChange={handleCodeChange}
-              className="mt-1 appearance-none relative block w-full px-3 py-2 bg-gray-100 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-2xl tracking-widest"
-              placeholder="000000"
-              maxLength={6}
-              autoComplete="off"
-            />
-            <p className="mt-1 text-xs text-gray-600">
-              Enter the 6-digit code from your email
-            </p>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading || code.length !== 6}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-brand hover:bg-gradient-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Verifying...
-                </>
-              ) : (
-                'Verify Email'
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between text-sm">
-            <button
-              type="button"
-              onClick={handleResendCode}
-              disabled={resendLoading}
-              className="text-purple-400 hover:text-purple-300 font-medium disabled:opacity-50"
-            >
-              {resendLoading ? 'Sending...' : 'Resend code'}
-            </button>
-
-            <button
-              type="button"
-              onClick={onBackToSignup}
-              className="text-gray-600 hover:text-gray-500"
-            >
-              Back to signup
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-4">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-600">
-                Didn't receive the code?
-              </span>
-            </div>
-          </div>
-          <div className="mt-4 text-center text-xs text-gray-600">
-            <p>Check your spam folder or click "Resend code"</p>
-          </div>
-        </div>
+    <AuthShell>
+      {/* Envelope icon */}
+      <div className="w-12 h-12 rounded-lg bg-sage-100 flex items-center justify-center mb-5">
+        <svg className="w-6 h-6 text-sage-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
       </div>
-    </div>
+
+      <h2 className="text-heading-lg text-ink-primary mb-1">Verify your email</h2>
+      <p className="text-body text-ink-secondary mb-1">
+        We sent a verification code to
+      </p>
+      <p className="text-body font-medium text-ink-primary mb-6">{email}</p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <ErrorAlert message={error} />
+        <SuccessAlert message={resendSuccess ? 'Verification code sent! Check your email.' : null} />
+
+        <div>
+          <label htmlFor="code" className="block text-body-sm font-medium text-ink-primary mb-1.5">
+            Verification code
+          </label>
+          <input
+            id="code"
+            name="code"
+            type="text"
+            inputMode="numeric"
+            pattern="\d{6}"
+            required
+            value={code}
+            onChange={handleCodeChange}
+            placeholder="000000"
+            maxLength={6}
+            autoComplete="off"
+            className="w-full px-3 py-4 border border-surface-border rounded-input bg-white text-ink-primary placeholder:text-ink-tertiary focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 transition-all duration-150 text-center text-heading-lg tracking-widest"
+          />
+          <p className="mt-1.5 text-body-sm text-ink-tertiary">
+            Enter the 6-digit code from your email
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || code.length !== 6}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <svg className="animate-spin h-4 w-4 text-white flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Verifying…
+            </>
+          ) : 'Verify Email'}
+        </button>
+
+        <div className="flex items-center justify-between text-body-sm pt-1">
+          <button
+            type="button"
+            onClick={handleResendCode}
+            disabled={resendLoading}
+            className="text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resendLoading ? 'Sending…' : 'Resend code'}
+          </button>
+          <button
+            type="button"
+            onClick={onBackToSignup}
+            className="text-ink-tertiary hover:text-ink-secondary transition-colors duration-150"
+          >
+            Back to signup
+          </button>
+        </div>
+
+        <div className="border-t border-surface-border pt-3 text-center">
+          <p className="text-body-sm text-ink-tertiary">
+            Didn't receive it? Check your spam folder or resend the code.
+          </p>
+        </div>
+      </form>
+    </AuthShell>
   );
 }

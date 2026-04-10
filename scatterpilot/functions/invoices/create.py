@@ -10,6 +10,7 @@ from typing import Any, Dict
 # Add layer to path
 sys.path.insert(0, '/opt/python')
 
+from common.access_control import get_user_access
 from common.bedrock_client import BedrockClient
 from common.dynamodb_helper import DynamoDBHelper, DynamoDBException
 from common.models import Invoice, InvoiceData, InvoiceStatus, LineItem
@@ -65,10 +66,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Check subscription and usage limits
         subscription = db_helper.check_and_reset_monthly_count(user_id)
-        is_pro = subscription.get('subscription_status') == 'pro'
+        access = get_user_access(subscription)
+        has_paid_access = access['hasAccess']  # True for active, trialing, past_due, canceled
         invoices_this_month = subscription.get('invoices_this_month', 0)
 
-        if not is_pro and invoices_this_month >= FREE_TIER_INVOICE_LIMIT:
+        if not has_paid_access and invoices_this_month >= FREE_TIER_INVOICE_LIMIT:
             logger.info(
                 "Free tier limit reached",
                 user_id=user_id,

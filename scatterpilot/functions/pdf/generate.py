@@ -26,6 +26,7 @@ from reportlab.platypus import (
 from reportlab.graphics.shapes import Drawing, Rect as GRect
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 
+from common.access_control import get_user_access
 from common.dynamodb_helper import DynamoDBHelper, DynamoDBException
 from common.models import InvoiceStatus
 from common.security import (
@@ -92,9 +93,11 @@ class PDFGenerator:
         color_palette: Dict[str, Any],
         is_free_tier: bool = False,
         user_info: Dict[str, Any] = None,
+        show_branding: bool = True,
     ):
         self.p = color_palette          # palette shorthand
         self.is_free_tier = is_free_tier
+        self.show_branding = show_branding
         self.user_info = user_info or {}
         self.styles = getSampleStyleSheet()
         self._page_width = A4[0] - 2 * self.MARGIN   # usable width in points
@@ -273,10 +276,11 @@ class PDFGenerator:
             if left_text:
                 canvas.drawString(left, y, left_text)
 
-            # Right: Powered by ScatterPilot
-            canvas.setFillColor(colors.HexColor('#A0ADB9'))
-            label = 'Powered by ScatterPilot'
-            canvas.drawRightString(right, y, label)
+            # Right: subtle watermark for solo/trial — nothing for pro/agency
+            if self.show_branding:
+                canvas.setFillColor(colors.HexColor('#C8CEC3'))
+                canvas.setFont('Helvetica', 7)
+                canvas.drawRightString(right, y, 'ScatterPilot')
 
             # Thin rule above footer
             canvas.setStrokeColor(p['border'])
@@ -844,12 +848,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # ── Subscription / tier ──────────────────────────────────────
         is_pro = False
+        show_branding = True
         color_preference = None
         subscription = None
         try:
             subscription = db_helper.get_user_subscription(user_id)
-            is_pro = bool(subscription and subscription.get('subscription_status') == 'pro')
-            color_preference = subscription.get('invoice_color') if subscription else None
+            if subscription:
+                access = get_user_access(subscription)
+                is_pro = access['hasAccess']  # any paying/trialing user gets pro features
+                plan = subscription.get('subscription_plan')
+                status = subscription.get('subscription_status')
+                # Pro & Agency active subscribers get no branding
+                show_branding = not (
+                    plan in ('pro', 'agency')
+                    and status in ('active', 'past_due', 'canceled')
+                )
+                color_preference = subscription.get('invoice_color')
         except Exception as sub_err:
             logger.warning('Subscription lookup failed, defaulting to free tier', error=str(sub_err))
 
@@ -890,7 +904,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         user_info = get_user_info_from_cognito(event, user_id, is_pro=is_pro)
         color_palette = get_color_palette(is_pro, color_preference)
 
-        pdf_gen = PDFGenerator(color_palette=color_palette, is_free_tier=not is_pro, user_info=user_info)
+        pdf_gen = PDFGenerator(color_palette=color_palette, is_free_tier=not is_pro, user_info=user_info, show_branding=show_branding)
         pdf_bytes = pdf_gen.generate(
             invoice_data=invoice.data.to_dynamodb(),
             invoice_id=invoice_id,

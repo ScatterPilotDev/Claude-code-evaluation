@@ -267,12 +267,14 @@ export default function PayInvoicePage() {
             </div>
           )}
 
-          {/* Footer */}
-          <div className="mt-6 flex justify-center">
-            <Link to="/" className="flex items-center opacity-40 hover:opacity-70 transition-opacity duration-150">
-              <Logo variant="compact" size="sm" />
-            </Link>
-          </div>
+          {/* Footer — only shown when invoice owner is on solo/trial plan */}
+          {invoice?.showBranding !== false && (
+            <div className="mt-6 flex justify-center">
+              <Link to="/" className="text-[11px] text-ink-tertiary/50 hover:text-ink-tertiary transition-colors duration-150">
+                ScatterPilot
+              </Link>
+            </div>
+          )}
         </div>
       </main>
     </div>

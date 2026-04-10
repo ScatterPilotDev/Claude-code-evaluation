@@ -324,7 +324,7 @@ export default function AppWithSidebar() {
     }
 
     if (isReports) {
-      return <ReportsPage />;
+      return <ReportsPage billingStatus={billingStatus} />;
     }
 
     if (isSettings) {

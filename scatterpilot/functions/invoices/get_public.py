@@ -20,6 +20,7 @@ sys.path.insert(0, '/opt/python')
 import boto3
 from botocore.exceptions import ClientError
 
+from common.access_control import get_user_access
 from common.logger import get_logger
 
 logger = get_logger("get_public_invoice")
@@ -69,16 +70,25 @@ def handler(event: dict, context) -> dict:
         data = invoice.get('data', {})
         invoice_status = invoice.get('status', 'draft')
 
-        # ── Fetch business name from owner's profile ───────────────────────────
+        # ── Fetch owner's profile & subscription ──────────────────────────────
         business_name = None
+        show_branding = True  # default: show subtle branding
         user_id = invoice.get('user_id')
         if user_id:
             try:
                 sub_resp = subscriptions_table.get_item(
                     Key={'user_id': user_id},
-                    ProjectionExpression='business_name',
+                    ProjectionExpression='business_name, subscription_plan, subscription_status',
                 )
-                business_name = sub_resp.get('Item', {}).get('business_name')
+                owner_sub = sub_resp.get('Item', {})
+                business_name = owner_sub.get('business_name')
+                # Pro & Agency active subscribers: no branding on public page
+                plan = owner_sub.get('subscription_plan')
+                status = owner_sub.get('subscription_status')
+                show_branding = not (
+                    plan in ('pro', 'agency')
+                    and status in ('active', 'past_due', 'canceled')
+                )
             except ClientError:
                 pass  # Non-fatal — invoice still shown without business name
 
@@ -118,6 +128,7 @@ def handler(event: dict, context) -> dict:
                 not paid
                 and invoice_status not in ('cancelled',)
             ),
+            'showBranding': show_branding,
         }
 
         logger.info(f"Returning public invoice {invoice_id}, status={invoice_status}")

@@ -693,6 +693,21 @@ class ApiService {
     }
   }
 
+  async getReportsSummary() {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/reports/summary`, { headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `API error: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[API] getReportsSummary failed:', error);
+      throw error;
+    }
+  }
+
   // Clear conversation for new invoice
   clearConversation() {
     this.conversationId = null;

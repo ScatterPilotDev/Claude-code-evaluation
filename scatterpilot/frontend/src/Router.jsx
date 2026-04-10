@@ -10,7 +10,6 @@ import { FeedbackProvider } from './contexts/FeedbackContext';
 // Lazy load route components for code splitting
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const AppWithSidebar = lazy(() => import('./components/AppWithSidebar'));
-const Pricing = lazy(() => import('./components/Pricing'));
 const Account = lazy(() => import('./components/Account'));
 const Settings = lazy(() => import('./components/Settings'));
 const Success = lazy(() => import('./components/Success'));
@@ -51,7 +50,7 @@ export default function Router() {
               <Route path="/app/settings" element={<AppWithSidebar />} />
               <Route path="/app/settings/payments" element={<AppWithSidebar />} />
               <Route path="/app/pricing" element={<AppWithSidebar />} />
-              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/pricing" element={<Navigate to="/app/pricing" replace />} />
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/success" element={<Success />} />

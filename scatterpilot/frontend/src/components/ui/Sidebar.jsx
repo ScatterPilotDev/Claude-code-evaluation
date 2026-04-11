@@ -229,6 +229,13 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
                   )}
                 </div>
               </div>
+              {/* Desktop log out */}
+              <button
+                onClick={handleSignOut}
+                className="hidden lg:block w-full text-left px-3 py-1 text-body-sm text-ink-tertiary hover:text-danger-400 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset rounded"
+              >
+                Log out
+              </button>
               {/* Tablet avatar only */}
               <div className="flex lg:hidden justify-center py-2">
                 <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">

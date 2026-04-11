@@ -168,8 +168,8 @@ export default function OnboardingFlow({ onComplete }) {
               transition={stepTransition}
             >
               <div className="text-center">
-                <h1 className="text-display text-ink-primary">What's your business called?</h1>
-                <p className="text-body-lg text-ink-secondary mt-2">This appears on your invoices</p>
+                <h1 className="text-2xl md:text-display text-ink-primary">What's your business called?</h1>
+                <p className="text-body md:text-body-lg text-ink-secondary mt-2">This appears on your invoices</p>
               </div>
               <div className="mt-8 max-w-sm mx-auto">
                 <input
@@ -205,8 +205,8 @@ export default function OnboardingFlow({ onComplete }) {
               transition={stepTransition}
             >
               <div className="text-center">
-                <h1 className="text-display text-ink-primary">What do you do?</h1>
-                <p className="text-body-lg text-ink-secondary mt-2">
+                <h1 className="text-2xl md:text-display text-ink-primary">What do you do?</h1>
+                <p className="text-body md:text-body-lg text-ink-secondary mt-2">
                   Describe your services — we'll help categorize them for invoices
                 </p>
               </div>
@@ -243,8 +243,8 @@ export default function OnboardingFlow({ onComplete }) {
               transition={stepTransition}
             >
               <div className="text-center">
-                <h1 className="text-display text-ink-primary">What's your typical rate?</h1>
-                <p className="text-body-lg text-ink-secondary mt-2">
+                <h1 className="text-2xl md:text-display text-ink-primary">What's your typical rate?</h1>
+                <p className="text-body md:text-body-lg text-ink-secondary mt-2">
                   We'll use this as the default when creating invoices
                 </p>
               </div>
@@ -305,8 +305,8 @@ export default function OnboardingFlow({ onComplete }) {
               transition={stepTransition}
             >
               <div className="text-center">
-                <h1 className="text-display text-ink-primary">Who's your first client?</h1>
-                <p className="text-body-lg text-ink-secondary mt-2">
+                <h1 className="text-2xl md:text-display text-ink-primary">Who's your first client?</h1>
+                <p className="text-body md:text-body-lg text-ink-secondary mt-2">
                   Let's create your first invoice right now
                 </p>
               </div>

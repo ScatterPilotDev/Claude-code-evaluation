@@ -35,6 +35,12 @@ function getStatusCls(status) {
   return opt ? opt.cls : 'bg-gray-100 text-gray-600 border-gray-200';
 }
 
+function formatInvoiceNumber(invoiceId, invoiceData) {
+  const num = invoiceData?.invoiceNumber;
+  if (num) return `INV-${String(num).padStart(4, '0')}`;
+  return `INV-${String(invoiceId || '').slice(-6).toUpperCase()}`;
+}
+
 export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, onNewInvoice, subscription }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -221,7 +227,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-4xl font-bold text-navy mb-2">INVOICE</h1>
-              <p className="text-sm text-navy-muted mb-3">ID: {invoiceId}</p>
+              <p className="text-sm text-navy-muted mb-3">{formatInvoiceNumber(invoiceId, displayData)}</p>
               {/* Status dropdown */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-navy-muted font-medium">Status:</span>
@@ -393,7 +399,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
           {isEditing && (
             <button
               onClick={addLineItem}
-              className="mt-3 flex items-center space-x-1 text-sm text-sage hover:text-sage-dark font-medium transition-colors"
+              className="mt-3 flex items-center space-x-1 text-sm text-sage-500 hover:text-sage-600 font-medium transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -419,7 +425,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
                     max="1"
                     step="0.01"
                     value={tax_rate}
-                    onChange={e => updateField('tax_rate', e.target.value)}
+                    onChange={e => setEditData(prev => computeDerivedTotals({ ...prev, tax_rate: e.target.value }))}
                     className="inline w-16 px-1 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-1 focus:ring-sage"
                   />
                 ) : (
@@ -430,7 +436,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
             </div>
             <div className="flex justify-between py-4 border-t-2 border-sage bg-sage-light px-4 rounded-lg mt-2">
               <span className="font-bold text-lg text-navy">Total</span>
-              <span className="font-bold text-2xl text-sage">{formatCurrency(parseFloat(total))}</span>
+              <span className="font-bold text-2xl text-sage-500">{formatCurrency(parseFloat(total))}</span>
             </div>
           </div>
         </div>
@@ -469,7 +475,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
                 <button
                   onClick={saveEdit}
                   disabled={isSaving}
-                  className="px-4 py-2 bg-sage hover:bg-sage-dark text-white font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="px-4 py-2 bg-sage-500 hover:bg-sage-600 text-white font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   {isSaving ? (
                     <>
@@ -499,7 +505,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
             ) : (
               <button
                 onClick={startEdit}
-                className="px-4 py-2 border border-gray-300 text-navy-light hover:text-navy hover:border-sage font-medium rounded-lg transition-all duration-200 flex items-center space-x-2 text-sm"
+                className="px-4 py-2 border border-gray-300 text-navy-light hover:text-navy hover:border-sage-500 font-medium rounded-lg transition-all duration-200 flex items-center space-x-2 text-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -512,7 +518,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
 
           {/* Download PDF — always visible */}
           <button
-            className="px-6 py-3 bg-sage hover:bg-sage-dark text-white font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-sage-500 hover:bg-sage-600 text-white font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleDownloadPDF}
             disabled={isDownloading}
           >
@@ -551,7 +557,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
                     <button
                       onClick={handleGetPaymentLink}
                       disabled={isGettingLink}
-                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-navy-light hover:text-navy hover:border-sage font-medium rounded-lg transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-navy-light hover:text-navy hover:border-sage-500 font-medium rounded-lg transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isGettingLink ? (
                         <>
@@ -615,7 +621,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
               <p className="text-sm text-navy-light">
                 <Link
                   to="/app/settings"
-                  className="text-sage hover:text-sage-dark underline font-medium transition-colors"
+                  className="text-sage-500 hover:text-sage-600 underline font-medium transition-colors"
                 >
                   Connect Stripe to accept payments
                 </Link>

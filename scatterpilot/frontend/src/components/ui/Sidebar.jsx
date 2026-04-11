@@ -46,6 +46,15 @@ function IconReports({ className }) {
   );
 }
 
+function IconProfile({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
 function IconSettings({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -80,6 +89,7 @@ const NAV_ITEMS = [
   { label: 'Clients',  href: '/app/clients',   Icon: IconClients },
   { label: 'Invoices', href: '/app/invoices',  Icon: IconInvoices },
   { label: 'Reports',  href: '/app/reports',   Icon: IconReports },
+  { label: 'Profile',  href: '/app/profile',   Icon: IconProfile },
 ];
 
 // Tooltip for tablet icon-only mode (hidden on lg where labels are visible)
@@ -112,11 +122,6 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
   const isTrialing = billingStatus?.subscription_status === 'trialing';
   const isExpired = billingStatus?.access?.reason === 'trial_expired' ||
     billingStatus?.subscription_status === 'expired';
-
-  const allNavItems = [
-    ...NAV_ITEMS,
-    { label: 'Settings', href: '/app/settings', Icon: IconSettings },
-  ];
 
   return (
     <>
@@ -208,18 +213,21 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
             <NavTooltip label="Settings" />
           </div>
 
-          {/* User info — full email on desktop, avatar-only on tablet */}
+          {/* User info — clickable, navigates to /app/profile */}
           {userEmail && (
             <>
               {/* Desktop user row */}
-              <div className="hidden lg:flex items-center gap-2.5 px-3 py-2 mt-1">
+              <Link
+                to="/app/profile"
+                className="hidden lg:flex items-center gap-2.5 px-3 py-2 mt-1 rounded-lg hover:bg-surface-hover transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset group/userrow"
+              >
                 <div className="flex-shrink-0 w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
                   <span className="text-label text-sage-600 font-medium">
                     {userInitials || userEmail[0].toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-body-sm text-ink-tertiary truncate block">
+                  <span className="text-body-sm text-ink-tertiary truncate block group-hover/userrow:text-ink-secondary transition-colors duration-150">
                     {userEmail}
                   </span>
                   {isTrialing && !isExpired && (
@@ -228,7 +236,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
                     </span>
                   )}
                 </div>
-              </div>
+              </Link>
               {/* Desktop log out */}
               <button
                 onClick={handleSignOut}
@@ -236,14 +244,18 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
               >
                 Log out
               </button>
-              {/* Tablet avatar only */}
-              <div className="flex lg:hidden justify-center py-2">
+              {/* Tablet avatar only — also links to profile */}
+              <Link
+                to="/app/profile"
+                className="flex lg:hidden justify-center py-2 rounded-lg hover:bg-surface-hover transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset"
+                aria-label="Profile"
+              >
                 <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
                   <span className="text-label text-sage-600 font-medium">
                     {userInitials || userEmail[0].toUpperCase()}
                   </span>
                 </div>
-              </div>
+              </Link>
             </>
           )}
         </div>
@@ -251,7 +263,7 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
 
       {/* ── Mobile Bottom Nav (hidden on md+) ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-card border-t border-surface-border z-30 flex items-center justify-around">
-        {allNavItems.map(({ label, href, Icon }) => {
+        {NAV_ITEMS.map(({ label, href, Icon }) => {
           const active = isActive(href);
           return (
             <Link

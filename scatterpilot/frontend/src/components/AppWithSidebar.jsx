@@ -9,6 +9,7 @@ import ClientDetailPage from './ClientDetailPage';
 import OnboardingFlow from './OnboardingFlow';
 import ReportsPage from './ReportsPage';
 import SettingsPage from './SettingsPage';
+import ProfilePage from './ProfilePage';
 import PricingPage from './PricingPage';
 import TrialExpiredModal from './TrialExpiredModal';
 import ConversionToasts from './ConversionToasts';
@@ -73,6 +74,7 @@ export default function AppWithSidebar() {
   const isClientDetail = pathname.startsWith('/app/clients/');
   const isReports      = pathname.startsWith('/app/reports');
   const isSettings     = pathname.startsWith('/app/settings');
+  const isProfile      = pathname === '/app/profile';
   const isPricing      = pathname === '/app/pricing';
 
   // Access helpers derived from billing state
@@ -329,6 +331,10 @@ export default function AppWithSidebar() {
 
     if (isSettings) {
       return <SettingsPage />;
+    }
+
+    if (isProfile) {
+      return <ProfilePage />;
     }
 
     if (isPricing) {

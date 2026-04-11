@@ -14,8 +14,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import authService from '../services/auth';
-import Input, { TextArea } from './ui/Input';
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 
@@ -217,107 +215,6 @@ function Connected({ status }) {
   );
 }
 
-// ── Profile section ───────────────────────────────────────────────────────────
-
-const RATE_TYPES = [
-  { value: 'hour', label: 'per hour' },
-  { value: 'project', label: 'per project' },
-  { value: 'day', label: 'per day' },
-];
-
-function ProfileSection({ profile, originalProfile, onChange, onSave, saving }) {
-  const hasChanges =
-    profile.business_name !== originalProfile.business_name ||
-    profile.typical_services !== originalProfile.typical_services ||
-    profile.default_rate !== originalProfile.default_rate ||
-    profile.rate_type !== originalProfile.rate_type;
-
-  return (
-    <div className="space-y-4">
-      {/* Business name */}
-      <Input
-        label="Business name"
-        type="text"
-        value={profile.business_name}
-        onChange={e => onChange('business_name', e.target.value)}
-        placeholder="Your business name"
-      />
-
-      {/* Email (read-only) */}
-      <div className="space-y-1.5">
-        <label className="block text-label uppercase tracking-wider text-ink-secondary">Email</label>
-        <p className="px-3.5 py-2.5 text-body text-ink-secondary bg-surface-muted border border-surface-border rounded-input">
-          {profile.email || '—'}
-        </p>
-      </div>
-
-      {/* Services */}
-      <TextArea
-        label="Services"
-        value={profile.typical_services}
-        onChange={e => onChange('typical_services', e.target.value)}
-        placeholder="e.g. Web design, Brand identity, SEO"
-        rows={3}
-      />
-
-      {/* Default rate */}
-      <div className="space-y-1.5">
-        <label className="block text-label uppercase tracking-wider text-ink-secondary">Default rate</label>
-        <div className="relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary text-body pointer-events-none">$</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={profile.default_rate}
-            onChange={e => onChange('default_rate', e.target.value)}
-            placeholder="0"
-            className="w-full pl-7 pr-3.5 py-2.5 bg-surface-card border border-surface-border rounded-input text-body text-ink-primary placeholder:text-ink-tertiary transition-all duration-150 focus:outline-none focus:ring-1 focus:border-sage-500 focus:ring-sage-500/20"
-          />
-        </div>
-      </div>
-
-      {/* Rate type pill toggle */}
-      <div className="space-y-1.5">
-        <label className="block text-label uppercase tracking-wider text-ink-secondary">Rate type</label>
-        <div className="inline-flex rounded-input border border-surface-border overflow-hidden">
-          {RATE_TYPES.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => onChange('rate_type', value)}
-              className={[
-                'px-4 py-2 text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
-                profile.rate_type === value
-                  ? 'bg-sage-500 text-ink-inverse'
-                  : 'bg-surface-card text-ink-secondary hover:bg-surface-hover',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Save button */}
-      <div className="pt-1">
-        <button
-          onClick={onSave}
-          disabled={!hasChanges || saving}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
-        >
-          {saving ? (
-            <>
-              <span className="inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              Saving…
-            </>
-          ) : 'Save changes'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Subscription section ──────────────────────────────────────────────────────
 
 function SubscriptionSection({ billing, billingLoading, onPortal, portalLoading }) {
@@ -432,75 +329,22 @@ function SubscriptionSection({ billing, billingLoading, onPortal, portalLoading 
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const EMPTY_PROFILE = { business_name: '', email: '', typical_services: '', default_rate: '', rate_type: 'hour' };
-
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [statusLoading, setStatusLoading] = useState(true);
-  const [connectStatus, setConnectStatus] = useState(null);  // null = not yet loaded
+  const [connectStatus, setConnectStatus] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [toast, setToast] = useState(null);  // { message, type }
+  const [toast, setToast] = useState(null);
 
   // Billing state
   const [billing, setBilling] = useState(null);
   const [billingLoading, setBillingLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
 
-  // Profile state
-  const [profile, setProfile] = useState(EMPTY_PROFILE);
-  const [originalProfile, setOriginalProfile] = useState(EMPTY_PROFILE);
-  const [profileSaving, setProfileSaving] = useState(false);
-
-  const loadProfile = useCallback(async () => {
-    try {
-      const data = await api.getProfile();
-      const p = {
-        business_name: data.business_name || '',
-        email: data.email || '',
-        typical_services: data.typical_services || '',
-        default_rate: data.default_rate != null ? String(data.default_rate) : '',
-        rate_type: data.rate_type || 'hour',
-      };
-      setProfile(p);
-      setOriginalProfile(p);
-    } catch {
-      // profile load failure is non-critical
-    }
-  }, []);
-
   useEffect(() => {
     document.title = 'Settings — ScatterPilot';
     api.getBillingStatus().then(setBilling).catch(() => {}).finally(() => setBillingLoading(false));
-    loadProfile();
-  }, [loadProfile]);
-
-  const handleProfileChange = (field, value) => {
-    setProfile(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleProfileSave = async () => {
-    setProfileSaving(true);
-    try {
-      await api.updateProfile({
-        business_name: profile.business_name,
-        typical_services: profile.typical_services,
-        default_rate: profile.default_rate !== '' ? parseFloat(profile.default_rate) : null,
-        rate_type: profile.rate_type,
-      });
-      setOriginalProfile(profile);
-      setToast({ message: 'Profile updated', type: 'success' });
-    } catch {
-      setToast({ message: 'Could not save profile. Please try again.', type: 'error' });
-    } finally {
-      setProfileSaving(false);
-    }
-  };
-
-  const handleLogOut = async () => {
-    await authService.signOut();
-    navigate('/');
-  };
+  }, []);
 
   const handlePortal = async () => {
     setPortalLoading(true);
@@ -534,13 +378,11 @@ export default function SettingsPage() {
 
     if (onboardingComplete) {
       setToast({ message: 'Stripe account connected successfully!', type: 'success' });
-      // Clear params from URL without navigation
       setSearchParams({}, { replace: true });
     }
 
     loadStatus().then(() => {
       if (needsRefresh && !onboardingComplete) {
-        // Auto-trigger reconnect
         handleConnect();
         setSearchParams({}, { replace: true });
       }
@@ -589,18 +431,6 @@ export default function SettingsPage() {
 
       <h1 className="text-title text-ink-primary mb-6">Settings</h1>
 
-      {/* Profile card */}
-      <section className="bg-surface-card border border-surface-border rounded-card p-6 mb-5">
-        <p className="text-label uppercase tracking-widest text-ink-tertiary font-medium mb-4">Profile</p>
-        <ProfileSection
-          profile={profile}
-          originalProfile={originalProfile}
-          onChange={handleProfileChange}
-          onSave={handleProfileSave}
-          saving={profileSaving}
-        />
-      </section>
-
       {/* Subscription card */}
       <section className="bg-surface-card border border-surface-border rounded-card p-6 mb-5">
         <p className="text-label uppercase tracking-widest text-ink-tertiary font-medium mb-4">Subscription</p>
@@ -613,18 +443,10 @@ export default function SettingsPage() {
       </section>
 
       {/* Payments card */}
-      <section className="bg-surface-card border border-surface-border rounded-card p-6 mb-5">
+      <section className="bg-surface-card border border-surface-border rounded-card p-6">
         <p className="text-label uppercase tracking-widest text-ink-tertiary font-medium mb-4">Payments</p>
         {renderPaymentsContent()}
       </section>
-
-      {/* Log out */}
-      <button
-        onClick={handleLogOut}
-        className="w-full py-3 text-body font-medium text-danger-400 text-center hover:text-danger-500 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-400 focus-visible:ring-offset-2 rounded"
-      >
-        Log out
-      </button>
     </div>
   );
 }

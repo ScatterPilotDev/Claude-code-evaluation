@@ -162,41 +162,53 @@ function AgingChart({ data }) {
   );
 }
 
-// ── Upgrade overlay ───────────────────────────────────────────────────────────
+// ── Upgrade banner (single, top of page) ─────────────────────────────────────
 
-function UpgradeOverlay() {
+function UpgradeBanner() {
   return (
-    <div className="relative">
-      {/* Blurred preview */}
-      <div className="select-none pointer-events-none blur-sm opacity-40">
-        <div className="space-y-2.5">
-          {['Acme Corp', 'Bright Ideas LLC', 'Pixel Studio', 'Wave Agency'].map((c, i) => (
-            <div key={c} className="flex items-center gap-3">
-              <span className="text-body-sm text-ink-secondary w-28 text-right">{c}</span>
-              <div className="flex-1 bg-surface-muted rounded-full h-6 overflow-hidden">
-                <div className="h-full bg-sage-300 rounded-full" style={{ width: `${[85, 60, 40, 25][i]}%` }} />
-              </div>
-              <span className="text-body-sm font-medium text-ink-primary w-20">{['$12,400', '$8,200', '$5,100', '$3,300'][i]}</span>
-            </div>
-          ))}
-        </div>
+    <div className="bg-sage-50 border border-sage-200 rounded-card p-6 text-center mb-6">
+      <div className="flex justify-center mb-3">
+        <svg className="w-8 h-8 text-sage-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
       </div>
-      {/* Overlay CTA */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-card/80 backdrop-blur-[2px] rounded-lg">
-        <p className="text-heading text-ink-primary font-semibold">Upgrade to Pro</p>
-        <p className="text-body-sm text-ink-secondary text-center max-w-xs">
-          Unlock full analytics — revenue by client, monthly trends, aging reports, and more.
-        </p>
-        <a
-          href="/app/pricing"
-          className="px-5 py-2.5 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150"
-        >
-          View plans →
-        </a>
-      </div>
+      <h2 className="text-heading text-ink-primary">Unlock Reports &amp; Analytics</h2>
+      <p className="text-body text-ink-secondary mt-1">
+        Upgrade to Pro to access revenue insights, monthly trends, invoice aging, and more.
+      </p>
+      <a
+        href="/app/pricing"
+        className="inline-flex items-center mt-4 px-5 py-2.5 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+      >
+        Upgrade to Pro →
+      </a>
     </div>
   );
 }
+
+// ── Preview data for non-Pro teaser ──────────────────────────────────────────
+
+const PREVIEW_CLIENT_DATA = [
+  { client: 'Acme Corp', total: 12400 },
+  { client: 'Bright Ideas LLC', total: 8200 },
+  { client: 'Pixel Studio', total: 5100 },
+  { client: 'Wave Agency', total: 3300 },
+];
+
+const PREVIEW_MONTHLY_DATA = [
+  { month: '2025-11', invoiced: 8000, received: 6500 },
+  { month: '2025-12', invoiced: 11000, received: 9200 },
+  { month: '2026-01', invoiced: 9500, received: 8800 },
+  { month: '2026-02', invoiced: 13000, received: 11400 },
+  { month: '2026-03', invoiced: 10500, received: 9700 },
+  { month: '2026-04', invoiced: 14200, received: 12100 },
+];
+
+const PREVIEW_STATUS_DATA = { paid: 18, sent: 5, overdue: 2, draft: 3 };
+
+const PREVIEW_AGING_DATA = { current: 4, '1_30': 2, '31_60': 1, '61_90': 1, '90_plus': 0 };
 
 // ── Loading skeleton ──────────────────────────────────────────────────────────
 
@@ -266,66 +278,69 @@ export default function ReportsPage({ billingStatus }) {
         </div>
       )}
 
+      {/* Single upgrade banner for non-Pro users */}
+      {!hasAccess && <UpgradeBanner />}
+
       {/* Report cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Revenue by Client */}
         <ReportCard
           title="Revenue by Client"
           stat={hasAccess && data ? `${data.revenueByClient?.length ?? 0} clients` : undefined}
-          statLabel="sorted by total billed"
+          statLabel={hasAccess ? "sorted by total billed" : undefined}
         >
-          {!hasAccess ? (
-            <UpgradeOverlay />
-          ) : loading ? (
-            <Skeleton />
-          ) : (
-            <RevenueByClientChart data={data?.revenueByClient} />
-          )}
+          <div className={!hasAccess ? 'opacity-50 pointer-events-none select-none' : undefined}>
+            {loading ? (
+              <Skeleton />
+            ) : (
+              <RevenueByClientChart data={hasAccess ? data?.revenueByClient : PREVIEW_CLIENT_DATA} />
+            )}
+          </div>
         </ReportCard>
 
         {/* Monthly Trend */}
         <ReportCard
           title="Monthly Revenue"
           stat={hasAccess && data ? fmt(data.monthlyTrend?.slice(-1)[0]?.received ?? 0) : undefined}
-          statLabel="received this month"
+          statLabel={hasAccess ? "received this month" : undefined}
         >
-          {!hasAccess ? (
-            <UpgradeOverlay />
-          ) : loading ? (
-            <Skeleton />
-          ) : (
-            <MonthlyTrendChart data={data?.monthlyTrend} />
-          )}
+          <div className={!hasAccess ? 'opacity-50 pointer-events-none select-none' : undefined}>
+            {loading ? (
+              <Skeleton />
+            ) : (
+              <MonthlyTrendChart data={hasAccess ? data?.monthlyTrend : PREVIEW_MONTHLY_DATA} />
+            )}
+          </div>
         </ReportCard>
 
         {/* Status Breakdown */}
         <ReportCard
           title="Invoice Status"
           stat={hasAccess && data ? totalInvoices : undefined}
-          statLabel="total invoices"
+          statLabel={hasAccess ? "total invoices" : undefined}
         >
-          {!hasAccess ? (
-            <UpgradeOverlay />
-          ) : loading ? (
-            <Skeleton />
-          ) : (
-            <StatusBreakdownChart data={data?.statusBreakdown} />
-          )}
+          <div className={!hasAccess ? 'opacity-50 pointer-events-none select-none' : undefined}>
+            {loading ? (
+              <Skeleton />
+            ) : (
+              <StatusBreakdownChart data={hasAccess ? data?.statusBreakdown : PREVIEW_STATUS_DATA} />
+            )}
+          </div>
         </ReportCard>
 
         {/* Aging */}
         <ReportCard
           title="Outstanding Aging"
           stat={hasAccess && data ? data?.agingBuckets?.['90_plus'] ?? 0 : undefined}
-          statLabel="invoices 90+ days overdue"
+          statLabel={hasAccess ? "invoices 90+ days overdue" : undefined}
         >
-          {!hasAccess ? (
-            <UpgradeOverlay />
-          ) : loading ? (
-            <Skeleton />
-          ) : (
-            <AgingChart data={data?.agingBuckets} />
-          )}
+          <div className={!hasAccess ? 'opacity-50 pointer-events-none select-none' : undefined}>
+            {loading ? (
+              <Skeleton />
+            ) : (
+              <AgingChart data={hasAccess ? data?.agingBuckets : PREVIEW_AGING_DATA} />
+            )}
+          </div>
         </ReportCard>
       </div>
 

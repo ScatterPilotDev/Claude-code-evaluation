@@ -42,7 +42,7 @@ function relativeTime(dateStr) {
 
 function MetricCardSkeleton({ wide }) {
   return (
-    <div className={`bg-surface-card rounded-card border border-surface-border p-6 animate-pulse ${wide ? 'flex-[2]' : 'flex-1'}`}>
+    <div className={`bg-surface-card rounded-card border border-surface-border p-6 animate-pulse ${wide ? 'sm:flex-[2]' : 'sm:flex-1'}`}>
       <div className="h-3 w-28 bg-surface-hover rounded mb-4" />
       <div className="h-10 w-36 bg-surface-hover rounded mb-2" />
       <div className="h-3 w-20 bg-surface-muted rounded" />
@@ -115,9 +115,9 @@ function MetricCards({ invoices }) {
   const hasOverdue = overdueInvoices.length > 0;
 
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-col sm:flex-row gap-4">
       {/* You're owed — primary, ~50% */}
-      <div className="flex-[2] bg-surface-card rounded-card shadow-card border border-surface-border p-6">
+      <div className="sm:flex-[2] bg-surface-card rounded-card shadow-card border border-surface-border p-6">
         <p className="text-label uppercase tracking-wider text-ink-tertiary mb-3">You're owed</p>
         <MoneyDisplay amount={youAreOwed} size="xl" className="text-ink-primary" />
         <p className="mt-2 text-body-sm text-ink-tertiary">
@@ -126,7 +126,7 @@ function MetricCards({ invoices }) {
       </div>
 
       {/* Received this month — ~25% */}
-      <div className="flex-1 bg-surface-card rounded-card shadow-card border border-surface-border p-6">
+      <div className="sm:flex-1 bg-surface-card rounded-card shadow-card border border-surface-border p-6">
         <p className="text-label uppercase tracking-wider text-ink-tertiary mb-3">Received this month</p>
         <MoneyDisplay amount={receivedThisMonth} size="lg" className="text-ink-primary" />
         <p className="mt-2 text-body-sm text-ink-tertiary">
@@ -136,7 +136,7 @@ function MetricCards({ invoices }) {
 
       {/* Overdue — ~25%, accent left border if overdue */}
       <div className={[
-        'flex-1 bg-surface-card rounded-card shadow-card border border-surface-border p-6',
+        'sm:flex-1 bg-surface-card rounded-card shadow-card border border-surface-border p-6',
         hasOverdue ? 'border-l-4 border-l-danger-400' : '',
       ].join(' ')}>
         <p className="text-label uppercase tracking-wider text-ink-tertiary mb-3">Overdue</p>
@@ -321,7 +321,7 @@ export default function DashboardHome({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           <MetricCardSkeleton wide />
           <MetricCardSkeleton />
           <MetricCardSkeleton />

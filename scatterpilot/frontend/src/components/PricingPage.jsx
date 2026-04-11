@@ -149,10 +149,10 @@ export default function PricingPage({ currentStatus = null }) {
 
       {/* ── Toggle ── */}
       <div className="flex items-center justify-center gap-3 mb-10">
-        <div className="inline-flex items-center bg-surface-muted border border-surface-border rounded-full p-1">
+        <div className="inline-flex items-center bg-surface-muted border border-surface-border rounded-full p-1 min-h-[44px]">
           <button
             onClick={() => setPeriod('monthly')}
-            className={`px-4 py-1.5 rounded-full text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 ${
+            className={`px-5 py-2 rounded-full text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 min-h-[36px] ${
               period === 'monthly'
                 ? 'bg-surface-card text-ink-primary shadow-sm'
                 : 'text-ink-tertiary hover:text-ink-secondary'
@@ -162,7 +162,7 @@ export default function PricingPage({ currentStatus = null }) {
           </button>
           <button
             onClick={() => setPeriod('annual')}
-            className={`px-4 py-1.5 rounded-full text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 ${
+            className={`px-5 py-2 rounded-full text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 min-h-[36px] ${
               period === 'annual'
                 ? 'bg-surface-card text-ink-primary shadow-sm'
                 : 'text-ink-tertiary hover:text-ink-secondary'

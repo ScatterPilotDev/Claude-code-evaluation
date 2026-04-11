@@ -64,6 +64,15 @@ function IconPlus({ className }) {
   );
 }
 
+function IconUpgrade({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+
 // ── Nav items config ─────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
@@ -72,6 +81,17 @@ const NAV_ITEMS = [
   { label: 'Invoices', href: '/app/invoices',  Icon: IconInvoices },
   { label: 'Reports',  href: '/app/reports',   Icon: IconReports },
 ];
+
+// Tooltip for tablet icon-only mode (hidden on lg where labels are visible)
+function NavTooltip({ label }) {
+  return (
+    <div className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 lg:hidden opacity-0 group-hover/navitem:opacity-100 transition-opacity duration-150 z-50">
+      <div className="bg-ink-primary text-ink-inverse text-label px-2 py-1 rounded whitespace-nowrap shadow-md">
+        {label}
+      </div>
+    </div>
+  );
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -93,97 +113,164 @@ export default function Sidebar({ onNewInvoice, userEmail = '', userInitials = '
   const isExpired = billingStatus?.access?.reason === 'trial_expired' ||
     billingStatus?.subscription_status === 'expired';
 
-  return (
-    <div className="fixed inset-y-0 left-0 flex flex-col w-[220px] bg-surface-card border-r border-surface-border py-5 px-3">
+  const allNavItems = [
+    ...NAV_ITEMS,
+    { label: 'Settings', href: '/app/settings', Icon: IconSettings },
+  ];
 
-      {/* ── Brand ── */}
-      <div className="px-3 mb-4">
-        <Logo variant="wordmark" size="sm" />
+  return (
+    <>
+      {/* ── Desktop + Tablet Sidebar (hidden on mobile) ── */}
+      <div className="hidden md:flex fixed inset-y-0 left-0 flex-col w-16 lg:w-[220px] bg-surface-card border-r border-surface-border py-5 px-2 lg:px-3 z-30">
+
+        {/* Brand */}
+        <div className="px-1 lg:px-3 mb-4 flex items-center justify-center lg:justify-start">
+          <Logo variant="mark" size="sm" className="block lg:hidden" />
+          <Logo variant="wordmark" size="sm" className="hidden lg:block" />
+        </div>
+
+        {/* New Invoice CTA */}
+        {/* Desktop: full button */}
+        <button
+          onClick={onNewInvoice}
+          className="hidden lg:flex items-center justify-center gap-2 w-full py-2.5 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+        >
+          <IconPlus className="h-4 w-4" />
+          New Invoice
+        </button>
+        {/* Tablet: icon-only circle */}
+        <div className="relative group/navitem flex lg:hidden justify-center">
+          <button
+            onClick={onNewInvoice}
+            className="flex items-center justify-center w-10 h-10 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+            aria-label="New Invoice"
+          >
+            <IconPlus className="h-5 w-5" />
+          </button>
+          <NavTooltip label="New Invoice" />
+        </div>
+
+        {/* Primary Nav */}
+        <nav className="mt-6 flex flex-col gap-0.5">
+          {NAV_ITEMS.map(({ label, href, Icon }) => {
+            const active = isActive(href);
+            return (
+              <div key={href} className="relative group/navitem">
+                <Link
+                  to={href}
+                  className={[
+                    'flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg transition-colors duration-150',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
+                    active
+                      ? 'bg-sage-50 text-sage-600 font-medium'
+                      : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',
+                  ].join(' ')}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="hidden lg:block text-body">{label}</span>
+                </Link>
+                <NavTooltip label={label} />
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Bottom section */}
+        <div className="mt-auto border-t border-surface-border pt-3 flex flex-col gap-0.5">
+          {/* Upgrade link when trial is expired */}
+          {isExpired && (
+            <div className="relative group/navitem">
+              <Link
+                to="/app/pricing"
+                className="flex items-center gap-3 px-2 lg:px-3 py-2 rounded-lg text-amber-600 hover:bg-amber-50 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-inset"
+              >
+                <IconUpgrade className="h-5 w-5 flex-shrink-0" />
+                <span className="hidden lg:block text-body">Upgrade</span>
+              </Link>
+              <NavTooltip label="Upgrade" />
+            </div>
+          )}
+
+          <div className="relative group/navitem">
+            <Link
+              to="/app/settings"
+              className={[
+                'flex items-center gap-3 px-2 lg:px-3 py-2 rounded-lg transition-colors duration-150',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
+                location.pathname.startsWith('/app/settings')
+                  ? 'bg-sage-50 text-sage-600 font-medium'
+                  : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',
+              ].join(' ')}
+            >
+              <IconSettings className="h-5 w-5 flex-shrink-0" />
+              <span className="hidden lg:block text-body">Settings</span>
+            </Link>
+            <NavTooltip label="Settings" />
+          </div>
+
+          {/* User info — full email on desktop, avatar-only on tablet */}
+          {userEmail && (
+            <>
+              {/* Desktop user row */}
+              <div className="hidden lg:flex items-center gap-2.5 px-3 py-2 mt-1">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
+                  <span className="text-label text-sage-600 font-medium">
+                    {userInitials || userEmail[0].toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-body-sm text-ink-tertiary truncate block">
+                    {userEmail}
+                  </span>
+                  {isTrialing && !isExpired && (
+                    <span className="text-label-sm font-semibold text-sage-600 bg-sage-50 px-1.5 py-0.5 rounded">
+                      PRO TRIAL
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Tablet avatar only */}
+              <div className="flex lg:hidden justify-center py-2">
+                <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
+                  <span className="text-label text-sage-600 font-medium">
+                    {userInitials || userEmail[0].toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ── New Invoice CTA ── */}
-      <button
-        onClick={onNewInvoice}
-        className="flex items-center justify-center gap-2 w-full py-2.5 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-button font-medium text-body transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
-      >
-        <IconPlus className="h-4 w-4" />
-        New Invoice
-      </button>
-
-      {/* ── Primary Nav ── */}
-      <nav className="mt-6 flex flex-col gap-0.5">
-        {NAV_ITEMS.map(({ label, href, Icon }) => {
+      {/* ── Mobile Bottom Nav (hidden on md+) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-card border-t border-surface-border z-30 flex items-center justify-around">
+        {allNavItems.map(({ label, href, Icon }) => {
           const active = isActive(href);
           return (
             <Link
               key={href}
               to={href}
               className={[
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150',
+                'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
-                active
-                  ? 'bg-sage-50 text-sage-600 font-medium'
-                  : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',
+                active ? 'text-sage-500' : 'text-ink-tertiary',
               ].join(' ')}
             >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {label}
+              <Icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-tight">{label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* ── Bottom section ── */}
-      <div className="mt-auto border-t border-surface-border pt-3 flex flex-col gap-0.5">
-        {/* Upgrade link when trial is expired */}
-        {isExpired && (
-          <Link
-            to="/app/pricing"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150 text-amber-600 hover:bg-amber-50 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-inset"
-          >
-            <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-              <polyline points="17 6 23 6 23 12" />
-            </svg>
-            Upgrade
-          </Link>
-        )}
-
-        <Link
-          to="/app/settings"
-          className={[
-            'flex items-center gap-3 px-3 py-2 rounded-lg text-body transition-colors duration-150',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-inset',
-            location.pathname.startsWith('/app/settings')
-              ? 'bg-sage-50 text-sage-600 font-medium'
-              : 'text-ink-secondary hover:bg-surface-hover hover:text-ink-primary',
-          ].join(' ')}
-        >
-          <IconSettings className="h-4 w-4 flex-shrink-0" />
-          Settings
-        </Link>
-
-        {/* User info + trial badge */}
-        {userEmail && (
-          <div className="flex items-center gap-2.5 px-3 py-2 mt-1">
-            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center">
-              <span className="text-label text-sage-600 font-medium">
-                {userInitials || userEmail[0].toUpperCase()}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-body-sm text-ink-tertiary truncate block">
-                {userEmail}
-              </span>
-              {isTrialing && !isExpired && (
-                <span className="text-label-sm font-semibold text-sage-600 bg-sage-50 px-1.5 py-0.5 rounded">
-                  PRO TRIAL
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      {/* ── Mobile FAB — New Invoice (hidden on md+) ── */}
+      <button
+        onClick={onNewInvoice}
+        className="md:hidden fixed bottom-20 right-4 w-14 h-14 bg-sage-500 hover:bg-sage-600 active:bg-sage-700 text-ink-inverse rounded-full shadow-lg flex items-center justify-center z-40 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+        aria-label="New Invoice"
+      >
+        <IconPlus className="h-6 w-6" />
+      </button>
+    </>
   );
 }

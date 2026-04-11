@@ -503,9 +503,9 @@ export default function LandingPage() {
       <Nav mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="pt-24 pb-20 px-6" style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #FAFBF9 100%)' }}>
+      <section className="pt-24 pb-16 md:pb-20 px-6" style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #FAFBF9 100%)' }}>
         <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* Left: copy */}
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-sage-50 border border-sage-200 rounded-pill text-label text-sage-600 font-medium mb-6">
@@ -541,9 +541,9 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Right: dashboard mockup */}
+            {/* Right: dashboard mockup — shown below on mobile/tablet, beside on desktop */}
             <div
-              className="hidden lg:block"
+              className="block mt-6 lg:mt-0"
               style={{ transform: 'perspective(1000px) rotateY(-5deg)', transformOrigin: 'center center' }}
             >
               <DashboardMockup />
@@ -884,7 +884,7 @@ export default function LandingPage() {
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
       <footer className="text-white px-6 pt-16 pb-8" style={{ backgroundColor: '#2C2C2C' }}>
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-10 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-10 mb-12">
             {/* Brand */}
             <div className="md:col-span-1">
               <div className="mb-4">

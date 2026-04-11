@@ -57,8 +57,10 @@ export default function Layout({ children, onNewInvoice, billingStatus = null })
         userInitials={userInitials}
         billingStatus={billingStatus}
       />
-      <main className="ml-[220px] min-h-screen">
-        <div className="max-w-[1200px] mx-auto px-8 py-8">
+      {/* ml-0 on mobile (sidebar hidden), ml-16 on tablet (icon sidebar), ml-[220px] on desktop */}
+      <main className="ml-0 md:ml-16 lg:ml-[220px] min-h-screen">
+        {/* pb-24 on mobile to clear the FAB + bottom nav */}
+        <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8 pb-24 md:pb-8">
           <TrialBanner billingStatus={billingStatus} />
           {children}
         </div>

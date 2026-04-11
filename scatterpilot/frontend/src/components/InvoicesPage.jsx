@@ -140,7 +140,7 @@ function InvoiceSlideOver({ invoiceId, invoiceData, invoiceStatus, subscription,
   return (
     <>
       <div className="fixed inset-0 bg-ink-primary/25 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[640px] z-50 flex flex-col shadow-modal border-l border-surface-border">
+      <div className="fixed right-0 top-0 h-full w-full md:w-[640px] z-50 flex flex-col shadow-modal border-l border-surface-border">
         {/* Sticky header */}
         <div className="flex items-center justify-between px-5 py-3 bg-surface-card border-b border-surface-border flex-shrink-0">
           <button
@@ -342,27 +342,29 @@ export default function InvoicesPage({ subscription, onNewInvoice: onNewInvoiceP
   return (
     <div>
       {/* Filter tabs */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {FILTER_STATUSES.map(s => (
-          <FilterTab
-            key={s}
-            status={s}
-            count={counts[s] ?? 0}
-            active={activeFilter === s}
-            onClick={() => setActiveFilter(s)}
-          />
-        ))}
+      <div className="overflow-x-auto pb-1 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex items-center gap-2 w-max md:w-auto md:flex-wrap">
+          {FILTER_STATUSES.map(s => (
+            <FilterTab
+              key={s}
+              status={s}
+              count={counts[s] ?? 0}
+              active={activeFilter === s}
+              onClick={() => setActiveFilter(s)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Stats summary */}
       {!isLoading && invoices.length > 0 && <StatsSummary invoices={invoices} />}
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3">
         <h1 className="text-display font-bold text-ink-primary">Invoices</h1>
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative w-64">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Search — hidden on mobile, shown on md+ */}
+          <div className="relative w-48 md:w-64 hidden sm:block">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-tertiary pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
@@ -388,8 +390,58 @@ export default function InvoicesPage({ subscription, onNewInvoice: onNewInvoiceP
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-surface-card rounded-card shadow-card border border-surface-border overflow-hidden">
+      {/* Mobile card list (hidden on md+) */}
+      <div className="md:hidden flex flex-col gap-3">
+        {isLoading ? (
+          Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="bg-surface-card rounded-card border border-surface-border p-4 animate-pulse">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-4 w-24 bg-surface-hover rounded" />
+                <div className="h-5 w-14 bg-surface-muted rounded-badge" />
+              </div>
+              <div className="h-4 w-32 bg-surface-hover rounded mb-1" />
+              <div className="h-3 w-20 bg-surface-muted rounded" />
+            </div>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-14 h-14 rounded-full bg-sage-50 flex items-center justify-center mb-4">
+              <svg className="w-7 h-7 text-sage-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </div>
+            <p className="text-body text-ink-secondary mb-4">
+              {invoices.length > 0 ? 'No invoices match this filter.' : 'No invoices yet'}
+            </p>
+            {invoices.length === 0 && <Button onClick={handleNew}>New Invoice</Button>}
+          </div>
+        ) : (
+          filtered.map(inv => (
+            <button
+              key={inv.invoice_id}
+              onClick={() => handleRowClick(inv)}
+              className="w-full text-left bg-surface-card rounded-card border border-surface-border p-4 hover:border-surface-border-strong hover:shadow-card transition-all duration-150"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-body-sm text-ink-tertiary">{getInvoiceNumber(inv)}</span>
+                <Badge status={badgeStatus(inv.status || 'draft')}>{inv.status || 'draft'}</Badge>
+              </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-body font-medium text-ink-primary">{getClientName(inv)}</p>
+                  <p className="text-body-sm text-ink-tertiary mt-0.5">{fmtDate(inv.invoice_data?.invoice_date || inv.created_at)}</p>
+                </div>
+                <MoneyDisplay amount={getAmount(inv)} size="sm" className="font-semibold font-tabular text-ink-primary" />
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Desktop/tablet table (hidden on mobile) */}
+      <div className="hidden md:block bg-surface-card rounded-card shadow-card border border-surface-border overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="bg-surface-muted border-b border-surface-border">

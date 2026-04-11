@@ -176,7 +176,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
       </button>
 
       {/* Client header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
             <span className="text-heading text-sage-600 font-medium">{getInitials(customerName)}</span>
@@ -186,7 +186,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
             {email && <p className="text-body text-ink-secondary mt-0.5">{email}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Button onClick={() => onClientNewInvoice?.(customerName)}>
             Invoice {customerName.split(' ')[0]}
           </Button>
@@ -201,7 +201,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
       </div>
 
       {/* Stats bar */}
-      <div className="mt-6 flex gap-8 flex-wrap">
+      <div className="mt-6 grid grid-cols-2 gap-4 md:flex md:gap-8">
         <StatBlock label="Total billed">
           <MoneyDisplay amount={totalBilled} size="sm" />
         </StatBlock>
@@ -229,9 +229,9 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
             <p className="text-body text-ink-secondary">No invoices yet for this client.</p>
           </div>
         ) : (
-          <div className="bg-surface-card rounded-card border border-surface-border overflow-hidden">
+          <div className="bg-surface-card rounded-card border border-surface-border overflow-x-auto">
             {/* Table header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-surface-muted border-b border-surface-border">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-surface-muted border-b border-surface-border min-w-[480px]">
               <span className="text-label uppercase tracking-wider text-ink-tertiary">Invoice #</span>
               <span className="text-label uppercase tracking-wider text-ink-tertiary">Date</span>
               <span className="text-label uppercase tracking-wider text-ink-tertiary text-right">Amount</span>
@@ -244,7 +244,7 @@ export default function ClientDetailPage({ onClientNewInvoice }) {
               {invoices.map(inv => (
                 <div
                   key={inv.invoice_id}
-                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3.5 items-center hover:bg-surface-hover transition-colors duration-150"
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3.5 items-center hover:bg-surface-hover transition-colors duration-150 min-w-[480px]"
                 >
                   <span className="font-mono text-body-sm text-ink-secondary">{getInvoiceNumber(inv)}</span>
                   <span className="text-body-sm text-ink-secondary whitespace-nowrap">{fmtDate(inv.invoice_date || inv.created_at)}</span>

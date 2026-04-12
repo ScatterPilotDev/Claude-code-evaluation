@@ -1438,6 +1438,40 @@ Resources:
             Enabled: true
 
   # ---------------------------------------------------------------------------
+  # Marketing Task Scheduler (scheduled)
+  # ---------------------------------------------------------------------------
+  MarketingTasksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-MarketingTasks-${Environment}
+      CodeUri: ../functions/analytics/
+      Handler: marketing_tasks.handler
+      Description: Emails daily marketing action items at 7 AM ET from the content calendar
+      Timeout: 15
+      MemorySize: 128
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          DIGEST_RECIPIENT: ale@scatterpilot.com
+          SES_SENDER: ale@scatterpilot.com
+      Policies:
+        - Statement:
+            - Sid: SESMarketingTasksSend
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
+      Events:
+        MarketingTasksSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 11 * * ? *)
+            Description: Daily at 11:00 UTC (7:00 AM ET)
+            Enabled: true
+
+  # ---------------------------------------------------------------------------
   # Cognito Custom Email Sender (Resend)
   # ---------------------------------------------------------------------------
   ResendEmailSenderFunction:
@@ -1681,6 +1715,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-DailyDigest-${Environment}
+      RetentionInDays: 30
+
+  MarketingTasksLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-MarketingTasks-${Environment}
       RetentionInDays: 30
 
   GetUserProfileLogGroup:

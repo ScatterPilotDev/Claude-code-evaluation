@@ -266,7 +266,7 @@ export default function Account() {
   if (loading) {
     return (
       <div className="min-h-screen bg-surface-bg flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-2 border-sage-200 border-t-sage-500 animate-spin"></div>
+        <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-sage-200 border-t-sage-500"></div>
       </div>
     );
   }
@@ -276,7 +276,7 @@ export default function Account() {
     ? new Date(subscription.current_period_end).toLocaleDateString()
     : null;
 
-  // Color options for Pro users
+  // Color options for Pro users (intentional feature: user-customizable invoice colors)
   const colorOptions = [
     { name: 'purple', label: 'Purple', primary: '#6B46C1', bg: '#FAF5FF' },
     { name: 'blue', label: 'Blue', primary: '#3B82F6', bg: '#EFF6FF' },
@@ -285,46 +285,49 @@ export default function Account() {
     { name: 'red', label: 'Red', primary: '#EF4444', bg: '#FEF2F2' }
   ];
 
+  // Shared input class
+  const inputCls = 'w-full px-3 py-2.5 bg-white text-ink-primary border border-surface-border rounded-input focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 placeholder:text-ink-tertiary transition-all duration-150';
+
   return (
     <div className="min-h-screen bg-surface-bg py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account and subscription</p>
+          <h1 className="text-heading-lg font-semibold text-ink-primary">Account Settings</h1>
+          <p className="text-body text-ink-secondary mt-1">Manage your account and subscription</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <div className="mb-6 p-4 bg-danger-50 border border-danger-200 rounded-card text-danger-700">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+          <div className="mb-6 p-4 bg-sage-50 border border-sage-100 rounded-card text-sage-700">
             {success}
           </div>
         )}
 
         {/* Account Info */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h2>
+        <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
+          <h2 className="text-body font-semibold text-ink-primary mb-4">Account Information</h2>
           <div className="space-y-3">
             <div>
-              <span className="text-gray-600 text-sm">Email</span>
-              <p className="text-gray-900">{userEmail || 'Not available'}</p>
+              <span className="text-body-sm text-ink-secondary">Email</span>
+              <p className="text-body text-ink-primary">{userEmail || 'Not available'}</p>
             </div>
           </div>
         </div>
 
         {/* Personal/Business Profile */}
-        <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 mb-6">
+        <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-body font-semibold text-ink-primary">
                 {isPro ? 'Business Profile' : 'Personal Information'}
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-body-sm text-ink-secondary mt-1">
                 {isPro
                   ? 'Customize your invoice header and contact information (optional)'
                   : 'Add your contact info to make invoices more professional'}
@@ -333,7 +336,7 @@ export default function Account() {
             {!profileEditing && (
               <button
                 onClick={() => setProfileEditing(true)}
-                className="px-4 py-2 bg-sage-500 hover:bg-sage-600 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-card"
+                className="px-4 py-2 bg-sage-500 hover:bg-sage-600 text-ink-inverse rounded-button font-medium transition-colors duration-150"
               >
                 {isPro ? 'Edit Profile' : 'Edit Contact Info'}
               </button>
@@ -345,13 +348,13 @@ export default function Account() {
               {/* Show business name for Pro users */}
               {isPro && profile.business_name && (
                 <div>
-                  <span className="text-gray-700 text-sm">Business Name</span>
-                  <p className="text-gray-900">{profile.business_name}</p>
+                  <span className="text-body-sm text-ink-secondary">Business Name</span>
+                  <p className="text-body text-ink-primary">{profile.business_name}</p>
                 </div>
               )}
               {isPro && !profile.business_name && (
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-gray-700 text-sm">
+                <div className="p-4 bg-surface-bg border border-surface-border rounded-card">
+                  <p className="text-body-sm text-ink-secondary">
                     No business name set. Your invoices will use the generic &quot;INVOICE&quot; header. Click &quot;Edit Profile&quot; to customize.
                   </p>
                 </div>
@@ -360,26 +363,26 @@ export default function Account() {
               {/* Contact info - shown for all users (Free and Pro) */}
               {profile.contact_name && (
                 <div>
-                  <span className="text-gray-700 text-sm">Name</span>
-                  <p className="text-gray-900">{profile.contact_name}</p>
+                  <span className="text-body-sm text-ink-secondary">Name</span>
+                  <p className="text-body text-ink-primary">{profile.contact_name}</p>
                 </div>
               )}
               {profile.phone && (
                 <div>
-                  <span className="text-gray-700 text-sm">Phone</span>
-                  <p className="text-gray-900">{profile.phone}</p>
+                  <span className="text-body-sm text-ink-secondary">Phone</span>
+                  <p className="text-body text-ink-primary">{profile.phone}</p>
                 </div>
               )}
               {profile.email && (
                 <div>
-                  <span className="text-gray-700 text-sm">Email</span>
-                  <p className="text-gray-900">{profile.email}</p>
+                  <span className="text-body-sm text-ink-secondary">Email</span>
+                  <p className="text-body text-ink-primary">{profile.email}</p>
                 </div>
               )}
               {(profile.address_line1 || profile.city) && (
                 <div>
-                  <span className="text-gray-700 text-sm">Address</span>
-                  <div className="text-gray-900">
+                  <span className="text-body-sm text-ink-secondary">Address</span>
+                  <div className="text-body text-ink-primary">
                     {profile.address_line1 && <p>{profile.address_line1}</p>}
                     {profile.address_line2 && <p>{profile.address_line2}</p>}
                     {(profile.city || profile.state || profile.zip_code) && (
@@ -394,9 +397,9 @@ export default function Account() {
 
               {/* Show helpful message if no contact info for Free users */}
               {!isPro && !profile.contact_name && !profile.phone && !profile.address_line1 && (
-                <div className="p-4 bg-sage-50 border border-sage-100 rounded-lg">
-                  <p className="text-ink-secondary font-medium">Add your contact information</p>
-                  <p className="text-ink-secondary text-sm mt-1">
+                <div className="p-4 bg-sage-50 border border-sage-100 rounded-card">
+                  <p className="text-body-sm font-medium text-ink-secondary">Add your contact information</p>
+                  <p className="text-body-sm text-ink-secondary mt-1">
                     Make your invoices more professional by adding your name, phone, and address. This information will appear on all your invoices.
                   </p>
                 </div>
@@ -405,14 +408,14 @@ export default function Account() {
           ) : (
             <form onSubmit={handleProfileUpdate} className="space-y-4">
               {isPro ? (
-                <div className="p-3 bg-sage-50 border border-sage-100 rounded-lg mb-4">
-                  <p className="text-ink-secondary text-sm">
+                <div className="p-3 bg-sage-50 border border-sage-100 rounded-card mb-4">
+                  <p className="text-body-sm text-ink-secondary">
                     All fields are optional. Leave business name blank to use generic &quot;INVOICE&quot; header.
                   </p>
                 </div>
               ) : (
-                <div className="p-3 bg-sage-50 border border-sage-100 rounded-lg mb-4">
-                  <p className="text-ink-secondary text-sm">
+                <div className="p-3 bg-sage-50 border border-sage-100 rounded-card mb-4">
+                  <p className="text-body-sm text-ink-secondary">
                     Add your contact information to make invoices more professional. All fields are optional.
                   </p>
                 </div>
@@ -421,7 +424,7 @@ export default function Account() {
               {/* Business Name - Pro Only */}
               {isPro && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                     Business Name (optional)
                   </label>
                   <input
@@ -431,7 +434,7 @@ export default function Account() {
                     placeholder="e.g., MAYROD, Rodriguez Consulting"
                     minLength={2}
                     maxLength={100}
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                    className={inputCls}
                   />
                 </div>
               )}
@@ -439,8 +442,8 @@ export default function Account() {
               {/* Business Name - Free Tier (Locked) */}
               {!isPro && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Name <span className="text-xs text-sage-500 font-normal">(Pro Feature)</span>
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
+                    Business Name <span className="text-body-sm text-sage-500 font-normal">(Pro Feature)</span>
                   </label>
                   <div className="relative">
                     <input
@@ -448,12 +451,12 @@ export default function Account() {
                       value=""
                       disabled
                       placeholder="Upgrade to Pro to add business name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-500 cursor-not-allowed"
+                      className="w-full px-3 py-2.5 border border-surface-border rounded-input bg-surface-bg text-ink-tertiary cursor-not-allowed"
                     />
                     <button
                       type="button"
                       onClick={() => navigate('/pricing')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-sage-500 text-white text-xs rounded hover:bg-sage-600 transition"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-sage-500 text-ink-inverse text-body-sm rounded-badge hover:bg-sage-600 transition-colors duration-150"
                     >
                       Upgrade
                     </button>
@@ -463,7 +466,7 @@ export default function Account() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                     Contact Name
                   </label>
                   <input
@@ -471,12 +474,12 @@ export default function Account() {
                     value={profile.contact_name}
                     onChange={(e) => handleProfileChange('contact_name', e.target.value)}
                     placeholder="John Doe"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                     Phone
                   </label>
                   <input
@@ -484,13 +487,13 @@ export default function Account() {
                     value={profile.phone}
                     onChange={(e) => handleProfileChange('phone', e.target.value)}
                     placeholder="+1-555-0100"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                    className={inputCls}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                   Address Line 1
                 </label>
                 <input
@@ -498,12 +501,12 @@ export default function Account() {
                   value={profile.address_line1}
                   onChange={(e) => handleProfileChange('address_line1', e.target.value)}
                   placeholder="123 Main St"
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                  className={inputCls}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                   Address Line 2
                 </label>
                 <input
@@ -511,13 +514,13 @@ export default function Account() {
                   value={profile.address_line2}
                   onChange={(e) => handleProfileChange('address_line2', e.target.value)}
                   placeholder="Suite 100"
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                  className={inputCls}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                     City
                   </label>
                   <input
@@ -525,12 +528,12 @@ export default function Account() {
                     value={profile.city}
                     onChange={(e) => handleProfileChange('city', e.target.value)}
                     placeholder="New York"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                     State
                   </label>
                   <input
@@ -538,12 +541,12 @@ export default function Account() {
                     value={profile.state}
                     onChange={(e) => handleProfileChange('state', e.target.value)}
                     placeholder="NY"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                     ZIP Code
                   </label>
                   <input
@@ -551,13 +554,13 @@ export default function Account() {
                     value={profile.zip_code}
                     onChange={(e) => handleProfileChange('zip_code', e.target.value)}
                     placeholder="10001"
-                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                    className={inputCls}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-body-sm font-medium text-ink-primary mb-1.5">
                   Country
                 </label>
                 <input
@@ -565,7 +568,7 @@ export default function Account() {
                   value={profile.country}
                   onChange={(e) => handleProfileChange('country', e.target.value)}
                   placeholder="USA"
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-transparent placeholder-gray-400"
+                  className={inputCls}
                 />
               </div>
 
@@ -573,9 +576,9 @@ export default function Account() {
                 <button
                   type="submit"
                   disabled={profileSaving}
-                  className="px-6 py-2 bg-sage-500 text-white rounded-lg hover:bg-sage-600 disabled:bg-gray-400 transition"
+                  className="px-6 py-2.5 bg-sage-500 text-ink-inverse rounded-button font-medium hover:bg-sage-600 disabled:opacity-50 transition-colors duration-150"
                 >
-                  {profileSaving ? 'Saving...' : 'Save Profile'}
+                  {profileSaving ? 'Saving…' : 'Save Profile'}
                 </button>
                 <button
                   type="button"
@@ -584,7 +587,7 @@ export default function Account() {
                     loadAccountData();
                   }}
                   disabled={profileSaving}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-white transition"
+                  className="px-6 py-2.5 bg-surface-hover text-ink-secondary rounded-button font-medium hover:bg-surface-border transition-colors duration-150 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -595,13 +598,13 @@ export default function Account() {
 
         {/* Stripe Connect Section */}
         <div
-          className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 mb-6 relative"
+          className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6 relative"
           onClick={() => showPaymentBadge && dismissPaymentBadge()}
         >
           {/* NEW Badge */}
           {showPaymentBadge && !stripeConnected && (
             <div className="absolute -top-2 -right-2 z-10">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-sage-500 text-white shadow-lg animate-pulse">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-body-sm font-bold bg-sage-500 text-ink-inverse shadow-card animate-pulse">
                 NEW
               </span>
             </div>
@@ -609,43 +612,43 @@ export default function Account() {
 
           <div className="mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">💳 Payment Processing</h2>
+              <h2 className="text-body font-semibold text-ink-primary">Payment Processing</h2>
               {showPaymentBadge && !stripeConnected && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sage-50 text-sage-600">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-badge text-body-sm font-medium bg-sage-50 text-sage-600">
                   Just Added
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Connect your Stripe account to receive payments directly from invoices</p>
+            <p className="text-body-sm text-ink-secondary mt-1">Connect your Stripe account to receive payments directly from invoices</p>
           </div>
 
           {!stripeConnected ? (
             <div className="space-y-4">
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 className="text-md font-semibold text-gray-900 mb-3">Why connect Stripe?</h3>
+              <div className="bg-sage-50 border border-sage-100 rounded-card p-4">
+                <h3 className="text-body-sm font-semibold text-ink-primary mb-3">Why connect Stripe?</h3>
                 <ul className="space-y-2">
-                  <li className="flex items-start text-gray-700">
-                    <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm">Clients can pay invoices instantly with one click</span>
+                  <li className="flex items-start text-ink-secondary">
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
+                    <span className="text-body-sm">Clients can pay invoices instantly with one click</span>
                   </li>
-                  <li className="flex items-start text-gray-700">
-                    <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm">Receive payments directly to your bank account</span>
+                  <li className="flex items-start text-ink-secondary">
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
+                    <span className="text-body-sm">Receive payments directly to your bank account</span>
                   </li>
-                  <li className="flex items-start text-gray-700">
-                    <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm">Accept cards, Apple Pay, Google Pay, and more</span>
+                  <li className="flex items-start text-ink-secondary">
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
+                    <span className="text-body-sm">Accept cards, Apple Pay, Google Pay, and more</span>
                   </li>
-                  <li className="flex items-start text-gray-700">
-                    <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm">Automatic payment tracking and notifications</span>
+                  <li className="flex items-start text-ink-secondary">
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
+                    <span className="text-body-sm">Automatic payment tracking and notifications</span>
                   </li>
                 </ul>
               </div>
 
               <button
                 onClick={connectStripe}
-                className="w-full flex items-center justify-center space-x-3 bg-sage-500 hover:bg-sage-600 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200"
+                className="w-full flex items-center justify-center space-x-3 bg-sage-500 hover:bg-sage-600 text-ink-inverse font-medium py-3 px-6 rounded-button transition-colors duration-150"
               >
                 <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
                   <rect width="28" height="28" rx="6" fill="#FFFFFF"/>
@@ -654,21 +657,21 @@ export default function Account() {
                 <span>Connect with Stripe</span>
               </button>
 
-              <p className="text-xs text-gray-600 text-center">
+              <p className="text-body-sm text-ink-tertiary text-center">
                 Secure connection via Stripe OAuth. Your credentials are never shared with ScatterPilot.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="bg-sage-50 border border-sage-100 rounded-card p-4">
                 <div className="flex items-start space-x-3">
-                  <div className="text-green-600 text-2xl">✓</div>
+                  <div className="text-sage-500 text-xl font-bold">✓</div>
                   <div className="flex-1">
-                    <h3 className="text-md font-semibold text-gray-900 mb-2">Stripe Connected</h3>
-                    <p className="text-xs text-gray-700 font-mono mb-2">
+                    <h3 className="text-body-sm font-semibold text-ink-primary mb-2">Stripe Connected</h3>
+                    <p className="text-body-sm text-ink-secondary font-mono mb-2">
                       Account: {stripeAccountId?.substring(0, 24)}...
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-body-sm text-ink-secondary">
                       You're all set to receive payments! Add payment links to your invoices to get paid faster.
                     </p>
                   </div>
@@ -680,7 +683,7 @@ export default function Account() {
                   href="https://dashboard.stripe.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 text-center px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex-1 text-center px-4 py-2.5 bg-surface-card border border-surface-border text-ink-primary font-medium rounded-button hover:bg-surface-hover transition-colors duration-150"
                 >
                   Open Stripe Dashboard
                 </a>
@@ -688,9 +691,9 @@ export default function Account() {
                 <button
                   onClick={disconnectStripe}
                   disabled={stripeDisconnecting}
-                  className="px-4 py-2 text-red-600 hover:text-red-700 font-medium transition-colors disabled:opacity-50"
+                  className="px-4 py-2.5 text-danger-600 hover:text-danger-700 font-medium transition-colors duration-150 disabled:opacity-50"
                 >
-                  {stripeDisconnecting ? 'Disconnecting...' : 'Disconnect Stripe'}
+                  {stripeDisconnecting ? 'Disconnecting…' : 'Disconnect Stripe'}
                 </button>
               </div>
             </div>
@@ -698,19 +701,19 @@ export default function Account() {
         </div>
 
         {/* Subscription Info */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Subscription</h2>
+        <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
+          <h2 className="text-body font-semibold text-ink-primary mb-4">Subscription</h2>
 
           <div className="flex items-center justify-between mb-4">
             <div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-body-sm font-medium ${
                 isPro ? 'bg-sage-100 text-sage-700' : 'bg-surface-bg text-ink-tertiary'
               }`}>
                 {isPro ? 'Pro Plan' : 'Free Plan'}
               </span>
             </div>
             {isPro && periodEnd && (
-              <span className="text-sm text-gray-700">
+              <span className="text-body-sm text-ink-secondary">
                 Renews on {periodEnd}
               </span>
             )}
@@ -718,18 +721,18 @@ export default function Account() {
 
           {/* Usage */}
           <div className="mb-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600">Invoices this month</span>
-              <span className="font-medium">
+            <div className="flex justify-between text-body-sm mb-2">
+              <span className="text-ink-secondary">Invoices this month</span>
+              <span className="font-medium text-ink-primary">
                 {subscription?.invoices_this_month || 0}
                 {!isPro && ` / ${PRICING.free.invoicesPerMonth}`}
                 {isPro && ' (Unlimited)'}
               </span>
             </div>
             {!isPro && (
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-surface-muted rounded-full h-1.5">
                 <div
-                  className={`h-2 rounded-full ${
+                  className={`h-1.5 rounded-full ${
                     subscription?.invoices_remaining <= 1 ? 'bg-danger-400' : 'bg-sage-500'
                   }`}
                   style={{
@@ -749,7 +752,7 @@ export default function Account() {
               <button
                 onClick={handleManageBilling}
                 disabled={portalLoading}
-                className="w-full py-2 px-4 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 px-4 border border-surface-border rounded-button font-medium text-ink-primary hover:bg-surface-hover transition-colors duration-150 disabled:opacity-50"
               >
                 {portalLoading ? (
                   <span className="flex items-center justify-center">
@@ -757,7 +760,7 @@ export default function Account() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Loading...
+                    Loading…
                   </span>
                 ) : (
                   'Manage Billing'
@@ -766,7 +769,7 @@ export default function Account() {
             ) : (
               <button
                 onClick={() => navigate('/pricing')}
-                className="w-full py-2 px-4 bg-sage-500 text-white rounded-lg font-medium hover:bg-sage-600 transition-colors"
+                className="w-full py-2.5 px-4 bg-sage-500 text-ink-inverse rounded-button font-medium hover:bg-sage-600 transition-colors duration-150"
               >
                 Upgrade to Pro
               </button>
@@ -776,9 +779,9 @@ export default function Account() {
 
         {/* Invoice Color Customization - Pro Only */}
         {isPro && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice Color Theme</h2>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
+            <h2 className="text-body font-semibold text-ink-primary mb-1">Invoice Color Theme</h2>
+            <p className="text-body-sm text-ink-secondary mb-4">
               Customize the color scheme of your PDF invoices
             </p>
 
@@ -788,7 +791,7 @@ export default function Account() {
                   key={color.name}
                   onClick={() => handleColorChange(color.name)}
                   disabled={colorSaving}
-                  className={`relative rounded-lg p-4 transition-all ${
+                  className={`relative rounded-card p-4 transition-all ${
                     selectedColor === color.name
                       ? 'ring-2 ring-offset-2'
                       : 'hover:scale-105'
@@ -799,15 +802,15 @@ export default function Account() {
                   }}
                 >
                   <div
-                    className="w-full h-12 rounded-md mb-2"
+                    className="w-full h-12 rounded-input mb-2"
                     style={{ backgroundColor: color.primary }}
                   />
-                  <p className="text-xs font-medium text-gray-700 text-center">
+                  <p className="text-body-sm font-medium text-ink-primary text-center">
                     {color.label}
                   </p>
                   {selectedColor === color.name && (
                     <div className="absolute top-2 right-2">
-                      <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-sage-500" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -817,12 +820,12 @@ export default function Account() {
             </div>
 
             {colorSaving && (
-              <div className="mt-4 text-sm text-gray-600 flex items-center">
+              <div className="mt-4 text-body-sm text-ink-secondary flex items-center">
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Updating color preference...
+                Updating color preference…
               </div>
             )}
           </div>
@@ -830,67 +833,67 @@ export default function Account() {
 
         {/* Free Tier - Color Upgrade Prompt */}
         {!isPro && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice Color Theme</h2>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-600 mb-3">
+          <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
+            <h2 className="text-body font-semibold text-ink-primary mb-4">Invoice Color Theme</h2>
+            <div className="bg-surface-bg rounded-card p-4 border border-surface-border">
+              <p className="text-body-sm text-ink-secondary mb-2">
                 Free tier invoices use a professional grayscale theme.
               </p>
-              <p className="text-sm text-gray-700 font-medium mb-3">
-                Upgrade to Pro to customize invoice colors!
+              <p className="text-body-sm text-ink-primary font-medium mb-3">
+                Upgrade to Pro to customize invoice colors.
               </p>
               <div className="flex gap-2 opacity-60">
                 {colorOptions.slice(0, 3).map((color) => (
                   <div
                     key={color.name}
-                    className="w-12 h-12 rounded"
+                    className="w-10 h-10 rounded-input"
                     style={{ backgroundColor: color.primary }}
                   />
                 ))}
-                <div className="flex items-center text-gray-700 text-xl">...</div>
+                <div className="flex items-center text-ink-secondary text-lg">…</div>
               </div>
             </div>
           </div>
         )}
 
         {/* Plan Features */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
+          <h2 className="text-body font-semibold text-ink-primary mb-4">
             {isPro ? 'Pro' : 'Free'} Plan Features
           </h2>
           <ul className="space-y-3">
             {(isPro ? PRICING.pro.features : PRICING.free.features).map((feature, index) => (
               <li key={index} className="flex items-center">
-                <svg className="w-5 h-5 text-green-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                <svg className="w-4 h-4 text-sage-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-gray-600">{feature}</span>
+                <span className="text-body text-ink-secondary">{feature}</span>
               </li>
             ))}
           </ul>
         </div>
 
         {/* Trust & Security badges */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Security & Compliance</h2>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <svg className="w-5 h-5 text-orange-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+        <div className="bg-surface-card rounded-card shadow-card border border-surface-border p-6 mb-6">
+          <h2 className="text-body-sm font-semibold text-ink-tertiary uppercase tracking-wider mb-4">Security & Compliance</h2>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-surface-bg border border-surface-border rounded-card">
+              <svg className="w-4 h-4 text-orange-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
               </svg>
-              <span className="text-sm font-medium text-gray-700">Secured by AWS</span>
+              <span className="text-body-sm font-medium text-ink-secondary">Secured by AWS</span>
             </div>
-            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <svg className="w-5 h-5 text-sage-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-surface-bg border border-surface-border rounded-card">
+              <svg className="w-4 h-4 text-sage-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
               </svg>
-              <span className="text-sm font-medium text-gray-700">Payments by Stripe</span>
+              <span className="text-body-sm font-medium text-ink-secondary">Payments by Stripe</span>
             </div>
-            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-surface-bg border border-surface-border rounded-card">
+              <svg className="w-4 h-4 text-sage-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              <span className="text-sm font-medium text-gray-700">256-bit Encryption</span>
+              <span className="text-body-sm font-medium text-ink-secondary">256-bit Encryption</span>
             </div>
           </div>
         </div>
@@ -899,13 +902,13 @@ export default function Account() {
         <div className="flex justify-between">
           <button
             onClick={() => navigate('/app')}
-            className="text-sage-500 hover:text-sage-600 font-medium"
+            className="text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150"
           >
             &larr; Back to App
           </button>
           <button
             onClick={handleSignOut}
-            className="text-red-600 hover:text-red-700 font-medium"
+            className="text-danger-600 hover:text-danger-700 font-medium transition-colors duration-150"
           >
             Sign Out
           </button>

@@ -81,11 +81,8 @@ export default function Settings() {
     return (
       <div className="min-h-screen bg-surface-bg flex items-center justify-center">
         <div className="text-center">
-          <svg className="animate-spin h-12 w-12 mx-auto text-sage-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="mt-4 text-gray-600">Loading settings...</p>
+          <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-sage-200 border-t-sage-500"></div>
+          <p className="mt-4 text-body text-ink-secondary">Loading settings…</p>
         </div>
       </div>
     );
@@ -94,17 +91,17 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-surface-bg">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-surface-card border-b border-surface-border">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/app')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-ink-secondary hover:text-ink-primary transition-colors duration-150"
               >
                 ← Back
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+              <h1 className="text-heading-lg font-semibold text-ink-primary">Settings</h1>
             </div>
           </div>
         </div>
@@ -114,43 +111,43 @@ export default function Settings() {
       <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Error/Success Messages */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">{error}</p>
+          <div className="mb-6 p-4 bg-danger-50 border border-danger-200 rounded-card">
+            <p className="text-body text-danger-700">{error}</p>
           </div>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-800">{success}</p>
+          <div className="mb-6 p-4 bg-sage-50 border border-sage-100 rounded-card">
+            <p className="text-body text-sage-700">{success}</p>
           </div>
         )}
 
         {/* Stripe Connection Section */}
-        <section className="bg-white rounded-lg shadow-md p-8 mb-6">
+        <section className="bg-surface-card rounded-card shadow-card border border-surface-border p-8 mb-6">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">💳 Payment Processing</h2>
-            <p className="text-gray-600">Connect your Stripe account to receive payments directly from invoices</p>
+            <h2 className="text-heading font-semibold text-ink-primary mb-1">Payment Processing</h2>
+            <p className="text-body text-ink-secondary">Connect your Stripe account to receive payments directly from invoices</p>
           </div>
 
           {!stripeConnected ? (
             <div className="space-y-6">
-              <div className="bg-sage-50 border border-sage-100 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Why connect Stripe?</h3>
-                <ul className="space-y-2 text-gray-700">
+              <div className="bg-sage-50 border border-sage-100 rounded-card p-6">
+                <h3 className="text-body font-semibold text-ink-primary mb-4">Why connect Stripe?</h3>
+                <ul className="space-y-2 text-ink-secondary">
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
                     <span>Clients can pay invoices instantly with one click</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
                     <span>Receive payments directly to your bank account</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
                     <span>Accept cards, Apple Pay, Google Pay, and more</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-sage-500 mr-2 font-bold">✓</span>
                     <span>Automatic payment tracking and notifications</span>
                   </li>
                 </ul>
@@ -158,7 +155,7 @@ export default function Settings() {
 
               <button
                 onClick={connectStripe}
-                className="w-full sm:w-auto flex items-center justify-center space-x-3 bg-sage-500 hover:bg-sage-600 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200"
+                className="w-full sm:w-auto flex items-center justify-center space-x-3 bg-sage-500 hover:bg-sage-600 text-ink-inverse font-medium py-3 px-8 rounded-button transition-colors duration-150"
               >
                 <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
                   <rect width="28" height="28" rx="6" fill="#FFFFFF"/>
@@ -167,21 +164,21 @@ export default function Settings() {
                 <span>Connect with Stripe</span>
               </button>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-body-sm text-ink-tertiary">
                 Secure connection via Stripe OAuth. Your credentials are never shared with ScatterPilot.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <div className="bg-sage-50 border border-sage-100 rounded-card p-6">
                 <div className="flex items-start space-x-4">
-                  <div className="text-green-600 text-3xl">✓</div>
+                  <div className="text-sage-500 text-2xl font-bold">✓</div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Stripe Connected</h3>
-                    <p className="text-sm text-gray-600 font-mono mb-3">
+                    <h3 className="text-body font-semibold text-ink-primary mb-2">Stripe Connected</h3>
+                    <p className="text-body-sm text-ink-secondary font-mono mb-3">
                       Account: {stripeAccountId.substring(0, 24)}...
                     </p>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-body-sm text-ink-secondary">
                       You're all set to receive payments! Add payment links to your invoices to get paid faster.
                     </p>
                   </div>
@@ -193,7 +190,7 @@ export default function Settings() {
                   href="https://dashboard.stripe.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center px-6 py-3 bg-white border-2 border-sage-500 text-sage-600 font-semibold rounded-lg hover:bg-sage-50 transition-colors"
+                  className="flex items-center justify-center px-6 py-3 bg-surface-card border border-surface-border-strong text-ink-primary font-medium rounded-button hover:bg-surface-hover transition-colors duration-150"
                 >
                   Open Stripe Dashboard
                 </a>
@@ -201,9 +198,9 @@ export default function Settings() {
                 <button
                   onClick={disconnectStripe}
                   disabled={disconnecting}
-                  className="px-6 py-3 text-red-600 hover:text-red-800 font-medium transition-colors disabled:opacity-50"
+                  className="px-6 py-3 text-danger-600 hover:text-danger-700 font-medium transition-colors duration-150 disabled:opacity-50"
                 >
-                  {disconnecting ? 'Disconnecting...' : 'Disconnect Stripe'}
+                  {disconnecting ? 'Disconnecting…' : 'Disconnect Stripe'}
                 </button>
               </div>
             </div>
@@ -211,9 +208,9 @@ export default function Settings() {
         </section>
 
         {/* Future Settings Sections */}
-        <section className="bg-white rounded-lg shadow-md p-8 opacity-50">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Additional Settings</h2>
-          <p className="text-gray-600">More settings coming soon...</p>
+        <section className="bg-surface-card rounded-card shadow-card border border-surface-border p-8 opacity-50">
+          <h2 className="text-heading font-semibold text-ink-primary mb-4">Additional Settings</h2>
+          <p className="text-body text-ink-secondary">More settings coming soon…</p>
         </section>
       </main>
     </div>

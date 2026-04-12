@@ -1375,6 +1375,44 @@ Resources:
             # No auth required - allow anonymous feedback
 
   # ---------------------------------------------------------------------------
+  # Daily Stats Digest (scheduled)
+  # ---------------------------------------------------------------------------
+  DailyDigestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-DailyDigest-${Environment}
+      CodeUri: ../functions/analytics/
+      Handler: daily_digest.handler
+      Description: Sends a daily business metrics digest email at 8 AM ET
+      Timeout: 30
+      MemorySize: 256
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          DIGEST_RECIPIENT: ale@scatterpilot.com
+          SES_SENDER: ale@scatterpilot.com
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - Statement:
+            - Sid: SESDigestSend
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 12 * * ? *)
+            Description: Daily at 12:00 UTC (8:00 AM ET)
+            Enabled: true
+
+  # ---------------------------------------------------------------------------
   # Cognito Custom Email Sender (Resend)
   # ---------------------------------------------------------------------------
   ResendEmailSenderFunction:
@@ -1612,6 +1650,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeConnectDashboard-${Environment}
+      RetentionInDays: 30
+
+  DailyDigestLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-DailyDigest-${Environment}
       RetentionInDays: 30
 
 # =============================================================================

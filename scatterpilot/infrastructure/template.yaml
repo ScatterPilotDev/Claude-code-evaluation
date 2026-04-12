@@ -715,6 +715,31 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Reports Summary Function
+  ReportsSummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-ReportsSummary-${Environment}
+      CodeUri: ../functions/invoices/
+      Handler: reports.handler
+      Description: Returns aggregated invoice analytics. Gated to Pro/Agency plans.
+      Layers:
+        - !Ref CommonLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InvoicesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SubscriptionsTable
+      Events:
+        GetReportsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScatterPilotApi
+            Path: /reports/summary
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   # Generate PDF Function
   GeneratePDFFunction:
     Type: AWS::Serverless::Function
@@ -1612,6 +1637,42 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeConnectDashboard-${Environment}
+      RetentionInDays: 30
+
+  GetUserProfileLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetProfile-${Environment}
+      RetentionInDays: 30
+
+  UpdateUserProfileLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-UpdateProfile-${Environment}
+      RetentionInDays: 30
+
+  GetStripeStatusLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetStripeStatus-${Environment}
+      RetentionInDays: 30
+
+  StripeOAuthCallbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeOAuthCallback-${Environment}
+      RetentionInDays: 30
+
+  DisconnectStripeLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-DisconnectStripe-${Environment}
+      RetentionInDays: 30
+
+  ReportsSummaryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ScatterPilot-ReportsSummary-${Environment}
       RetentionInDays: 30
 
 # =============================================================================

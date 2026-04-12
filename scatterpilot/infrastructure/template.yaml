@@ -1721,29 +1721,11 @@ Resources:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-MarketingTasks-${Environment}
       RetentionInDays: 30
 
-  GetUserProfileLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetProfile-${Environment}
-      RetentionInDays: 30
-
-  UpdateUserProfileLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/ScatterPilot-UpdateProfile-${Environment}
-      RetentionInDays: 30
-
-  GetStripeStatusLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/ScatterPilot-GetStripeStatus-${Environment}
-      RetentionInDays: 30
-
-  StripeOAuthCallbackLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/ScatterPilot-StripeOAuthCallback-${Environment}
-      RetentionInDays: 30
+  # GetUserProfileLogGroup omitted — /aws/lambda/ScatterPilot-GetProfile-staging
+  # already exists in AWS (auto-created by Lambda), not managed by CloudFormation.
+  # UpdateUserProfileLogGroup omitted — same reason (ScatterPilot-UpdateProfile-staging).
+  # GetStripeStatusLogGroup omitted — same reason (ScatterPilot-GetStripeStatus-staging).
+  # StripeOAuthCallbackLogGroup omitted — same reason (ScatterPilot-StripeOAuthCallback-staging).
 
   DisconnectStripeLogGroup:
     Type: AWS::Logs::LogGroup

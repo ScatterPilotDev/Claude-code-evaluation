@@ -128,6 +128,12 @@ Parameters:
     Default: 'https://scatterpilot.com'
     Description: Frontend URL for redirects and Stripe success/cancel URLs
 
+  ResendApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Resend API key for transactional email (re_...)
+
 # =============================================================================
 # RESOURCES
 # =============================================================================
@@ -389,7 +395,9 @@ Resources:
   # ---------------------------------------------------------------------------
   ScatterPilotUserPool:
     Type: AWS::Cognito::UserPool
-    DependsOn: ResendEmailSenderFunction
+    DependsOn:
+      - ResendEmailSenderFunction
+      - CustomMessageFunction
     Properties:
       UserPoolName: !Sub ScatterPilot-Users-${Environment}
       AutoVerifiedAttributes:
@@ -420,6 +428,7 @@ Resources:
       EmailConfiguration:
         EmailSendingAccount: COGNITO_DEFAULT
       LambdaConfig:
+        CustomMessage: !GetAtt CustomMessageFunction.Arn
         CustomEmailSender:
           LambdaArn: !GetAtt ResendEmailSenderFunction.Arn
           LambdaVersion: V1_0
@@ -1468,6 +1477,33 @@ Resources:
             Schedule: cron(0 11 * * ? *)
             Description: Daily at 11:00 UTC (7:00 AM ET)
             Enabled: true
+
+  # ---------------------------------------------------------------------------
+  # Cognito CustomMessage trigger — branded emails via Resend
+  # ---------------------------------------------------------------------------
+  CustomMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ScatterPilot-CustomMessage-${Environment}
+      CodeUri: ../functions/auth/
+      Handler: custom_message.handler
+      Description: Cognito CustomMessage trigger — sends branded verification and password reset emails via Resend
+      Timeout: 10
+      MemorySize: 128
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          RESEND_API_KEY: !Ref ResendApiKey
+          RESEND_SENDER: authenticate@scatterpilot.com
+
+  CustomMessageInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt CustomMessageFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*
 
   # ---------------------------------------------------------------------------
   # Cognito Custom Email Sender (Resend)

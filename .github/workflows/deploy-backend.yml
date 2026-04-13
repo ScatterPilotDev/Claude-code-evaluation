@@ -52,6 +52,20 @@ jobs:
       - name: SAM Build
         run: sam build --template-file ${{ env.SAM_TEMPLATE }}
 
+      # TODO: Ensure the following secrets are set in GitHub repo settings
+      #   (Settings → Secrets and variables → Actions → New repository secret):
+      #   - AWS_ACCESS_KEY_ID
+      #   - AWS_SECRET_ACCESS_KEY
+      #   - SAM_ARTIFACTS_BUCKET
+      #   - STRIPE_SECRET_KEY           (sk_test_... or sk_live_...)
+      #   - STRIPE_WEBHOOK_SECRET       (whsec_... for subscription events)
+      #   - STRIPE_PAYMENT_WEBHOOK_SECRET (whsec_... for Connect payment events)
+      #   - STRIPE_PRICE_SOLO_MONTHLY   (price_...)
+      #   - STRIPE_PRICE_SOLO_ANNUAL    (price_...)
+      #   - STRIPE_PRICE_PRO_MONTHLY    (price_...)
+      #   - STRIPE_PRICE_PRO_ANNUAL     (price_...)
+      #   - STRIPE_PRICE_AGENCY_MONTHLY (price_...)
+      #   - STRIPE_PRICE_AGENCY_ANNUAL  (price_...)
       - name: SAM Deploy
         run: |
           sam deploy \
@@ -64,7 +78,16 @@ jobs:
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               ParameterKey=Environment,ParameterValue=staging \
-              ParameterKey=StripePaymentWebhookSecret,ParameterValue=${{ secrets.STRIPE_PAYMENT_WEBHOOK_SECRET }}
+              ParameterKey=StripeSecretKey,ParameterValue=${{ secrets.STRIPE_SECRET_KEY }} \
+              ParameterKey=StripeWebhookSecret,ParameterValue=${{ secrets.STRIPE_WEBHOOK_SECRET }} \
+              ParameterKey=StripePaymentWebhookSecret,ParameterValue=${{ secrets.STRIPE_PAYMENT_WEBHOOK_SECRET }} \
+              ParameterKey=FrontendUrl,ParameterValue=https://scatterpilot.com \
+              ParameterKey=StripePriceSoloMonthly,ParameterValue=${{ secrets.STRIPE_PRICE_SOLO_MONTHLY }} \
+              ParameterKey=StripePriceSoloAnnual,ParameterValue=${{ secrets.STRIPE_PRICE_SOLO_ANNUAL }} \
+              ParameterKey=StripePriceProMonthly,ParameterValue=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }} \
+              ParameterKey=StripePriceProAnnual,ParameterValue=${{ secrets.STRIPE_PRICE_PRO_ANNUAL }} \
+              ParameterKey=StripePriceAgencyMonthly,ParameterValue=${{ secrets.STRIPE_PRICE_AGENCY_MONTHLY }} \
+              ParameterKey=StripePriceAgencyAnnual,ParameterValue=${{ secrets.STRIPE_PRICE_AGENCY_ANNUAL }}
 
       - name: Deployment summary
         run: |

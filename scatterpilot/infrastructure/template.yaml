@@ -395,9 +395,7 @@ Resources:
   # ---------------------------------------------------------------------------
   ScatterPilotUserPool:
     Type: AWS::Cognito::UserPool
-    DependsOn:
-      - ResendEmailSenderFunction
-      - CustomMessageFunction
+    DependsOn: ResendEmailSenderFunction
     Properties:
       UserPoolName: !Sub ScatterPilot-Users-${Environment}
       AutoVerifiedAttributes:
@@ -428,7 +426,6 @@ Resources:
       EmailConfiguration:
         EmailSendingAccount: COGNITO_DEFAULT
       LambdaConfig:
-        CustomMessage: !GetAtt CustomMessageFunction.Arn
         CustomEmailSender:
           LambdaArn: !GetAtt ResendEmailSenderFunction.Arn
           LambdaVersion: V1_0
@@ -1514,9 +1511,15 @@ Resources:
       FunctionName: !Sub ScatterPilot-ResendEmailSender-${Environment}
       CodeUri: ../functions/resend_email_sender/
       Handler: handler.handler
-      Description: Cognito custom email sender using Resend API
+      Description: Cognito CustomEmailSender trigger — branded verification and password reset emails via Resend
       Timeout: 30
       MemorySize: 256
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          RESEND_API_KEY: !Ref ResendApiKey
+          RESEND_SENDER: authenticate@scatterpilot.com
       Policies:
         - Statement:
             - Sid: GetResendApiKey

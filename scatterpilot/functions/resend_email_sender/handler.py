@@ -40,10 +40,18 @@ HANDLED_TRIGGERS = {
 # KMS decryption
 # =============================================================================
 
-def _decrypt_code(encrypted_code: str) -> str:
-    """Decrypt the KMS-encrypted verification code Cognito passes in the event."""
+def _decrypt_code(encrypted_code: str, user_pool_id: str) -> str:
+    """Decrypt the KMS-encrypted verification code Cognito passes in the event.
+
+    Cognito encrypts the code with EncryptionContext={'userPoolId': <pool-id>};
+    the same context must be supplied to KMS decrypt or it raises
+    InvalidCiphertextException.
+    """
     decoded = base64.b64decode(encrypted_code)
-    response = kms_client.decrypt(CiphertextBlob=decoded)
+    response = kms_client.decrypt(
+        CiphertextBlob=decoded,
+        EncryptionContext={'userPoolId': user_pool_id},
+    )
     return response['Plaintext'].decode('utf-8')
 
 
@@ -236,8 +244,10 @@ def handler(event, context):
         logger.error("No code in request — cannot send")
         return event
 
-    # Decrypt the KMS-protected code Cognito provides
-    code = _decrypt_code(encrypted_code)
+    # Decrypt the KMS-protected code Cognito provides.
+    # userPoolId must be passed as EncryptionContext to match how Cognito encrypted it.
+    user_pool_id = event.get('userPoolId', '')
+    code = _decrypt_code(encrypted_code, user_pool_id)
 
     if trigger_source in ('CustomEmailSender_SignUp', 'CustomEmailSender_ResendCode'):
         subject  = 'Verify your ScatterPilot account'

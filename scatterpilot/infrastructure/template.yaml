@@ -311,6 +311,40 @@ Resources:
         - Key: Application
           Value: ScatterPilot
 
+  ScatterPilotMainTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ScatterPilot-Main-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: ScatterPilot
+
   # ---------------------------------------------------------------------------
   # S3 Bucket for PDFs
   # ---------------------------------------------------------------------------
@@ -393,6 +427,14 @@ Resources:
   # ---------------------------------------------------------------------------
   # Cognito User Pool for Authentication
   # ---------------------------------------------------------------------------
+  # ============================================================
+  # CRITICAL: DO NOT CHANGE EmailSendingAccount
+  # Must stay as COGNITO_DEFAULT.
+  # We use a CustomEmailSender Lambda trigger (ResendEmailSenderFunction)
+  # to send branded emails via Resend. Changing this to DEVELOPER
+  # breaks the entire deploy and has caused multiple rollbacks.
+  # DO NOT change EmailSendingAccount to DEVELOPER under any circumstances.
+  # ============================================================
   ScatterPilotUserPool:
     Type: AWS::Cognito::UserPool
     DependsOn: ResendEmailSenderFunction
@@ -1758,6 +1800,54 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-MarketingTasks-${Environment}
+      RetentionInDays: 30
+
+  # ---------------------------------------------------------------------------
+  # State Machines
+  # ---------------------------------------------------------------------------
+  ScatterPilotStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/conversation_v2.asl.json
+      DefinitionSubstitutions:
+        ConversationsTable: !Ref ConversationsTable
+        ScatterPilotMainTable: !Ref ScatterPilotMainTable
+        CreateInvoiceFunction: !Ref CreateInvoiceFunction
+      Type: EXPRESS
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt StateMachineLogGroup.Arn
+      Policies:
+        - Statement:
+            - Sid: BedrockInvokePolicy
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: "*"
+            - Sid: DynamoDBPutPolicy
+              Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt ScatterPilotMainTable.Arn
+                - !GetAtt ConversationsTable.Arn
+            - Sid: LambdaInvokePolicy
+              Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt CreateInvoiceFunction.Arn
+      Tags:
+        Environment: !Ref Environment
+        Application: ScatterPilot
+
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/vendedlogs/states/ScatterPilot-Conversation-V2-${Environment}
       RetentionInDays: 30
 
   # GetUserProfileLogGroup omitted — /aws/lambda/ScatterPilot-GetProfile-staging

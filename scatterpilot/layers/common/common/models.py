@@ -177,12 +177,16 @@ class Message(ScatterPilotItem):
             data['EntityType'] = 'message'
         return data
 
+    def to_bedrock_format(self) -> Dict[str, Any]:
+        return {"role": self.role, "content": [{"text": self.content}]}
+
 
 class Conversation(ScatterPilotItem):
     """Multi-turn conversation session"""
     conversation_id: str = Field(default_factory=lambda: str(uuid4()))
     user_id: str
     state: ConversationState = Field(default=ConversationState.INITIATED)
+    messages: List[Message] = Field(default_factory=list)
     extracted_data: Optional[Dict[str, Any]] = None
 
     @model_validator(mode='before')
@@ -196,6 +200,26 @@ class Conversation(ScatterPilotItem):
             data['SK'] = cls.make_sk('CONVERSATION', conv_id)
             data['EntityType'] = 'conversation'
         return data
+
+    def add_message(self, role: str, content: str) -> None:
+        self.messages.append(Message(
+            user_id=self.user_id,
+            conversation_id=self.conversation_id,
+            role=role,
+            content=content,
+        ))
+        self.updated_at = datetime.utcnow()
+
+    def to_bedrock_messages(self) -> List[Dict[str, Any]]:
+        return [msg.to_bedrock_format() for msg in self.messages]
+
+    def to_dynamodb(self) -> Dict[str, Any]:
+        item = super().to_dynamodb()
+        item['messages'] = [
+            {'role': msg.role, 'content': msg.content, 'timestamp': msg.timestamp.isoformat()}
+            for msg in self.messages
+        ]
+        return item
 
 
 class Invoice(ScatterPilotItem):

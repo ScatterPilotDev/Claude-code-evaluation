@@ -1223,8 +1223,12 @@ class DynamoDBHelper:
     @staticmethod
     def _item_to_conversation(item: Dict[str, Any]) -> Conversation:
         """Convert DynamoDB item to Conversation object"""
+        user_id = item['user_id']
+        conversation_id = item['conversation_id']
         messages = [
             Message(
+                user_id=user_id,
+                conversation_id=conversation_id,
                 role=msg['role'],
                 content=msg['content'],
                 timestamp=datetime.fromisoformat(msg['timestamp'])
@@ -1233,8 +1237,8 @@ class DynamoDBHelper:
         ]
 
         return Conversation(
-            conversation_id=item['conversation_id'],
-            user_id=item['user_id'],
+            conversation_id=conversation_id,
+            user_id=user_id,
             state=ConversationState(item['state']),
             messages=messages,
             extracted_data=item.get('extracted_data'),

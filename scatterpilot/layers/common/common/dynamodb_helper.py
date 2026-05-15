@@ -1249,12 +1249,13 @@ class DynamoDBHelper:
         from decimal import Decimal
         from datetime import date
 
-        # Parse line items
+        # Parse line items — taxable defaults True for backward compatibility
         line_items = [
             LineItem(
                 description=li['description'],
                 quantity=Decimal(li['quantity']),
-                unit_price=Decimal(li['unit_price'])
+                unit_price=Decimal(li['unit_price']),
+                taxable=bool(li.get('taxable', True)),
             )
             for li in item['data'].get('line_items', [])
         ]

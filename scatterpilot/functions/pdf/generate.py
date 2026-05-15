@@ -252,9 +252,19 @@ class PDFGenerator:
         subtotal    = float(invoice_data.get('subtotal', 0) or 0)
         discount    = float(invoice_data.get('discount', 0) or 0)
         tax_rate    = float(invoice_data.get('tax_rate', 0) or 0)
-        tax_amount  = float(invoice_data.get('tax_amount', 0) or 0)
-        total       = float(invoice_data.get('total', 0) or 0)
         tax_pct     = tax_rate * 100
+
+        # Recompute tax from taxable line items (backward compat: missing taxable → True)
+        _items_for_tax = invoice_data.get('line_items', [])
+        taxable_subtotal = sum(
+            float(item.get('total') or 0) or
+            float(item.get('quantity', 1)) * float(item.get('unit_price', 0))
+            for item in _items_for_tax
+            if item.get('taxable', True)
+        )
+        tax_amount  = taxable_subtotal * tax_rate
+        total       = subtotal - discount + tax_amount
+        all_items_taxable = all(item.get('taxable', True) for item in _items_for_tax)
 
         business_name    = self.user_info.get('business_name', '')
         sender_email     = self.user_info.get('email', '')
@@ -578,7 +588,12 @@ class PDFGenerator:
         tot_rows = [_tot_row('Subtotal', self._fmt_currency(subtotal))]
         if discount > 0:
             tot_rows.append(_tot_row('Discount', f'−{self._fmt_currency(discount)}'))
-        tot_rows.append(_tot_row(f'Tax ({tax_pct:.1f}%)', self._fmt_currency(tax_amount)))
+        tax_label = (
+            f'Tax ({tax_pct:.1f}%)'
+            if all_items_taxable
+            else f'Tax ({tax_pct:.1f}% on taxable items)'
+        )
+        tot_rows.append(_tot_row(tax_label, self._fmt_currency(tax_amount)))
 
         tot_tbl = Table(tot_rows, colWidths=tot_col_widths, hAlign='RIGHT')
         tot_tbl.setStyle(TableStyle([

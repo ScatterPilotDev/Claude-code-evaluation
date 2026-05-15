@@ -11,7 +11,12 @@ function computeDerivedTotals(data) {
   }));
   const subtotal = lineItems.reduce((sum, item) => sum + parseFloat(item.total), 0);
   const taxRate = parseFloat(data.tax_rate || 0);
-  const taxAmount = subtotal * taxRate;
+  // Tax applies only to taxable items; missing taxable field defaults to true
+  const taxableSubtotal = lineItems.reduce(
+    (sum, item) => sum + (item.taxable !== false ? parseFloat(item.total) : 0),
+    0
+  );
+  const taxAmount = taxableSubtotal * taxRate;
   const discount = parseFloat(data.discount || 0);
   const total = subtotal + taxAmount - discount;
   return {
@@ -215,6 +220,8 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
     invoice_date, due_date, line_items = [],
     subtotal, tax_rate, tax_amount, total, notes
   } = activeData;
+
+  const allTaxable = line_items.every(item => item.taxable !== false);
 
   const inputCls = 'w-full px-2 py-1 border border-gray-300 rounded text-navy focus:outline-none focus:ring-1 focus:ring-sage text-sm';
 
@@ -430,7 +437,7 @@ export default function InvoicePreview({ invoiceId, invoiceData, invoiceStatus, 
                   />
                 ) : (
                   (parseFloat(tax_rate) * 100).toFixed(2)
-                )}%)
+                )}%{allTaxable ? '' : ' on taxable items'})
               </span>
               <span className="font-semibold text-navy">{formatCurrency(parseFloat(tax_amount))}</span>
             </div>

@@ -1,15 +1,16 @@
 """
 Pydantic models for data validation and serialization
 Ensures type safety and automatic validation across the application
+Unified for Single Table Design (PK: USER#id, SK: ENTITY#id)
 """
 
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Type, TypeVar
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator
 
 
 class InvoiceStatus(str, Enum):
@@ -18,7 +19,6 @@ class InvoiceStatus(str, Enum):
     SENT = "sent"
     PAID = "paid"
     OVERDUE = "overdue"
-    # Legacy values kept for backward compatibility with existing records
     PENDING = "pending"
     CANCELLED = "cancelled"
 
@@ -32,192 +32,231 @@ class ConversationState(str, Enum):
     ABANDONED = "abandoned"
 
 
+class ScatterPilotItem(BaseModel):
+    """Base class for all items in the single DynamoDB table"""
+    pk: str = Field(..., alias="PK", description="Partition Key: USER#id")
+    sk: str = Field(..., alias="SK", description="Sort Key: ENTITY#id")
+    entity_type: str = Field(..., alias="EntityType", description="Type of entity")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True
+    )
+
+    @classmethod
+    def make_pk(cls, user_id: str) -> str:
+        return f"USER#{user_id}"
+
+    @classmethod
+    def make_sk(cls, entity_type: str, entity_id: str) -> str:
+        return f"{entity_type.upper()}#{entity_id}"
+
+    def to_dynamodb(self) -> Dict[str, Any]:
+        """Convert to DynamoDB-compatible dictionary"""
+        data = self.model_dump(by_alias=True)
+        # Handle datetime and decimal serialization
+        return self._serialize_dict(data)
+
+    def _serialize_dict(self, d: Any) -> Any:
+        if isinstance(d, dict):
+            return {k: self._serialize_dict(v) for k, v in d.items()}
+        elif isinstance(d, list):
+            return [self._serialize_dict(v) for v in d]
+        elif isinstance(d, datetime):
+            return d.isoformat()
+        elif isinstance(d, date):
+            return d.isoformat()
+        elif isinstance(d, Decimal):
+            return str(d)
+        elif isinstance(d, Enum):
+            return d.value
+        return d
+
+
 class LineItem(BaseModel):
     """Individual line item in an invoice"""
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    description: str = Field(..., min_length=1, max_length=500, description="Item description")
-    quantity: Decimal = Field(..., gt=0, description="Quantity ordered")
-    unit_price: Decimal = Field(..., ge=0, description="Price per unit")
-    taxable: bool = Field(default=True, description="Whether this item is subject to tax")
+    description: str = Field(..., min_length=1, max_length=500)
+    quantity: Decimal = Field(..., gt=0)
+    unit_price: Decimal = Field(..., ge=0)
+    taxable: bool = Field(default=True)
 
     @property
     def total(self) -> Decimal:
-        """Calculate line item total"""
         return self.quantity * self.unit_price
-
-    @field_validator('description')
-    @classmethod
-    def sanitize_description(cls, v: str) -> str:
-        """Remove potentially dangerous characters"""
-        return v.strip()
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to DynamoDB-compatible dict"""
-        return {
-            "description": self.description,
-            "quantity": str(self.quantity),  # DynamoDB doesn't support Decimal in JSON
-            "unit_price": str(self.unit_price),
-            "total": str(self.total),
-            "taxable": self.taxable
-        }
 
 
 class InvoiceData(BaseModel):
     """Complete invoice information extracted from conversation"""
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     customer_name: str = Field(..., min_length=1, max_length=200)
     customer_email: Optional[str] = Field(None, max_length=254)
     customer_address: Optional[str] = Field(None, max_length=500)
-
     invoice_date: date = Field(default_factory=lambda: datetime.now().date())
     due_date: date
     invoice_number: Optional[str] = Field(None, max_length=50)
-
     line_items: List[LineItem] = Field(..., min_length=1)
-
-    tax_rate: Decimal = Field(default=Decimal("0.00"), ge=0, le=1, description="Tax rate as decimal (0.08 = 8%)")
+    tax_rate: Decimal = Field(default=Decimal("0.00"), ge=0, le=1)
     discount: Decimal = Field(default=Decimal("0.00"), ge=0)
     notes: Optional[str] = Field(None, max_length=1000)
 
     @property
     def subtotal(self) -> Decimal:
-        """Calculate subtotal before tax"""
         return sum(item.total for item in self.line_items)
 
     @property
     def taxable_subtotal(self) -> Decimal:
-        """Calculate subtotal of only taxable items"""
         return sum(item.total for item in self.line_items if item.taxable)
 
     @property
     def tax_amount(self) -> Decimal:
-        """Calculate tax amount on taxable items only"""
-        # Apply tax only to taxable items, after discount is proportionally applied
-        if self.subtotal == 0:
-            return Decimal("0.00")
-
-        # Calculate discount proportion for taxable items
-        taxable_ratio = self.taxable_subtotal / self.subtotal if self.subtotal > 0 else Decimal("0.00")
-        taxable_discount = self.discount * taxable_ratio
-
-        # Tax = (taxable_subtotal - proportional_discount) * tax_rate
-        return (self.taxable_subtotal - taxable_discount) * self.tax_rate
+        return self.taxable_subtotal * self.tax_rate
 
     @property
     def total(self) -> Decimal:
-        """Calculate final total"""
         return self.subtotal - self.discount + self.tax_amount
 
-    @field_validator('due_date')
-    @classmethod
-    def validate_due_date(cls, v: date, info) -> date:
-        """Ensure due date is not in the past"""
-        invoice_date = info.data.get('invoice_date', datetime.now().date())
-        if v < invoice_date:
-            raise ValueError("Due date cannot be before invoice date")
-        return v
-
     def to_dynamodb(self) -> Dict[str, Any]:
-        """Convert to DynamoDB-compatible format"""
+        """Serialize to DynamoDB-compatible dict including computed fields."""
+        def _s(v: Any) -> Any:
+            if isinstance(v, Decimal):
+                return str(v)
+            if isinstance(v, (datetime, date)):
+                return v.isoformat()
+            return v
+
         return {
-            "customer_name": self.customer_name,
-            "customer_email": self.customer_email,
-            "customer_address": self.customer_address,
-            "invoice_date": self.invoice_date.isoformat(),
-            "due_date": self.due_date.isoformat(),
-            "invoice_number": self.invoice_number,
-            "line_items": [item.to_dict() for item in self.line_items],
-            "tax_rate": str(self.tax_rate),
-            "discount": str(self.discount),
-            "notes": self.notes,
-            "subtotal": str(self.subtotal),
-            "tax_amount": str(self.tax_amount),
-            "total": str(self.total)
+            'customer_name': self.customer_name,
+            'customer_email': self.customer_email,
+            'customer_address': self.customer_address,
+            'invoice_date': _s(self.invoice_date),
+            'due_date': _s(self.due_date),
+            'invoice_number': self.invoice_number,
+            'line_items': [
+                {
+                    'description': item.description,
+                    'quantity': _s(item.quantity),
+                    'unit_price': _s(item.unit_price),
+                    'total': _s(item.total),
+                    'taxable': item.taxable,
+                }
+                for item in self.line_items
+            ],
+            'subtotal': _s(self.subtotal),
+            'tax_rate': _s(self.tax_rate),
+            'discount': _s(self.discount),
+            'tax_amount': _s(self.tax_amount),
+            'total': _s(self.total),
+            'notes': self.notes,
         }
 
 
-class Message(BaseModel):
-    """Conversation message"""
+class Message(ScatterPilotItem):
+    """Individual conversation message as a standalone item"""
+    message_id: str = Field(default_factory=lambda: str(uuid4()))
+    conversation_id: str
+    user_id: str
     role: str = Field(..., pattern="^(user|assistant)$")
-    content: str = Field(..., min_length=1, max_length=10000)
+    content: str = Field(..., min_length=1)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
-    def to_bedrock_format(self) -> Dict[str, Any]:
-        """Convert to Bedrock API format"""
-        return {
-            "role": self.role,
-            "content": [{"text": self.content}]
-        }
+    @model_validator(mode='before')
+    @classmethod
+    def set_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            user_id = data.get('user_id')
+            conv_id = data.get('conversation_id')
+            msg_id = data.get('message_id') or str(uuid4())
+            data['message_id'] = msg_id
+            data['PK'] = cls.make_pk(user_id)
+            # Messages are sorted by conversation and then timestamp for efficient retrieval
+            ts = data.get('timestamp') or datetime.utcnow()
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
+            data['SK'] = f"CONVERSATION#{conv_id}#MESSAGE#{ts.isoformat()}"
+            data['EntityType'] = 'message'
+        return data
 
-    def to_dynamodb(self) -> Dict[str, Any]:
-        """Convert to DynamoDB format"""
-        return {
-            "role": self.role,
-            "content": self.content,
-            "timestamp": self.timestamp.isoformat()
-        }
 
-
-class Conversation(BaseModel):
+class Conversation(ScatterPilotItem):
     """Multi-turn conversation session"""
     conversation_id: str = Field(default_factory=lambda: str(uuid4()))
-    user_id: str = Field(..., min_length=1, max_length=256)
+    user_id: str
     state: ConversationState = Field(default=ConversationState.INITIATED)
-    messages: List[Message] = Field(default_factory=list)
     extracted_data: Optional[Dict[str, Any]] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    def add_message(self, role: str, content: str) -> None:
-        """Add a message to the conversation"""
-        self.messages.append(Message(role=role, content=content))
-        self.updated_at = datetime.utcnow()
-
-    def to_bedrock_messages(self) -> List[Dict[str, Any]]:
-        """Convert messages to Bedrock API format"""
-        return [msg.to_bedrock_format() for msg in self.messages]
-
-    def to_dynamodb(self) -> Dict[str, Any]:
-        """Convert to DynamoDB format"""
-        return {
-            "conversation_id": self.conversation_id,
-            "user_id": self.user_id,
-            "state": self.state.value,
-            "messages": [msg.to_dynamodb() for msg in self.messages],
-            "extracted_data": self.extracted_data,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }
+    @model_validator(mode='before')
+    @classmethod
+    def set_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            user_id = data.get('user_id')
+            conv_id = data.get('conversation_id') or str(uuid4())
+            data['conversation_id'] = conv_id
+            data['PK'] = cls.make_pk(user_id)
+            data['SK'] = cls.make_sk('CONVERSATION', conv_id)
+            data['EntityType'] = 'conversation'
+        return data
 
 
-class Invoice(BaseModel):
+class Invoice(ScatterPilotItem):
     """Invoice record in database"""
     invoice_id: str = Field(default_factory=lambda: str(uuid4()))
-    user_id: str = Field(..., min_length=1, max_length=256)
+    user_id: str
     conversation_id: Optional[str] = None
     data: InvoiceData
     status: InvoiceStatus = Field(default=InvoiceStatus.DRAFT)
     pdf_s3_key: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @model_validator(mode='before')
+    @classmethod
+    def set_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            user_id = data.get('user_id')
+            inv_id = data.get('invoice_id') or str(uuid4())
+            data['invoice_id'] = inv_id
+            data['PK'] = cls.make_pk(user_id)
+            data['SK'] = cls.make_sk('INVOICE', inv_id)
+            data['EntityType'] = 'invoice'
+        return data
 
     def to_dynamodb(self) -> Dict[str, Any]:
-        """Convert to DynamoDB format"""
-        return {
-            "invoice_id": self.invoice_id,
-            "user_id": self.user_id,
-            "conversation_id": self.conversation_id,
-            "data": self.data.to_dynamodb(),
-            "status": self.status.value,
-            "pdf_s3_key": self.pdf_s3_key,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }
+        item = super().to_dynamodb()
+        item['data'] = self.data.to_dynamodb()
+        return item
+
+
+class Profile(ScatterPilotItem):
+    """User business profile and billing record"""
+    user_id: str
+    email: Optional[str] = None
+    business_name: Optional[str] = None
+    contact_name: Optional[str] = None
+    stripe_customer_id: Optional[str] = Field(None, alias="StripeCustomerId")
+    subscription_status: str = Field(default="free")
+
+    # GSI1 fields for mapping StripeCustomerId to UserId
+    gsi1pk: Optional[str] = Field(None, alias="GSI1PK")
+    gsi1sk: Optional[str] = Field(None, alias="GSI1SK")
+
+    @model_validator(mode='before')
+    @classmethod
+    def set_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            user_id = data.get('user_id')
+            data['PK'] = cls.make_pk(user_id)
+            data['SK'] = cls.make_sk('PROFILE', user_id)
+            data['EntityType'] = 'profile'
+
+            # Map Stripe Customer ID to GSI1 for reverse lookups
+            stripe_id = data.get('stripe_customer_id') or data.get('StripeCustomerId')
+            if stripe_id:
+                data['GSI1PK'] = f"STRIPE_CUSTOMER#{stripe_id}"
+                data['GSI1SK'] = f"USER#{user_id}"
+        return data
 
 
 class RateLimit(BaseModel):
+
     """Rate limiting record"""
     user_id: str = Field(..., min_length=1, max_length=256)
     request_count: int = Field(default=0, ge=0)

@@ -473,7 +473,8 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
                 line_items.append(LineItem(
                     description=item['description'],
                     quantity=Decimal(str(item['quantity'])),
-                    unit_price=Decimal(str(item['unit_price']))
+                    unit_price=Decimal(str(item['unit_price'])),
+                    taxable=bool(item.get('taxable', True)),
                 ))
 
             # Parse dates

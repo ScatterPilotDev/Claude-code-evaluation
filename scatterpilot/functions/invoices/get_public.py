@@ -100,9 +100,22 @@ def handler(event: dict, context) -> dict:
                 'quantity': li.get('quantity', '1'),
                 'unit_price': li.get('unit_price', '0'),
                 'total': li.get('total', '0'),
+                'taxable': li.get('taxable', True),
             }
             for li in line_items
         ]
+
+        # Recompute tax from taxable items for correctness (backward compat: missing taxable → True)
+        tax_rate = float(data.get('tax_rate', 0) or 0)
+        subtotal = float(data.get('subtotal', 0) or 0)
+        discount = float(data.get('discount', 0) or 0)
+        taxable_subtotal = sum(
+            float(li.get('total') or 0) or float(li.get('quantity', 1)) * float(li.get('unit_price', 0))
+            for li in line_items
+            if li.get('taxable', True)
+        )
+        tax_amount = taxable_subtotal * tax_rate
+        total = subtotal - discount + tax_amount
 
         paid = invoice_status == 'paid'
 
@@ -115,10 +128,10 @@ def handler(event: dict, context) -> dict:
             'invoiceDate': data.get('invoice_date'),
             'dueDate': data.get('due_date'),
             'lineItems': public_line_items,
-            'subtotal': data.get('subtotal'),
+            'subtotal': str(subtotal),
             'taxRate': data.get('tax_rate'),
-            'taxAmount': data.get('tax_amount'),
-            'total': data.get('total'),
+            'taxAmount': str(tax_amount),
+            'total': str(total),
             'notes': data.get('notes'),
             'status': invoice_status,
             'paid': paid,

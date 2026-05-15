@@ -202,7 +202,11 @@ export default function PayInvoicePage() {
                           </tr>
                           <tr className="bg-surface-muted">
                             <td colSpan={2} className="px-4 py-2 text-right text-ink-secondary">
-                              Tax ({(parseFloat(invoice.taxRate || 0) * 100).toFixed(0)}%)
+                              {(() => {
+                                const allTaxable = (invoice.lineItems || []).every(item => item.taxable !== false);
+                                const pct = (parseFloat(invoice.taxRate || 0) * 100).toFixed(0);
+                                return allTaxable ? `Tax (${pct}%)` : `Tax (${pct}% on taxable items)`;
+                              })()}
                             </td>
                             <td className="px-4 py-2 text-right text-ink-secondary">{formatCurrency(invoice.taxAmount)}</td>
                           </tr>

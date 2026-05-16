@@ -13,7 +13,7 @@ const INITIAL_MESSAGE = {
   content: "Hi! Who are you invoicing today, and what are you billing for?"
 };
 
-const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewInvoice, onMessageSent }, ref) => {
+const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewInvoice, onMessageSent, onConversationActive }, ref) => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
@@ -70,6 +70,12 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (onConversationActive) {
+      onConversationActive(messages.length > 1);
+    }
+  }, [messages]);
 
   // Voice output: speak latest AI message when in voice mode
   const latestAssistantMessage = useMemo(() => {
@@ -293,12 +299,17 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
+                  {msg.role === 'assistant' && (
+                    <div className="w-7 h-7 rounded-full bg-sage-500 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-bold text-white">SP</span>
+                    </div>
+                  )}
                   <div className={`max-w-[80%] rounded-card px-4 py-3 text-body-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-sage-500 text-white rounded-tr-sm'
-                      : 'bg-surface-card text-ink-primary border border-surface-border rounded-tl-sm'
+                      : 'bg-white border border-surface-border shadow-card text-ink-primary rounded-tl-sm'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <>
@@ -341,18 +352,24 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
-                  className="flex justify-start"
+                  className="flex items-end gap-2 justify-start"
                 >
-                  <div className="bg-surface-card border border-surface-border rounded-card rounded-tl-sm px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {[0, 0.15, 0.3].map((delay, i) => (
-                        <motion.div
-                          key={i}
-                          className="w-2 h-2 bg-sage-400 rounded-full"
-                          animate={{ y: [0, -5, 0] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay, ease: 'easeInOut' }}
-                        />
-                      ))}
+                  <div className="w-7 h-7 rounded-full bg-sage-500 flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-bold text-white">SP</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-ink-tertiary ml-1">ScatterPilot is thinking…</span>
+                    <div className="bg-white border border-surface-border shadow-card rounded-card rounded-tl-sm px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {[0, 0.15, 0.3].map((delay, i) => (
+                          <motion.div
+                            key={i}
+                            className="w-2 h-2 bg-sage-400 rounded-full"
+                            animate={{ y: [0, -5, 0] }}
+                            transition={{ duration: 0.6, repeat: Infinity, delay, ease: 'easeInOut' }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </motion.div>

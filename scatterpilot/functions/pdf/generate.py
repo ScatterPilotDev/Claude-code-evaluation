@@ -454,13 +454,17 @@ class PDFGenerator:
         ]
 
         # From (sender info — right side)
+        # Use business_name as primary identifier; fall back to email. Never expose the
+        # personal contact_name unless the user explicitly adds it to their business name.
         from_parts = []
-        if sender_name:
-            from_parts.append(f'<b>{sender_name}</b>')
+        if business_name:
+            from_parts.append(f'<b>{business_name}</b>')
+            if sender_email:
+                from_parts.append(sender_email)
+        elif sender_email:
+            from_parts.append(sender_email)
         if self.user_info.get('phone'):
             from_parts.append(self.user_info['phone'])
-        if sender_email:
-            from_parts.append(sender_email)
         if self.user_info.get('address'):
             from_parts.append(self.user_info['address'])
 
@@ -786,7 +790,7 @@ def get_user_info_from_cognito(event: Dict[str, Any], user_id: str = None, is_pr
                 db = DynamoDBHelper()
                 profile = db.get_user_profile(user_id)
                 if profile:
-                    if is_pro and profile.get('business_name'):
+                    if profile.get('business_name'):
                         user_info['business_name'] = profile['business_name']
 
                     if profile.get('contact_name'):

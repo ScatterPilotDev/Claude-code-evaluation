@@ -21,18 +21,18 @@ export default function TrialBanner({ billingStatus }) {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
 
-  if (!billingStatus) return null;
-
-  const { subscription_status, trial_days_remaining: days, access } = billingStatus;
-  const isExpired = access?.reason === 'trial_expired';
-
+  // Must be called unconditionally before any early return (hooks rules)
   useEffect(() => {
-    // Check if banner was dismissed today (for the soft nudge tier)
     const key = DISMISS_KEY + today();
     if (localStorage.getItem(key) === '1') {
       setDismissed(true);
     }
   }, []);
+
+  if (!billingStatus) return null;
+
+  const { subscription_status, trial_days_remaining: days, access } = billingStatus;
+  const isExpired = access?.reason === 'trial_expired';
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY + today(), '1');

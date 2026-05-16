@@ -699,6 +699,11 @@ class ApiService {
       const response = await fetch(`${this.baseUrl}/reports/summary`, { headers });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
+        if (response.status === 403 && body.error === 'PlanRestricted') {
+          const err = new Error('PlanRestricted');
+          err.code = 'PlanRestricted';
+          throw err;
+        }
         throw new Error(body.error || `API error: ${response.status}`);
       }
       return await response.json();

@@ -224,6 +224,7 @@ export default function ReportsPage({ billingStatus }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [planRestricted, setPlanRestricted] = useState(false);
 
   const hasAccess = canAccessFeature(billingStatus, 'reports');
 
@@ -235,7 +236,13 @@ export default function ReportsPage({ billingStatus }) {
     }
     api.getReportsSummary()
       .then(setData)
-      .catch(err => setError(err.message))
+      .catch(err => {
+        if (err.code === 'PlanRestricted') {
+          setPlanRestricted(true);
+        } else {
+          setError(err.message);
+        }
+      })
       .finally(() => setLoading(false));
   }, [hasAccess]);
 
@@ -278,8 +285,8 @@ export default function ReportsPage({ billingStatus }) {
         </div>
       )}
 
-      {/* Single upgrade banner for non-Pro users */}
-      {!hasAccess && <UpgradeBanner />}
+      {/* Single upgrade banner for non-Pro users or backend-gated access */}
+      {(!hasAccess || planRestricted) && <UpgradeBanner />}
 
       {/* Report cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

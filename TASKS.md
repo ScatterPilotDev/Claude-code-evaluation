@@ -8,6 +8,12 @@
 
 ## Completed
 
+### [Frontend] Reports UI — 403 PlanRestricted handling — 2026-05-15
+`ReportsPage.jsx` and `api.js` already had the full Reports UI implemented (charts, UpgradeBanner, plan gating via `canAccessFeature`). Added backend-level 403 `PlanRestricted` handling:
+- `api.getReportsSummary()`: detects 403 + `body.error === 'PlanRestricted'` and throws a typed error with `err.code = 'PlanRestricted'`
+- `ReportsPage`: tracks `planRestricted` state separately; renders `UpgradeBanner` on `PlanRestricted` code (not a generic danger box)
+Build passes. Pushed to `dev/frontend`.
+
 ### [Infra] Wire up ReportsSummaryFunction — 2026-04-11
 Added `ReportsSummaryFunction` to template.yaml: `GET /reports/summary`, CognitoAuthorizer, DynamoDBReadPolicy on InvoicesTable + SubscriptionsTable. Log group added. Unblocks `/reports/summary` endpoint — Frontend agent can now enable the Reports UI once deployed.
 

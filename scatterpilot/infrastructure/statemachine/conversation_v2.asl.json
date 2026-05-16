@@ -1,0 +1,125 @@
+{
+  "Comment": "ScatterPilot v2 - Express Step Function for AI Conversation flow",
+  "StartAt": "Extract User Context",
+  "States": {
+    "Extract User Context": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${ConversationsTable}",
+        "Key": {
+          "conversation_id": {
+            "S.$": "$.conversation_id"
+          }
+        }
+      },
+      "ResultPath": "$.user_context",
+      "Next": "Invoke Bedrock Reasoner"
+    },
+    "Invoke Bedrock Reasoner": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "us.anthropic.claude-sonnet-4-6",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text.$": "States.Format('User Context: {}\\n\\nUser Message: {}', States.JsonToString($.user_context.Item), $.message)"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "invoice_generator",
+              "description": "Generates a structured invoice for a customer with specific line items, tax, and discounts. Call this tool only when all required details have been confirmed with the user.",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "customer_name": { "type": "string", "description": "Legal name of the client" },
+                  "customer_email": { "type": "string" },
+                  "customer_address": { "type": "string" },
+                  "invoice_date": { "type": "string", "description": "ISO 8601 date (YYYY-MM-DD)" },
+                  "due_date": { "type": "string", "description": "ISO 8601 date (YYYY-MM-DD)" },
+                  "line_items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "description": { "type": "string" },
+                        "quantity": { "type": "number", "minimum": 0.01 },
+                        "unit_price": { "type": "number", "minimum": 0 },
+                        "taxable": { "type": "boolean" }
+                      },
+                      "required": ["description", "quantity", "unit_price"]
+                    },
+                    "minItems": 1
+                  },
+                  "tax_rate": { "type": "number", "description": "Decimal tax rate (e.g. 0.08 for 8%)" },
+                  "discount": { "type": "number", "description": "Flat discount amount in currency units" },
+                  "notes": { "type": "string" }
+                },
+                "required": ["customer_name", "due_date", "line_items"]
+              }
+            }
+          ],
+          "tool_choice": { "type": "auto" }
+        }
+      },
+      "ResultPath": "$.bedrock_response",
+      "Next": "Choice: Tool Use or Chat"
+    },
+    "Choice: Tool Use or Chat": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.bedrock_response.Body.stop_reason",
+          "StringEquals": "tool_use",
+          "Next": "Action: Create Invoice"
+        }
+      ],
+      "Default": "Action: Save Message"
+    },
+    "Action: Create Invoice": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${CreateInvoiceFunction}",
+        "Payload": {
+          "user_id.$": "$.user_id",
+          "conversation_id.$": "$.conversation_id",
+          "bedrock_response.$": "$.bedrock_response.Body"
+        }
+      },
+      "End": true
+    },
+    "Action: Save Message": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${ScatterPilotMainTable}",
+        "Item": {
+          "PK": {
+            "S.$": "States.Format('USER#{}', $.user_id)"
+          },
+          "SK": {
+            "S.$": "States.Format('CONV#{}#MSG#{}', $.conversation_id, $.timestamp)"
+          },
+          "Message": {
+            "S.$": "$.bedrock_response.Body.content[0].text"
+          },
+          "ConversationId": {
+            "S.$": "$.conversation_id"
+          }
+        }
+      },
+      "End": true
+    }
+  }
+}

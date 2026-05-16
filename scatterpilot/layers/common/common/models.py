@@ -323,6 +323,7 @@ class BedrockRequest(BaseModel):
     system_prompt: Optional[str] = None
     max_tokens: int = Field(default=2048, ge=1, le=4096)
     temperature: float = Field(default=0.7, ge=0, le=1)
+    tool_config: Optional[Dict[str, Any]] = None
 
     def to_api_params(self) -> Dict[str, Any]:
         """Convert to Bedrock API parameters"""
@@ -335,6 +336,8 @@ class BedrockRequest(BaseModel):
         }
         if self.system_prompt:
             params["system"] = [{"text": self.system_prompt}]
+        if self.tool_config:
+            params["toolConfig"] = self.tool_config
         return params
 
 
@@ -343,22 +346,36 @@ class BedrockResponse(BaseModel):
     content: str
     stop_reason: str
     usage: Dict[str, int]
+    tool_use_input: Optional[Dict[str, Any]] = None
+    tool_use_id: Optional[str] = None
+    tool_name: Optional[str] = None
 
     @classmethod
     def from_api_response(cls, response: Dict[str, Any]) -> "BedrockResponse":
-        """Parse Bedrock API response"""
+        """Parse Bedrock API response, handling both text and tool_use content blocks"""
         output = response.get("output", {})
         message = output.get("message", {})
         content_blocks = message.get("content", [])
 
-        # Extract text from content blocks
         content = ""
+        tool_use_input = None
+        tool_use_id = None
+        tool_name = None
+
         for block in content_blocks:
             if "text" in block:
                 content += block["text"]
+            elif "toolUse" in block:
+                tool_use = block["toolUse"]
+                tool_use_input = tool_use.get("input")
+                tool_use_id = tool_use.get("toolUseId")
+                tool_name = tool_use.get("name")
 
         return cls(
             content=content,
             stop_reason=response.get("stopReason", "unknown"),
-            usage=response.get("usage", {})
+            usage=response.get("usage", {}),
+            tool_use_input=tool_use_input,
+            tool_use_id=tool_use_id,
+            tool_name=tool_name,
         )

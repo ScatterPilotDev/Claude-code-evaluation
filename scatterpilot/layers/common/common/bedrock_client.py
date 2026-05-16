@@ -3,7 +3,6 @@ Amazon Bedrock client wrapper for conversational AI
 Handles Claude model interactions with structured data extraction
 """
 
-import json
 import os
 import time
 from datetime import datetime, timedelta
@@ -26,6 +25,64 @@ class BedrockException(Exception):
     pass
 
 
+INVOICE_GENERATOR_TOOL_SPEC = {
+    "toolSpec": {
+        "name": "invoice_generator",
+        "description": "Generates a structured invoice when all required information has been confirmed by the user. Only call this tool after the user has approved the invoice summary.",
+        "inputSchema": {
+            "json": {
+                "type": "object",
+                "properties": {
+                    "customer_name": {"type": "string", "description": "Legal name of the client"},
+                    "customer_email": {"type": "string", "format": "email"},
+                    "customer_address": {"type": "string"},
+                    "invoice_date": {"type": "string", "format": "date", "description": "ISO 8601 date (YYYY-MM-DD)"},
+                    "due_date": {"type": "string", "format": "date", "description": "ISO 8601 date (YYYY-MM-DD)"},
+                    "line_items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "description": {"type": "string"},
+                                "quantity": {"type": "number", "minimum": 0.01},
+                                "unit_price": {"type": "number", "minimum": 0},
+                                "taxable": {"type": "boolean", "default": True}
+                            },
+                            "required": ["description", "quantity", "unit_price"]
+                        },
+                        "minItems": 1
+                    },
+                    "tax_rate": {"type": "number", "description": "Decimal tax rate (e.g. 0.08 for 8%)"},
+                    "discount": {"type": "number", "description": "Flat discount amount in currency units"},
+                    "notes": {"type": "string"}
+                },
+                "required": ["customer_name", "due_date", "line_items"]
+            }
+        }
+    }
+}
+
+CANCEL_INVOICE_TOOL_SPEC = {
+    "toolSpec": {
+        "name": "cancel_invoice",
+        "description": "Cancels the current invoice creation process when the user explicitly requests to stop or cancel.",
+        "inputSchema": {
+            "json": {
+                "type": "object",
+                "properties": {
+                    "reason": {"type": "string", "description": "Optional reason for cancellation"}
+                }
+            }
+        }
+    }
+}
+
+INVOICE_TOOL_CONFIG = {
+    "tools": [INVOICE_GENERATOR_TOOL_SPEC, CANCEL_INVOICE_TOOL_SPEC],
+    "toolChoice": {"auto": {}}
+}
+
+
 class BedrockClient:
     """
     Amazon Bedrock client for Claude Sonnet 4.5 interactions
@@ -38,19 +95,18 @@ class BedrockClient:
     DEFAULT_TEMPERATURE = 0.7
 
     # System prompt for invoice extraction
-    INVOICE_EXTRACTION_PROMPT = """You are the AI assistant for ScatterPilot, an integrated invoice generation system. Your role is to gather invoice information through natural conversation and trigger automatic invoice creation.
+    INVOICE_EXTRACTION_PROMPT = """You are the AI assistant for ScatterPilot, an integrated invoice generation system. Your role is to gather invoice information through natural conversation and trigger automatic invoice creation using the invoice_generator tool.
 
-CRITICAL: You are part of an INTEGRATED SYSTEM that automatically generates PDF invoices. When you output JSON, the system:
-1. Automatically creates the invoice in the database
+CRITICAL: You are part of an INTEGRATED SYSTEM. When you call the invoice_generator tool, the system automatically:
+1. Creates the invoice in the database
 2. Generates a professional PDF document
 3. Displays the invoice to the user with a download button
-4. Handles all file generation and storage
 
 YOUR WORKFLOW:
 1. Start by asking: "Who are you invoicing and for what?" — gather as much as the user provides in one message
 2. Parse everything from that first response: customer name, services, amounts, dates — whatever is there
 3. Confirm all details in a single summary message, only asking for genuinely missing required fields
-4. When user approves (says "looks good", "create it", "yes", etc.), output ONLY the JSON object
+4. When user approves (says "looks good", "create it", "yes", etc.), call the invoice_generator tool with all confirmed details
 5. The system takes over from there - you don't need to do anything else
 
 EFFICIENCY RULES:
@@ -70,7 +126,7 @@ REQUIRED INFORMATION:
    - Quantity (must be positive)
    - Unit price (must be non-negative)
    - Taxable (boolean, defaults to true) - set to false if user specifies tax applies to specific items only
-7. Tax rate (as percentage, defaults to 0%)
+7. Tax rate (as decimal, defaults to 0.0)
 8. Discount amount (optional, defaults to 0)
 9. Additional notes (optional)
 
@@ -80,47 +136,23 @@ VALIDATION:
 - Due date cannot be before invoice date
 
 CRITICAL INSTRUCTIONS - NEVER DO THESE:
-❌ DO NOT show JSON to users
-❌ DO NOT explain what JSON is or how it works
+❌ DO NOT output raw JSON in your text response
+❌ DO NOT explain what JSON or tool calls are to the user
 ❌ DO NOT say "I can't generate PDFs" - the system DOES generate them automatically
-❌ DO NOT ask users to "copy this JSON" or use external tools
-❌ DO NOT include markdown code blocks around JSON
-❌ DO NOT add explanatory text before or after the JSON
+❌ DO NOT ask users to perform any manual steps
 
 CORRECT BEHAVIOR:
 ✅ Be conversational and friendly while gathering information
-✅ Confirm details with the user before finalizing
-✅ When user approves, output ONLY the raw JSON object (no markdown, no explanation)
+✅ Confirm details with the user before calling any tool
+✅ When user approves, call the invoice_generator tool — do not output JSON text
 ✅ Trust that the system will handle PDF generation automatically
 ✅ The user will see their invoice appear in the preview panel with a download button
-
-JSON FORMAT (output this EXACTLY when ready):
-{
-  "action": "create_invoice",
-  "data": {
-    "customer_name": "string",
-    "customer_email": "string (optional)",
-    "customer_address": "string (optional)",
-    "invoice_date": "YYYY-MM-DD",
-    "due_date": "YYYY-MM-DD",
-    "line_items": [
-      {
-        "description": "string",
-        "quantity": "decimal",
-        "unit_price": "decimal",
-        "taxable": true
-      }
-    ],
-    "tax_rate": "decimal (0.08 for 8%)",
-    "discount": "decimal",
-    "notes": "string (optional)"
-  }
-}
 
 IMPORTANT TAX HANDLING:
 - If user says "tax applies to [specific item only]" or "6% on [item name] only", set taxable=false for all other items
 - Example: "6% tax on POS only" means only the POS line item has taxable=true, others have taxable=false
 - Default: All items are taxable=true unless user specifies otherwise
+- tax_rate is a decimal: 0.08 means 8%
 
 CUSTOMER AUTO-DETECTION (new vs returning clients):
 When the user first mentions a customer/client name in a conversation:
@@ -134,19 +166,16 @@ When the user first mentions a customer/client name in a conversation:
    - Then proceed to line items and amounts
 
 MULTI-INVOICE CONVERSATIONS (creating additional invoices in the same conversation):
-If you can see a previous {"action":"create_invoice",...} in the conversation history, an invoice was already created. If the user asks for another invoice, a new invoice, or "same client different items":
+If a previous invoice_generator tool call appears in the conversation history, an invoice was already created. If the user asks for another invoice, a new invoice, or "same client different items":
 ✅ Automatically carry forward: customer_name, customer_email, customer_address, and tax_rate from the previous invoice
 ✅ Greet them with context, e.g. "I can see we already have [Customer Name] on file. I'll reuse their details — what should be on this new invoice?"
 ✅ Only ask for what has changed: new line items, new due date, any overrides the user mentions
 ✅ Do NOT re-ask for customer info already provided in this conversation
-✅ When ready, output the full JSON as normal (with all fields populated, reusing the remembered ones)
+✅ When ready, call invoice_generator again with all fields populated (reusing the remembered ones)
 
-To cancel:
-{
-  "action": "cancel"
-}
+To cancel the invoice creation process at any time, call the cancel_invoice tool.
 
-REMEMBER: Output ONLY the raw JSON when the user approves. The system automatically generates the PDF and shows it to the user. You are NOT generating PDFs yourself - the integrated system does that."""
+REMEMBER: Use the invoice_generator tool when the user approves. The system automatically generates the PDF and shows it to the user. You are NOT generating PDFs yourself — the integrated system does that."""
 
     def __init__(self, region_name: str = "us-east-1"):
         """
@@ -230,7 +259,8 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
         messages: List[Message],
         system_prompt: Optional[str] = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        temperature: float = DEFAULT_TEMPERATURE
+        temperature: float = DEFAULT_TEMPERATURE,
+        tool_config: Optional[Dict[str, Any]] = None,
     ) -> BedrockResponse:
         """
         Send a conversation to Claude via Bedrock Converse API
@@ -240,6 +270,7 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
             system_prompt: Optional system prompt
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature (0-1)
+            tool_config: Optional Bedrock toolConfig for native tool use
 
         Returns:
             BedrockResponse with model output
@@ -255,7 +286,8 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
                 messages=messages,
                 system_prompt=system_prompt,
                 max_tokens=max_tokens,
-                temperature=temperature
+                temperature=temperature,
+                tool_config=tool_config,
             )
 
             api_params = request.to_api_params()
@@ -348,17 +380,42 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
 
             logger.debug("Using enhanced system prompt with current date context")
 
-            # Get response from Claude
+            # Get response from Claude with native tool use
             response = self.converse(
                 messages=conversation.messages,
                 system_prompt=enhanced_system_prompt,
-                temperature=0.7  # Balance creativity and consistency
+                temperature=0.7,
+                tool_config=INVOICE_TOOL_CONFIG,
             )
 
             assistant_message = response.content
+            extracted_data = None
 
-            # Check if response contains structured data (JSON)
-            extracted_data = self._extract_json_from_response(assistant_message)
+            # Handle tool_use stop reason — model called a tool instead of generating text
+            if response.stop_reason == "tool_use" and response.tool_use_input is not None:
+                if response.tool_name == "invoice_generator":
+                    extracted_data = {
+                        "action": "create_invoice",
+                        "data": response.tool_use_input,
+                    }
+                    logger.info(
+                        "Tool call: invoice_generator",
+                        tool_use_id=response.tool_use_id
+                    )
+                elif response.tool_name == "cancel_invoice":
+                    extracted_data = {"action": "cancel"}
+                    logger.info(
+                        "Tool call: cancel_invoice",
+                        tool_use_id=response.tool_use_id
+                    )
+
+            # Ensure a non-empty text message for the conversation history and API response
+            if not assistant_message and extracted_data:
+                action = extracted_data.get("action")
+                if action == "create_invoice":
+                    assistant_message = "Your invoice is ready!"
+                elif action == "cancel":
+                    assistant_message = "Invoice creation cancelled."
 
             # Add assistant message to conversation
             conversation.add_message(role="assistant", content=assistant_message)
@@ -379,73 +436,6 @@ You should use: invoice_date = {now.year}-11-20, due_date = {(now.replace(month=
                 conversation_id=conversation.conversation_id
             )
             raise
-
-    def _extract_json_from_response(self, response: str) -> Optional[Dict[str, Any]]:
-        """
-        Extract JSON data from model response if present
-
-        Args:
-            response: Model response text
-
-        Returns:
-            Parsed JSON object or None if not found
-        """
-        try:
-            json_str = response.strip()
-
-            # Remove markdown code blocks if present
-            if json_str.startswith('```json'):
-                json_str = json_str[7:]
-            if json_str.startswith('```'):
-                json_str = json_str[3:]
-            if json_str.endswith('```'):
-                json_str = json_str[:-3]
-
-            # Strip stop tokens that Claude Sonnet 4.6 may append
-            for stop_token in ('</s>', '<|endoftext|>', '<|end|>'):
-                if json_str.endswith(stop_token):
-                    json_str = json_str[:-len(stop_token)]
-
-            json_str = json_str.strip()
-
-            # Find the start of the JSON object
-            start = json_str.find('{')
-            if start == -1:
-                return None
-            json_str = json_str[start:]
-
-            # Use brace-depth tracking to find the exact closing brace,
-            # ignoring any trailing text or stop tokens after the object
-            depth = 0
-            end = -1
-            for i, ch in enumerate(json_str):
-                if ch == '{':
-                    depth += 1
-                elif ch == '}':
-                    depth -= 1
-                    if depth == 0:
-                        end = i + 1
-                        break
-
-            if end == -1:
-                return None
-
-            data = json.loads(json_str[:end])
-
-            if isinstance(data, dict) and 'action' in data:
-                logger.info(
-                    "Extracted structured data from response",
-                    action=data.get('action')
-                )
-                return data
-
-        except json.JSONDecodeError:
-            # Not JSON, that's okay - conversational response
-            pass
-        except Exception as e:
-            logger.warning("Error extracting JSON from response", error=e)
-
-        return None
 
     def validate_and_parse_invoice_data(self, data: Dict[str, Any]) -> InvoiceData:
         """

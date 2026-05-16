@@ -66,6 +66,7 @@ jobs:
       #   - STRIPE_PRICE_PRO_ANNUAL     (price_...)
       #   - STRIPE_PRICE_AGENCY_MONTHLY (price_...)
       #   - STRIPE_PRICE_AGENCY_ANNUAL  (price_...)
+      #   - RESEND_API_KEY              (re_... — Resend transactional email key)
       - name: SAM Deploy
         run: |
           sam deploy \
@@ -87,7 +88,8 @@ jobs:
               ParameterKey=StripePriceProMonthly,ParameterValue=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }} \
               ParameterKey=StripePriceProAnnual,ParameterValue=${{ secrets.STRIPE_PRICE_PRO_ANNUAL }} \
               ParameterKey=StripePriceAgencyMonthly,ParameterValue=${{ secrets.STRIPE_PRICE_AGENCY_MONTHLY }} \
-              ParameterKey=StripePriceAgencyAnnual,ParameterValue=${{ secrets.STRIPE_PRICE_AGENCY_ANNUAL }}
+              ParameterKey=StripePriceAgencyAnnual,ParameterValue=${{ secrets.STRIPE_PRICE_AGENCY_ANNUAL }} \
+              ParameterKey=ResendApiKey,ParameterValue=${{ secrets.RESEND_API_KEY }}
 
       - name: Deployment summary
         run: |

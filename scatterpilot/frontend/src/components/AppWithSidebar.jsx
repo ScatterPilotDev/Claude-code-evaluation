@@ -172,42 +172,7 @@ export default function AppWithSidebar() {
       const response = await api.listInvoices();
       const invoices = response.invoices || [];
 
-      const now = new Date();
-      const thisMonth = now.getMonth();
-      const thisYear = now.getFullYear();
-
-      const outstanding = invoices
-        .filter(i => !['paid', 'cancelled'].includes(i.status))
-        .reduce((sum, i) => sum + parseFloat(i.total || i.invoice_data?.total || 0), 0);
-
-      const receivedThisMonth = invoices
-        .filter(i => {
-          if (i.status !== 'paid') return false;
-          const d = new Date(i.updated_at || i.created_at);
-          return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-        })
-        .reduce((sum, i) => sum + parseFloat(i.total || i.invoice_data?.total || 0), 0);
-
-      const overdueCount = invoices.filter(i => {
-        if (['paid', 'cancelled'].includes(i.status)) return false;
-        if (i.status === 'overdue') return true;
-        const due = i.invoice_data?.due_date || i.invoice_data?.dueDate;
-        return due && new Date(due) < now;
-      }).length;
-
-      const recentActivity = [...invoices]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 3)
-        .map(inv => ({
-          invoice_id: inv.invoice_id,
-          client_name: inv.customer_name || inv.invoice_data?.billTo?.company || inv.invoice_data?.billTo?.name || 'Unknown',
-          amount: parseFloat(inv.total || inv.invoice_data?.total || 0),
-          status: inv.status || 'draft',
-          date: inv.created_at,
-        }));
-
       setAllInvoices(invoices);
-      setDashboardMetrics({ outstanding, receivedThisMonth, overdueCount, recentActivity });
 
       const completedFlag = localStorage.getItem('sp_onboarding_completed') === 'true';
       if (!completedFlag && invoices.length === 0 && !userName) {

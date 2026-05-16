@@ -94,7 +94,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         "description": item.description,
                         "quantity": str(item.quantity),
                         "unit_price": str(item.unit_price),
-                        "total": str(item.total)
+                        "total": str(item.total),
+                        "taxable": item.taxable
                     }
                     for item in invoice.data.line_items
                 ],

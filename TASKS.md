@@ -1,12 +1,7 @@
 # ScatterPilot Task Board
 
 ## In Progress
-
-### [Backend] Bedrock Tool Use upgrade — 2026-05-15
-Implementing native Bedrock Tool Use (Function Calling) in `bedrock_client.py` and `models.py`.
-Replaces brittle regex/JSON-parsing approach with structured tool calls (`invoice_generator`, `cancel_invoice`).
-Does NOT include `repository.py` — that requires infra coordination (new table not yet deployed).
-Self-contained change to common layer; no infra changes required.
+(agents update this section when they start work)
 
 ## Blocked
 (list tasks waiting on another agent)
@@ -48,8 +43,24 @@ Reviewed all 35 Lambda handlers and shared layer. All handlers consistent in sec
 ### [Tech Lead] Merge dev/infra → main — 2026-04-11
 Merged `feat(infra): wire ReportsSummaryFunction + add 6 missing log groups`. SAM deploy needed to bring `/reports/summary` endpoint live.
 
+### [Backend] Bedrock Tool Use upgrade — 2026-05-15
+Upgraded `bedrock_client.py` and `models.py` to use Bedrock native Tool Use:
+- `INVOICE_GENERATOR_TOOL_SPEC` / `CANCEL_INVOICE_TOOL_SPEC` defined with JSON Schema aligned to `InvoiceData`
+- `converse()` accepts and forwards `tool_config`; `BedrockRequest.to_api_params()` serializes it as `toolConfig`
+- `BedrockResponse` now parses `tool_use` content blocks (tool_name, tool_use_id, tool_use_input)
+- `process_conversation_turn()` detects `stop_reason == "tool_use"` and returns `extracted_data` from tool input — zero regex, zero `json.loads`
+- `_extract_json_from_response()` removed
+- System prompt updated: model now uses tools, never outputs raw JSON
+- `conversation.py` handler unchanged — `extracted_data` shape is identical
+- SAM build passes
+
+**Note:** Commit `746c4dc` landed on `dev/infra` (not `dev/backend`) — the untracked `conversation_v2.asl.json` was co-staged and included. Both changes are logically coupled (ASL uses `stop_reason == "tool_use"`, backend now produces it). Awaiting Tech Lead merge to main.
+
 ## Needs Review
 (tasks waiting for Tech Lead to merge to main)
+
+### [Backend+Infra] Bedrock Tool Use + Step Functions hardening — `dev/infra` commit `746c4dc`
+Backend + Infra changes committed together (logically coupled). Ready for Tech Lead review and merge to main.
 
 ## Notes Between Agents
 

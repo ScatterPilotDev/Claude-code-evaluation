@@ -1805,53 +1805,6 @@ Resources:
       LogGroupName: !Sub /aws/lambda/ScatterPilot-MarketingTasks-${Environment}
       RetentionInDays: 30
 
-  # ---------------------------------------------------------------------------
-  # State Machines
-  # ---------------------------------------------------------------------------
-  ScatterPilotStateMachine:
-    Type: AWS::Serverless::StateMachine
-    Properties:
-      DefinitionUri: statemachine/conversation_v2.asl.json
-      DefinitionSubstitutions:
-        ConversationsTable: !Ref ConversationsTable
-        ScatterPilotMainTable: !Ref ScatterPilotMainTable
-        CreateInvoiceFunction: !Ref CreateInvoiceFunction
-      Type: EXPRESS
-      Logging:
-        Level: ALL
-        IncludeExecutionData: true
-        Destinations:
-          - CloudWatchLogsLogGroup:
-              LogGroupArn: !GetAtt StateMachineLogGroup.Arn
-      Policies:
-        - Statement:
-            - Sid: BedrockInvokePolicy
-              Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-              Resource: "*"
-            - Sid: DynamoDBPutPolicy
-              Effect: Allow
-              Action:
-                - dynamodb:PutItem
-                - dynamodb:GetItem
-              Resource:
-                - !GetAtt ScatterPilotMainTable.Arn
-                - !GetAtt ConversationsTable.Arn
-            - Sid: LambdaInvokePolicy
-              Effect: Allow
-              Action:
-                - lambda:InvokeFunction
-              Resource: !GetAtt CreateInvoiceFunction.Arn
-      Tags:
-        Environment: !Ref Environment
-        Application: ScatterPilot
-
-  StateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/vendedlogs/states/ScatterPilot-Conversation-V2-${Environment}
-      RetentionInDays: 30
 
   # GetUserProfileLogGroup omitted — /aws/lambda/ScatterPilot-GetProfile-staging
   # already exists in AWS (auto-created by Lambda), not managed by CloudFormation.

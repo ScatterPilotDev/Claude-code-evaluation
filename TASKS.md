@@ -13,6 +13,12 @@ Self-contained change to common layer; no infra changes required.
 
 ## Completed
 
+### [Frontend] Reports UI — 403 PlanRestricted handling — 2026-05-15
+`ReportsPage.jsx` and `api.js` already had the full Reports UI implemented (charts, UpgradeBanner, plan gating via `canAccessFeature`). Added backend-level 403 `PlanRestricted` handling:
+- `api.getReportsSummary()`: detects 403 + `body.error === 'PlanRestricted'` and throws a typed error with `err.code = 'PlanRestricted'`
+- `ReportsPage`: tracks `planRestricted` state separately; renders `UpgradeBanner` on `PlanRestricted` code (not a generic danger box)
+Build passes. Pushed to `dev/frontend`.
+
 ### [Infra] Step Functions ASL + infrastructure hardening — 2026-05-15
 Committed `statemachine/conversation_v2.asl.json` with the following fixes:
 - Model ID updated from deprecated `claude-3-sonnet-20240229` to `us.anthropic.claude-sonnet-4-6`

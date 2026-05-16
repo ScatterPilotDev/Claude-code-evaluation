@@ -151,56 +151,60 @@ export default function InvoiceCreationPanel({
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="fixed right-0 top-0 bottom-0 w-full md:w-[480px] bg-surface-card shadow-modal z-50 flex flex-col"
           >
-            {/* Premium header */}
-            <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-b from-sage-50 to-white border-b border-surface-border flex-shrink-0">
+            {/* Dark header bar */}
+            <div className="flex items-center justify-between px-5 py-4 bg-[#1A2318] flex-shrink-0">
               <div className="flex items-center gap-3">
-                {/* SP logo mark */}
-                <div className="w-8 h-8 rounded-lg bg-sage-500 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[11px] font-bold text-white tracking-tight">SP</span>
+                {/* SP logo mark on dark background */}
+                <div className="w-8 h-8 rounded-lg bg-[#3D5636] border border-[#4A6741]/50 flex items-center justify-center flex-shrink-0">
+                  <span className="text-[11px] font-bold text-sage-200 tracking-wide">SP</span>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-body font-semibold text-ink-primary">ScatterPilot AI</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] font-semibold text-white tracking-[-0.01em]">ScatterPilot AI</span>
+                    {/* Pulsing online indicator */}
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+                    </span>
                   </div>
-                  <p className="text-[11px] text-ink-tertiary leading-none mt-0.5">Invoice assistant</p>
+                  <p className="text-[11px] text-sage-400 leading-none mt-0.5">Invoice Assistant</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {viewMode === 'created' && (
                   <button
                     onClick={handleNewInvoice}
-                    className="text-body-sm text-sage-500 hover:text-sage-600 font-medium transition-colors duration-150 px-2 py-1"
+                    className="text-[12px] text-sage-300 hover:text-white font-medium transition-colors duration-150 px-2 py-1"
                   >
                     New invoice
                   </button>
                 )}
                 <button
                   onClick={handleClose}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-ink-tertiary hover:text-ink-primary transition-colors duration-150"
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-sage-400 hover:text-white transition-colors duration-150"
                   aria-label="Close panel"
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                 </button>
               </div>
             </div>
 
-            {/* Resume conversation prompt */}
+            {/* Resume conversation prompt — dark themed */}
             {showResumePrompt && (
-              <div className="px-5 py-3 bg-sage-50 border-b border-sage-100 flex items-center justify-between gap-3 flex-shrink-0">
-                <p className="text-body-sm text-ink-secondary">Resume your previous conversation?</p>
+              <div className="px-5 py-3 bg-[#243320] border-b border-[#1A2318]/60 flex items-center justify-between gap-3 flex-shrink-0">
+                <p className="text-[12.5px] text-sage-300">Resume your previous conversation?</p>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={handleStartFresh}
-                    className="text-body-sm text-ink-tertiary hover:text-ink-secondary transition-colors"
+                    className="text-[12px] text-sage-500 hover:text-sage-200 transition-colors"
                   >
                     Start fresh
                   </button>
                   <button
                     onClick={handleResume}
-                    className="px-3 py-1.5 bg-sage-500 text-white text-body-sm font-medium rounded-button hover:bg-sage-600 transition-colors"
+                    className="px-3 py-1.5 bg-sage-500 text-white text-[12px] font-medium rounded-full hover:bg-sage-600 transition-colors"
                   >
                     Resume
                   </button>

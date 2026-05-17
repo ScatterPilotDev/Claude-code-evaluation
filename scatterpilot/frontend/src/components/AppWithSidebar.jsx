@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from './ui/Layout';
 import InvoiceCreationPanel from './InvoiceCreationPanel';
+import InvoiceCreationPage from './InvoiceCreationPage';
 import DashboardHome from './DashboardHome';
 import InvoicesPage from './InvoicesPage';
 import ClientsPage from './ClientsPage';
@@ -68,14 +69,15 @@ export default function AppWithSidebar() {
 
   // Derive current section from URL
   const pathname = location.pathname;
-  const isHome         = pathname === '/app';
-  const isInvoicesList = pathname === '/app/invoices';
-  const isClients      = pathname === '/app/clients';
-  const isClientDetail = pathname.startsWith('/app/clients/');
-  const isReports      = pathname.startsWith('/app/reports');
-  const isSettings     = pathname.startsWith('/app/settings');
-  const isProfile      = pathname === '/app/profile';
-  const isPricing      = pathname === '/app/pricing';
+  const isHome            = pathname === '/app';
+  const isInvoicesList    = pathname === '/app/invoices';
+  const isInvoiceCreation = pathname.startsWith('/app/invoice/');
+  const isClients         = pathname === '/app/clients';
+  const isClientDetail    = pathname.startsWith('/app/clients/');
+  const isReports         = pathname.startsWith('/app/reports');
+  const isSettings        = pathname.startsWith('/app/settings');
+  const isProfile         = pathname === '/app/profile';
+  const isPricing         = pathname === '/app/pricing';
 
   // Access helpers derived from billing state
   const isTrialExpired = billingStatus?.access?.reason === 'trial_expired' ||
@@ -91,8 +93,7 @@ export default function AppWithSidebar() {
       setShowExpiredModal(true);
       return;
     }
-    setPanelClientContext(clientName || null);
-    setIsPanelOpen(true);
+    navigate('/app/invoice/new', { state: clientName ? { clientName } : null });
   };
 
   const closePanel = () => {
@@ -340,6 +341,16 @@ export default function AppWithSidebar() {
             openPanel(clientName);
           }
         }}
+      />
+    );
+  }
+
+  // ── Invoice creation — full-screen three-pane layout (no sidebar) ───────────
+  if (isInvoiceCreation) {
+    return (
+      <InvoiceCreationPage
+        subscription={subscription}
+        userEmail={userEmail}
       />
     );
   }

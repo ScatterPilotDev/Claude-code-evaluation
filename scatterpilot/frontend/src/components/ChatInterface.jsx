@@ -189,9 +189,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
     (last, m, i) => (m.role === 'system' && m.content === 'invoice_created' ? i : last), -1
   );
 
-  const placeholder = viewMode === 'created'
-    ? (isMobile ? 'Ask to change something…' : 'Ask to change something… (Enter to send)')
-    : (isMobile ? 'Who are you invoicing?' : 'Who are you invoicing? (Enter to send)');
+  const placeholder = 'Message ScatterPilot AI…';
 
   // ── SP avatar ────────────────────────────────────────────────────────────────
 
@@ -202,25 +200,25 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
   );
 
   const UserAvatar = () => (
-    <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0 ring-2 ring-white">
-      <span className="text-[9px] font-bold text-sage-700">U</span>
+    <div className="w-7 h-7 rounded-full bg-[#F4F7F3] border border-[#E2E5DE] flex items-center justify-center flex-shrink-0">
+      <span className="text-[9px] font-bold text-[#4A6741]">U</span>
     </div>
   );
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F7F3]">
+    <div className="flex flex-col h-full bg-white">
 
       {/* Customer context banner */}
       {customerName && viewMode !== 'viewing' && (
-        <div className="px-5 py-2.5 bg-white border-b border-surface-border flex items-center justify-between">
+        <div className="px-5 py-2.5 bg-[#F4F7F3] border-b border-[#E2E5DE] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-3 h-3 text-sage-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-5 h-5 rounded-full bg-white border border-[#E2E5DE] flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-[#4A6741]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <span className="text-[12.5px] text-sage-700 font-medium">Invoicing {customerName}</span>
+            <span className="text-[12.5px] text-[#4A6741] font-medium">Invoicing {customerName}</span>
           </div>
           <button onClick={() => setCustomerName(null)}
             className="text-ink-tertiary hover:text-ink-secondary transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -261,7 +259,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                 return (
                   <motion.div key={idx}
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    className="pl-9">
+                    className="pl-[40px]">
                     <div className="rounded-2xl overflow-hidden border border-sage-200 shadow-sm bg-white">
                       <div className="flex items-center gap-2 px-4 py-2.5 bg-sage-50 border-b border-sage-100">
                         <div className="w-4 h-4 rounded-full bg-sage-500 flex items-center justify-center flex-shrink-0">
@@ -321,45 +319,43 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
               return (
                 <motion.div
                   key={idx}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18 }}
-                  className={`flex items-end gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-start gap-3 py-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {msg.role === 'assistant' && <SpAvatar />}
 
-                  <div className={`max-w-[78%] text-[13px] leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-[#3D5636] text-white rounded-2xl rounded-br-sm px-4 py-3'
-                      : 'bg-white border-l-2 border-sage-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm text-ink-primary'
+                  <div className={`text-[14px] leading-[1.6] text-[#1A2318] ${
+                    msg.role === 'user' ? 'max-w-[72%] text-right' : 'flex-1 min-w-0'
                   }`}>
                     {msg.role === 'assistant' ? (
                       <>
                         <ReactMarkdown
                           components={{
-                            p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-ink-primary" {...props} />,
-                            strong: ({node, ...props}) => <strong className="font-semibold text-ink-primary" {...props} />,
+                            p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-[#1A2318]" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-semibold text-[#1A2318]" {...props} />,
                             ul: ({node, ...props}) => <ul className="list-disc ml-4 my-2 space-y-1" {...props} />,
                             ol: ({node, ...props}) => <ol className="list-decimal ml-4 my-2 space-y-1" {...props} />,
-                            li: ({node, ...props}) => <li className="my-0.5 text-ink-primary" {...props} />,
+                            li: ({node, ...props}) => <li className="my-0.5 text-[#1A2318]" {...props} />,
                             code: ({node, inline, ...props}) =>
                               inline
-                                ? <code className="bg-sage-50 px-1 py-0.5 rounded text-xs font-mono text-sage-700" {...props} />
-                                : <code className="block bg-sage-50 p-3 rounded-xl my-2 text-xs font-mono overflow-x-auto text-sage-700" {...props} />,
+                                ? <code className="bg-[#F4F7F3] px-1.5 py-0.5 rounded text-[12px] font-mono text-[#4A6741]" {...props} />
+                                : <code className="block bg-[#F4F7F3] p-3 rounded-lg my-2 text-[12px] font-mono overflow-x-auto text-[#4A6741]" {...props} />,
                           }}
                         >
                           {filtered}
                         </ReactMarkdown>
                         {isSpeaking && idx === currentlySpeakingMessageId && (
-                          <span className="inline-flex items-center gap-1 ml-2 text-sage-400">
-                            <span className="w-1 h-2.5 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <span className="w-1 h-3.5 bg-sage-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <span className="w-1 h-2.5 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          <span className="inline-flex items-center gap-1 ml-2 text-[#8BA888]">
+                            <span className="w-1 h-2.5 bg-[#8BA888] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 h-3.5 bg-[#4A6741] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1 h-2.5 bg-[#8BA888] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                           </span>
                         )}
                       </>
                     ) : (
-                      <p className="whitespace-pre-wrap text-white/95">{filtered}</p>
+                      <p className="whitespace-pre-wrap text-[#1A2318]">{filtered}</p>
                     )}
                   </div>
 
@@ -374,7 +370,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.25 }}
-                className="pl-9 flex flex-col gap-2 pt-1"
+                className="pl-[40px] flex flex-col gap-1.5 pt-1"
               >
                 {SUGGESTION_CHIPS.map((chip, i) => (
                   <motion.button
@@ -383,9 +379,9 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.18 + i * 0.07 }}
                     onClick={() => { setInput(chip); setTimeout(() => inputRef.current?.focus(), 50); }}
-                    className="text-left px-3.5 py-2 text-[12.5px] text-sage-700 bg-white border border-sage-200 rounded-xl hover:bg-sage-50 hover:border-sage-300 hover:shadow-sm transition-all duration-150 font-medium w-fit"
+                    className="text-left px-3 py-1.5 text-[13px] text-[#4A6741] bg-white border border-[#E2E5DE] rounded-lg hover:border-[#4A6741] hover:bg-[#F4F7F3] transition-all duration-150 w-fit"
                   >
-                    {chip} →
+                    {chip}
                   </motion.button>
                 ))}
               </motion.div>
@@ -402,17 +398,15 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                   className="flex items-end gap-2.5 justify-start"
                 >
                   <SpAvatar />
-                  <div className="bg-white border-l-2 border-sage-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-                    <div className="flex items-center gap-1.5">
-                      {[0, 0.2, 0.4].map((delay, i) => (
-                        <motion.div
-                          key={i}
-                          className="w-1.5 h-1.5 bg-sage-400 rounded-full"
-                          animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
-                          transition={{ duration: 0.7, repeat: Infinity, delay, ease: 'easeInOut' }}
-                        />
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-1.5 py-2">
+                    {[0, 0.2, 0.4].map((delay, i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1.5 h-1.5 bg-[#8BA888] rounded-full"
+                        animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 0.7, repeat: Infinity, delay, ease: 'easeInOut' }}
+                      />
+                    ))}
                   </div>
                 </motion.div>
               )}
@@ -440,13 +434,13 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
       )}
 
       {/* Input area — elevated unified container */}
-      <div className="px-4 md:px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-surface-border bg-white flex-shrink-0">
+      <div className="px-4 md:px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-[#E2E5DE] bg-white flex-shrink-0">
         {viewMode === 'viewing' ? (
-          <div className="flex items-center justify-center py-3 text-[13px] text-ink-secondary bg-surface-muted rounded-xl min-h-[44px]">
+          <div className="flex items-center justify-center py-3 text-[13px] text-[#8A9484] bg-[#F4F7F3] rounded-lg min-h-[44px]">
             Read-only — create a new invoice to chat
           </div>
         ) : (
-          <div className="relative flex items-end bg-white rounded-xl border border-[#C8CEC3] shadow-sm focus-within:border-sage-400 focus-within:ring-2 focus-within:ring-sage-500/10 transition-all duration-200 overflow-hidden">
+          <div className="relative flex items-end bg-[#F9FAFB] rounded-lg border border-[#E2E5DE] focus-within:border-[#4A6741] focus-within:ring-1 focus-within:ring-[#4A6741]/20 transition-all duration-200 overflow-hidden">
             {isListening && (
               <div className="absolute top-2.5 left-4 flex items-center gap-1.5 text-[11px] text-danger-400 font-medium pointer-events-none">
                 <span className="w-1.5 h-1.5 bg-danger-400 rounded-full animate-pulse" />
@@ -482,8 +476,8 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
                     toggleListening();
                   }}
                   className={`
-                    flex items-center justify-center rounded-full transition-all duration-150 flex-shrink-0
-                    ${isListening ? 'bg-danger-400 text-white animate-pulse' : 'bg-sage-50 text-sage-500 hover:bg-sage-100'}
+                    flex items-center justify-center rounded-md transition-all duration-150 flex-shrink-0
+                    ${isListening ? 'bg-danger-400 text-white animate-pulse' : 'text-[#8BA888] hover:text-[#4A6741]'}
                     ${isMobile ? 'w-10 h-10 min-w-[40px] min-h-[40px]' : 'w-8 h-8'}
                   `}
                   title={isListening ? 'Stop recording' : 'Voice input'}
@@ -499,7 +493,7 @@ const ChatInterface = forwardRef(({ onInvoiceGenerated, viewMode = 'new', onNewI
               <button
                 onClick={() => handleSend(false)}
                 disabled={!input.trim() || loading}
-                className="px-4 py-2 bg-sage-500 hover:bg-sage-600 text-white text-[13px] font-semibold rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 min-h-[36px] whitespace-nowrap"
+                className="px-4 py-2 bg-[#4A6741] hover:bg-[#3D5636] text-white text-[13px] font-medium rounded-md disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 min-h-[36px] whitespace-nowrap"
               >
                 Send
               </button>

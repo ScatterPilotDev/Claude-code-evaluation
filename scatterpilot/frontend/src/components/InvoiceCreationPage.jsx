@@ -107,14 +107,71 @@ const NAV_ITEMS = [
   { label: 'Profile',  path: '/app/profile',  Icon: IconProfile },
 ];
 
-// ── History Rail (desktop left panel, dark) ───────────────────────────────────
+// ── History Rail (desktop left panel, light) ──────────────────────────────────
+
+const RECENTS_LIMIT = 8;
 
 function HistoryRail({ conversations, activeId, userEmail, initials, onNewInvoice }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [isRecentsOpen, setIsRecentsOpen] = useState(() => {
+    try { return localStorage.getItem('sp_recents_open') !== 'false'; } catch { return true; }
+  });
+  const [showAll, setShowAll] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [customTitles, setCustomTitles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sp_conv_titles') || '{}'); } catch { return {}; }
+  });
+
+  const toggleRecents = () => {
+    const next = !isRecentsOpen;
+    setIsRecentsOpen(next);
+    try { localStorage.setItem('sp_recents_open', String(next)); } catch {}
+  };
+
+  const getTitle = (conv) => {
+    if (customTitles[conv.conversation_id]) return customTitles[conv.conversation_id];
+    if (conv.client_name) return `${conv.client_name} Invoice`;
+    if (conv.title) return conv.title;
+    const date = conv.updated_at || conv.created_at;
+    if (date) {
+      try {
+        const d = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `Invoice · ${d}`;
+      } catch {}
+    }
+    return 'New Invoice';
+  };
+
+  const startEdit = (conv, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingId(conv.conversation_id);
+    setEditingTitle(getTitle(conv));
+  };
+
+  const commitEdit = (id) => {
+    const trimmed = editingTitle.trim();
+    if (trimmed) {
+      const next = { ...customTitles, [id]: trimmed };
+      setCustomTitles(next);
+      try { localStorage.setItem('sp_conv_titles', JSON.stringify(next)); } catch {}
+    }
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const visibleConvs = showAll ? conversations : conversations.slice(0, RECENTS_LIMIT);
+  const hasMore = conversations.length > RECENTS_LIMIT;
+
   return (
-    <div className="hidden lg:flex w-[220px] flex-shrink-0 flex-col h-full bg-[#1A2318]">
+    <div className="hidden lg:flex w-[220px] flex-shrink-0 flex-col h-full bg-white border-r border-[#E2E5DE]">
 
       {/* Logo */}
       <div className="px-4 pt-5 pb-4 flex-shrink-0">
@@ -122,7 +179,7 @@ function HistoryRail({ conversations, activeId, userEmail, initials, onNewInvoic
           <div className="w-8 h-8 rounded-lg bg-[#4A6741] flex items-center justify-center flex-shrink-0">
             <span className="text-[11px] font-bold text-white tracking-wide">SP</span>
           </div>
-          <span className="text-[15px] font-medium text-white">ScatterPilot</span>
+          <span className="text-[15px] font-medium text-[#1A2318]">ScatterPilot</span>
         </div>
       </div>
 
@@ -141,41 +198,118 @@ function HistoryRail({ conversations, activeId, userEmail, initials, onNewInvoic
 
       {/* Conversation history (scrollable) */}
       <div className="flex-1 overflow-y-auto min-h-0 px-3">
-        <p className="text-[11px] uppercase tracking-wide text-[#5F6B5A] px-1.5 pt-1 pb-2">Recent</p>
-        {conversations.length === 0 && (
-          <p className="text-[12px] text-[#3D5636] px-1.5 py-1">No recent conversations</p>
+
+        {/* Collapsible RECENT header */}
+        <button
+          onClick={toggleRecents}
+          className="w-full flex items-center justify-between px-1.5 pt-1 pb-2 text-[#8A9484] hover:text-[#5F6B5A] transition-colors"
+        >
+          <span className="text-[11px] uppercase tracking-wide font-medium">Recent</span>
+          <svg
+            className={`w-3 h-3 transition-transform duration-200 ${isRecentsOpen ? '' : '-rotate-90'}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        {isRecentsOpen && (
+          <>
+            {conversations.length === 0 && (
+              <p className="text-[12px] text-[#C8CEC3] px-1.5 py-1">No recent conversations</p>
+            )}
+            {visibleConvs.map(conv => {
+              const isActive = conv.conversation_id === activeId;
+              const title = getTitle(conv);
+              const dateStr = formatDate(conv.updated_at || conv.created_at);
+              const isEditing = editingId === conv.conversation_id;
+
+              return (
+                <div
+                  key={conv.conversation_id}
+                  className={`group relative rounded-md transition-colors mb-0.5 ${
+                    isActive
+                      ? 'bg-[#F4F7F3] border-l-2 border-[#4A6741]'
+                      : 'hover:bg-[#F4F7F3] border-l-2 border-transparent'
+                  }`}
+                >
+                  <button
+                    onClick={() => !isEditing && navigate(`/app/invoice/${conv.conversation_id}`)}
+                    onDoubleClick={e => startEdit(conv, e)}
+                    className="w-full text-left px-3 py-2 pr-8"
+                  >
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={editingTitle}
+                        onChange={e => setEditingTitle(e.target.value)}
+                        onBlur={() => commitEdit(conv.conversation_id)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitEdit(conv.conversation_id); }
+                          if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        className="w-full text-[13px] font-medium text-[#1A2318] bg-transparent border-0 border-b border-[#CEDCC9] focus:outline-none focus:border-[#4A6741] leading-tight pb-0.5"
+                      />
+                    ) : (
+                      <p className={`text-[13px] truncate leading-tight ${isActive ? 'font-medium text-[#1A2318]' : 'text-[#5F6B5A]'}`}>
+                        {title}
+                      </p>
+                    )}
+                    {dateStr && !isEditing && (
+                      <p className="text-[11px] text-[#8A9484] mt-0.5 truncate">{dateStr}</p>
+                    )}
+                  </button>
+
+                  {/* Pencil edit button — shown on hover */}
+                  {!isEditing && (
+                    <button
+                      onClick={e => startEdit(conv, e)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Rename"
+                    >
+                      <svg className="w-3 h-3 text-[#C8CEC3] hover:text-[#5F6B5A] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Show all / Show less */}
+            {hasMore && (
+              <button
+                onClick={() => setShowAll(v => !v)}
+                className="w-full text-left px-3 py-1.5 text-[13px] text-[#8A9484] hover:text-[#5F6B5A] transition-colors"
+              >
+                {showAll ? 'Show less' : `Show all (${conversations.length})`}
+              </button>
+            )}
+          </>
         )}
-        {conversations.map(conv => {
-          const isActive = conv.conversation_id === activeId;
-          const title = conv.client_name || conv.title || 'New Invoice';
-          const sub = conv.total ? `$${parseFloat(conv.total).toFixed(2)}` : formatDate(conv.updated_at || conv.created_at);
-          return (
-            <button
-              key={conv.conversation_id}
-              onClick={() => navigate(`/app/invoice/${conv.conversation_id}`)}
-              className={`w-full text-left px-3 py-2 rounded-md transition-colors mb-0.5 ${
-                isActive
-                  ? 'bg-white/10 text-white'
-                  : 'text-[#8BA888] hover:bg-white/[0.05] hover:text-[#CEDCC9]'
-              }`}
-            >
-              <p className="text-[13px] font-medium truncate leading-tight">{title}</p>
-              {sub && <p className="text-[12px] text-[#5F6B5A] mt-0.5 truncate">{sub}</p>}
-            </button>
-          );
-        })}
+
+        {/* Collapsed summary */}
+        {!isRecentsOpen && conversations.length > 0 && (
+          <p className="text-[12px] text-[#8A9484] px-1.5 py-1">
+            {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+          </p>
+        )}
       </div>
 
       {/* Bottom nav links */}
-      <div className="flex-shrink-0 mt-auto border-t border-white/[0.08] pt-2 pb-1">
+      <div className="flex-shrink-0 mt-auto border-t border-[#E2E5DE] pt-2 pb-1">
         {NAV_ITEMS.map(({ path, label, Icon }) => {
-          const isActive = location.pathname.startsWith(path);
+          const isNavActive = location.pathname.startsWith(path);
           return (
             <Link
               key={path}
               to={path}
-              className={`flex items-center gap-2.5 px-3 py-2 mx-1 rounded-md text-[13px] transition-colors ${
-                isActive ? 'text-white bg-white/[0.06]' : 'text-[#5F6B5A] hover:text-[#8BA888]'
+              className={`flex items-center gap-2.5 py-2 mx-2 rounded-md text-[14px] transition-colors ${
+                isNavActive
+                  ? 'px-2 text-[#4A6741] bg-[#F4F7F3] border-l-2 border-[#4A6741] rounded-l-none -ml-[1px]'
+                  : 'px-3 text-[#5F6B5A] hover:text-[#1A2318] hover:bg-[#F4F7F3]'
               }`}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -186,9 +320,9 @@ function HistoryRail({ conversations, activeId, userEmail, initials, onNewInvoic
       </div>
 
       {/* User info */}
-      <div className="flex-shrink-0 px-3 py-3 border-t border-white/[0.08] flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-full bg-[#2D4A2D] flex items-center justify-center flex-shrink-0">
-          <span className="text-[10px] font-bold text-white">{initials}</span>
+      <div className="flex-shrink-0 px-3 py-3 border-t border-[#E2E5DE] bg-[#F4F7F3] flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-full bg-[#CEDCC9] flex items-center justify-center flex-shrink-0">
+          <span className="text-[10px] font-bold text-[#4A6741]">{initials}</span>
         </div>
         <span className="text-[12px] text-[#5F6B5A] truncate flex-1 min-w-0">{userEmail}</span>
       </div>
@@ -519,7 +653,7 @@ export default function InvoiceCreationPage({ subscription, userEmail: propEmail
             >
               <IconBack className="w-5 h-5" />
             </button>
-            <h1 className="text-[15px] font-semibold text-[#1A2318] truncate">{conversationTitle}</h1>
+            <h1 className="text-[15px] font-medium text-[#1A2318] truncate">{conversationTitle}</h1>
             {isInvoiceReady && (
               <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#CEDCC9] text-[#3D5636]">
                 Ready
@@ -541,7 +675,7 @@ export default function InvoiceCreationPage({ subscription, userEmail: propEmail
             {!isMobile && !isTablet && (
               <button
                 onClick={handleNewInvoice}
-                className="text-[12.5px] text-[#5F6B5A] hover:text-[#1A2318] transition-colors px-2 py-1 rounded-md hover:bg-[#F4F7F3]"
+                className="text-[13px] text-[#8BA888] hover:text-[#5F6B5A] transition-colors"
               >
                 New conversation
               </button>
@@ -565,9 +699,9 @@ export default function InvoiceCreationPage({ subscription, userEmail: propEmail
       <div className="hidden lg:flex w-[380px] flex-shrink-0 border-l border-[#E2E5DE] flex-col h-full bg-white">
         {/* Pane header */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#E2E5DE] flex-shrink-0">
-          <span className="text-[11px] uppercase tracking-widest text-[#4A6741] font-bold">Invoice Preview</span>
-          <span className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full ${
-            isInvoiceReady ? 'bg-[#CEDCC9] text-[#3D5636]' : 'bg-[#F4F7F3] text-[#5F6B5A]'
+          <span className="text-[11px] uppercase tracking-wide text-[#8A9484] font-medium">Invoice Preview</span>
+          <span className={`text-[10.5px] font-medium px-2.5 py-1 rounded-full border ${
+            isInvoiceReady ? 'bg-[#CEDCC9] text-[#3D5636] border-[#B5CEAF]' : 'bg-[#F4F7F3] text-[#8A9484] border-[#E2E5DE]'
           }`}>
             {isInvoiceReady ? 'Ready' : 'Draft'}
           </span>
@@ -601,8 +735,8 @@ export default function InvoiceCreationPage({ subscription, userEmail: propEmail
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E2E5DE] flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                   <span className="text-[14px] font-semibold text-[#1A2318]">Invoice Preview</span>
-                  <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full ${
-                    isInvoiceReady ? 'bg-[#CEDCC9] text-[#3D5636]' : 'bg-[#F4F7F3] text-[#5F6B5A]'
+                  <span className={`text-[10.5px] font-medium px-2 py-0.5 rounded-full border ${
+                    isInvoiceReady ? 'bg-[#CEDCC9] text-[#3D5636] border-[#B5CEAF]' : 'bg-[#F4F7F3] text-[#8A9484] border-[#E2E5DE]'
                   }`}>
                     {isInvoiceReady ? 'Ready' : 'Draft'}
                   </span>
@@ -645,8 +779,8 @@ export default function InvoiceCreationPage({ subscription, userEmail: propEmail
               <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E5DE] flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                   <span className="text-[14px] font-semibold text-[#1A2318]">Invoice Preview</span>
-                  <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full ${
-                    isInvoiceReady ? 'bg-[#CEDCC9] text-[#3D5636]' : 'bg-[#F4F7F3] text-[#5F6B5A]'
+                  <span className={`text-[10.5px] font-medium px-2 py-0.5 rounded-full border ${
+                    isInvoiceReady ? 'bg-[#CEDCC9] text-[#3D5636] border-[#B5CEAF]' : 'bg-[#F4F7F3] text-[#8A9484] border-[#E2E5DE]'
                   }`}>
                     {isInvoiceReady ? 'Ready' : 'Draft'}
                   </span>

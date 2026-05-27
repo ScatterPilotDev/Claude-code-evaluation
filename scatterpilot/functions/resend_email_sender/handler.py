@@ -41,39 +41,27 @@ HANDLED_TRIGGERS = {
 # =============================================================================
 
 def _decrypt_code(encrypted_code, user_pool_id):
-    print(f"[DEBUG] encrypted_code type: {type(encrypted_code)}, length: {len(encrypted_code) if encrypted_code else 'None'}")
-    print(f"[DEBUG] encrypted_code first 50 chars: {str(encrypted_code)[:50]}")
-    print(f"[DEBUG] user_pool_id: {user_pool_id}")
-
     # Try different decode approaches
     try:
         # Cognito may send the code already as bytes or as base64 string
         if isinstance(encrypted_code, str):
-            decoded = base64.b64decode(encrypted_code)
+            decoded = base64.urlsafe_b64decode(encrypted_code + '==')
         else:
             decoded = encrypted_code
-
-        print(f"[DEBUG] decoded length: {len(decoded)}")
 
         response = kms_client.decrypt(
             CiphertextBlob=decoded,
             EncryptionContext={'userPoolId': user_pool_id}
         )
         plaintext = response['Plaintext'].decode('utf-8')
-        print(f"[DEBUG] decryption successful, code length: {len(plaintext)}")
         return plaintext
     except Exception as e:
-        print(f"[ERROR] KMS decrypt failed: {type(e).__name__}: {e}")
-
         # Fallback: try without encryption context
         try:
-            print("[DEBUG] Retrying without encryption context...")
             response = kms_client.decrypt(CiphertextBlob=decoded)
             plaintext = response['Plaintext'].decode('utf-8')
-            print(f"[DEBUG] decrypt without context succeeded, code: {len(plaintext)}")
             return plaintext
         except Exception as e2:
-            print(f"[ERROR] Retry without context also failed: {e2}")
             raise e  # raise original error
 
 

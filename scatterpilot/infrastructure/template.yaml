@@ -427,18 +427,8 @@ Resources:
   # ---------------------------------------------------------------------------
   # Cognito User Pool for Authentication
   # ---------------------------------------------------------------------------
-  # ============================================================
-  # CRITICAL: EmailSendingAccount MUST stay as DEVELOPER.
-  # Cognito only invokes the CustomEmailSender Lambda trigger when
-  # EmailSendingAccount is DEVELOPER. With COGNITO_DEFAULT the trigger
-  # is silently bypassed and the Cognito API rejects the combination on
-  # UserPool update, causing CloudFormation rollback.
-  # The sending domain (scatterpilot.com) is SES-verified with DKIM —
-  # this is a working configuration. DO NOT revert to COGNITO_DEFAULT.
-  # ============================================================
   ScatterPilotUserPool:
     Type: AWS::Cognito::UserPool
-    DependsOn: ResendEmailSenderFunction
     Properties:
       UserPoolName: !Sub ScatterPilot-Users-${Environment}
       AutoVerifiedAttributes:
@@ -467,14 +457,9 @@ Resources:
       UserPoolAddOns:
         AdvancedSecurityMode: ENFORCED
       EmailConfiguration:
-        EmailSendingAccount: DEVELOPER
-        From: authenticate@scatterpilot.com
-        SourceArn: !Sub arn:aws:ses:us-east-1:${AWS::AccountId}:identity/scatterpilot.com
+        EmailSendingAccount: COGNITO_DEFAULT
       LambdaConfig:
-        CustomEmailSender:
-          LambdaArn: !GetAtt ResendEmailSenderFunction.Arn
-          LambdaVersion: V1_0
-        KMSKeyID: !GetAtt CognitoEmailSenderKmsKey.Arn
+        CustomMessage: !GetAtt CustomMessageFunction.Arn
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: false
       UserPoolTags:

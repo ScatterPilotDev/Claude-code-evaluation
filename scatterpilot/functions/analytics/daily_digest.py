@@ -108,6 +108,10 @@ def compute_subscription_stats(
         logger.error("Failed to scan Subscriptions table", error=e)
         return {'error': True}
 
+    # Comped/team/personal accounts aren't real customers — exclude them from
+    # every metric below (MRR, paid/trial counts, signups, etc).
+    users = [u for u in users if not u.get('is_internal')]
+
     total_users      = len(users)
     new_signups_24h  = 0
     trialing         = 0

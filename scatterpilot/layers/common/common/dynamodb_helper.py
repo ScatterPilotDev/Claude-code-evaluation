@@ -969,6 +969,7 @@ class DynamoDBHelper:
         stripe_customer_id: Optional[str] = None,
         stripe_subscription_id: Optional[str] = None,
         trial_expired: Optional[bool] = None,
+        is_internal: Optional[bool] = None,
     ) -> None:
         """
         Update Stripe Billing fields on the user's subscription record.
@@ -985,6 +986,9 @@ class DynamoDBHelper:
             stripe_customer_id:    Stripe cus_... ID.
             stripe_subscription_id: Stripe sub_... ID.
             trial_expired:         True when the trial window has passed.
+            is_internal:           True for comped/team/personal accounts that
+                                    aren't real customers — excluded from the
+                                    daily digest's revenue and signup metrics.
         """
         try:
             update_parts = ['updated_at = :updated_at']
@@ -1013,6 +1017,10 @@ class DynamoDBHelper:
             if trial_expired is not None:
                 update_parts.append('trial_expired = :trial_expired')
                 expr_values[':trial_expired'] = trial_expired
+
+            if is_internal is not None:
+                update_parts.append('is_internal = :is_internal')
+                expr_values[':is_internal'] = is_internal
 
             self.subscriptions_table.update_item(
                 Key={'user_id': user_id},

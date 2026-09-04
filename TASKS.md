@@ -8,6 +8,10 @@
 
 ## Completed
 
+### [Backend] Exclude internal/comped accounts from daily digest — 2026-09-04
+Added `is_internal` flag to subscription records (`update_billing_subscription` in the common layer) and filtered flagged accounts out of every metric in `daily_digest.py` (MRR, paid count, new signups, trialing, stripe-connected). Committed on `dev/backend` (dbfa2ce) — **not pushed**, git push auth failed in-session; needs a manual push.
+Also flagged `ale@techdrop.repair` and `ale@mayrod.tech` as internal directly in `ScatterPilot-Subscriptions-staging` (personal/team accounts, not real customers) and fixed `ale@mayrod.tech`, whose `subscription_status` was the legacy value `"pro"` instead of `"active"` — under `access_control.py` that value isn't recognized, so the account had **no Pro access** until this fix. Deployed the updated `daily_digest.py` directly to `ScatterPilot-DailyDigest-staging` (code-only Lambda update, no stack deploy) and confirmed via a live invoke: MRR/paid-count no longer include either account.
+
 ### [Infra] Wire up ReportsSummaryFunction — 2026-04-11
 Added `ReportsSummaryFunction` to template.yaml: `GET /reports/summary`, CognitoAuthorizer, DynamoDBReadPolicy on InvoicesTable + SubscriptionsTable. Log group added. Unblocks `/reports/summary` endpoint — Frontend agent can now enable the Reports UI once deployed.
 
